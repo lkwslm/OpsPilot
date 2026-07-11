@@ -1,0 +1,15 @@
+# Local Codex and agent runtime state
+.codex/
+.omx/
+.agents/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.log
+
