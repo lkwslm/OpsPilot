@@ -16,10 +16,12 @@
 | Infinity 进程或任一已配置模型不可用 | 有上限 | Embedding、Rerank capability 均置 DOWN；耗尽后返回关联日志的 `ChainFailure`，不切换其他 Provider 或删减检索步骤 |
 | PostgreSQL CAS 冲突 | 可重读后少量重试 | 比较状态版本；不可盲写覆盖 |
 | PostgreSQL 不可用 | 有上限 | 不继续执行 Agent；保留已提交 checkpoint |
+| 专用 Registry ID 冲突/required 实现缺失 | 否 | 启动失败；不按扫描或 Bean 顺序覆盖 |
+| 可选 SSE/metrics projector 失败 | outbox 有界重试 | 隔离投影失败，不回滚已提交诊断状态；超过错误预算告警 |
 | Tool 权限/审批拒绝 | 否 | 记录 `DENIED`，Supervisor 重新规划或结束 |
 | Token/轮数/工具预算超限 | 否无限重试 | 压缩/缩小/拆分后仍不足则 `BUDGET_EXCEEDED` |
 | 知识库为空/无匹配/历史案例不足 | 否 | 合法业务结果；`COMPLETED + NO_MATCH/INSUFFICIENT_HISTORY`，继续现场证据诊断 |
-| A2A 版本/媒体类型/required extension 不兼容 | 否 | 返回标准协议错误，刷新受信 Agent Card 后仍不兼容则拒绝委派 |
+| A2A 版本/媒体类型/required protocol extension 不兼容 | 否 | 返回标准协议错误，刷新受信 Agent Card 后仍不兼容则拒绝委派 |
 | A2A stream 中断/响应不确定 | 不盲重发 | 先 Get/Subscribe 原 Task；确认不存在后才按 messageId 幂等重建 |
 | 连续补证无新 Evidence | 否 | `NO_PROGRESS`，结束为 `PARTIAL/INCONCLUSIVE` 或请求明确输入 |
 
@@ -85,6 +87,7 @@ Incident 总 deadline
 
 ### 18.3 Tool 与审批
 
+- Tool 的固定调用链为 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit`；安全步骤由核心装配，Tool 或 Adapter 不能覆盖、跳过或重排。
 - `READ_ONLY` 默认允许，但仍做输入 Schema、资源范围、超时和返回量检查。
 - `CONTROLLED_EXECUTION` 只允许配置白名单中的 Maven 测试/测试容器动作，按策略审批。
 - `HIGH_RISK` 在 MVP 禁止；即使模型请求或用户审批，也不能执行任意 Shell、代码/配置写入、Git、生产或任意数据库修改。
@@ -123,6 +126,7 @@ Incident 总 deadline
 timestamp, level, service, traceId, spanId, requestId,
 incidentId, runId, agentName, invocationId, toolCallId,
 a2aContextId, a2aTaskId, a2aMessageId, remoteAgentId,
+providerId, adapterId, capabilityVersion,
 logger, thread, message, errorCode, exception
 ```
 

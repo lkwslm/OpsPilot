@@ -9,17 +9,24 @@ opspilot/
 ├── docs/
 │   ├── design/
 │   └── adr/
-├── opspilot-domain/
-├── opspilot-model-provider/
-├── opspilot-observability/
-├── opspilot-agent-core/
-├── opspilot-agent-adapter-agentscope/
-├── opspilot-a2a-contract/
-├── opspilot-a2a-client/
-├── opspilot-a2a-server-adapter/
-├── opspilot-tool-api/
-├── opspilot-tool-impl/
-├── opspilot-rag/
+├── opspilot-core/
+│   ├── domain/
+│   ├── application/
+│   └── port/
+├── opspilot-tools-default/
+├── opspilot-agent-runtime-agentscope/
+├── opspilot-a2a/
+│   ├── contract/
+│   ├── client/
+│   └── server/
+├── opspilot-adapters/
+│   ├── persistence-postgres/
+│   ├── model-openai-compatible/
+│   ├── retrieval-infinity/
+│   ├── knowledge-pgvector/
+│   ├── observability/
+│   ├── code-java/
+│   └── sandbox-maven/
 ├── opspilot-evaluation/
 ├── opspilot-server/
 ├── sample-system/
@@ -44,36 +51,29 @@ opspilot/
 └── scripts/
 ```
 
-部署结构不包含 `deployment/mysql/` 和 `deployment/qdrant/`。`opspilot-model-provider` 为三类模型提供统一 SPI 和 HTTP Adapter；Provider 数量显著增加时再拆分实现模块。
+部署结构不包含 `deployment/mysql/` 和 `deployment/qdrant/`。v3 收敛物理模块数量：领域、应用服务和稳定 Port 共同组成 `opspilot-core`；A2A 的 contract/client/server 先以包级边界共处一个模块；具体实现位于 `opspilot-adapters` 聚合目录。只有独立发布、真实复用或依赖冲突出现时才继续拆分 Maven 模块，不能因为新增一个接口就新建物理模块。
 
 ### 4.2 Java 模块职责与依赖
 
-| 模块 | 职责 | 允许依赖 |
+| 模块 | 高内聚职责 | 允许依赖 |
 |---|---|---|
-| `opspilot-domain` | Incident、Evidence、Hypothesis、Remediation、Approval、Artifact、Evaluation 等纯领域对象和规则 | JDK/轻量校验，不依赖 Spring |
-| `opspilot-model-provider` | Chat/Embedding/Rerank SPI、配置解析、OpenAI-Compatible/Infinity HTTP Adapter、能力校验 | HTTP/JSON；不依赖业务模块 |
-| `opspilot-observability` | 语言/厂商无关的 `ResourceRef`、`ObservationQuery`、`ObservationBatch`、Source Registry、`ObservabilitySourceAdapter`、`EvidenceNormalizer`；首期包含 Prometheus/Jaeger/JSONL/Actuator/Compose Adapter 包 | domain、HTTP/JSON；厂商 SDK 类型只存在于 Adapter 包 |
-| `opspilot-tool-api` | Tool SPI、Schema、权限等级、执行上下文和结果 | domain |
-| `opspilot-agent-core` | `BoundedReActRunner` 策略包装器、状态机、调度器、Context Builder、Token Budget、Agent 结果协议、Repository Port | domain、tool-api、model-provider |
-| `opspilot-agent-adapter-agentscope` | 将 6 个 Agent、工具和结构化输出接入实际 AgentScope Java API | agent-core、tool-api、model-provider |
-| `opspilot-a2a-contract` | 锁定 A2A 1.0 协议模型、OpsPilot Artifact Schema/媒体类型和版本兼容规则；优先使用锁定官方 proto/SDK 生成对象 | 不依赖业务实现 |
-| `opspilot-a2a-client` | Agent Card 获取/校验、受信目录、send/stream/get/cancel/subscribe、鉴权、恢复、幂等和协议错误映射 | a2a-contract、domain port |
-| `opspilot-a2a-server-adapter` | 为 6 个 Agent 暴露 Agent Card 和 A2A HTTP+JSON Server，将协议对象映射到 agent-core | a2a-contract、agent-core |
-| `opspilot-tool-impl` | 日志、指标、Trace、健康、拓扑、配置、代码、知识、沙箱能力 Tool 与中间件；可观测 Tool 只编排 Source Adapter 和 Evidence Normalizer | tool-api、observability、rag |
-| `opspilot-rag` | 文档导入、Chunk、向量版本、召回、元数据过滤、重排和引用 | domain、model-provider、PostgreSQL |
-| `opspilot-evaluation` | 读取隔离 Ground Truth，计算 8 类指标，生成 JSON/Markdown 报告 | domain；使用同一 PostgreSQL 中独立 schema/角色及独立 Artifact 凭证 |
-| `opspilot-server` | REST/SSE、参数校验、错误映射、事务装配、配置启动校验 | 上述应用模块 |
+| `opspilot-core` | Incident、Evidence、Hypothesis、Remediation、Approval、Artifact 等领域规则；Use Case、Supervisor、状态机、Context Builder、预算、checkpoint；Model/Tool/Source/Repository/A2A 等稳定 Port | JDK/轻量校验；不依赖 Spring、AgentScope、A2A SDK、JPA 或厂商实现 |
+| `opspilot-tools-default` | 九个首期 Agent Tool、EvidenceNormalizer、固定输入输出映射；只编排 core Port，不包含厂商客户端 | core |
+| `opspilot-agent-runtime-agentscope` | 把统一 `AgentExecutionService`、六个受版本控制的 `AgentProfile`、工具调用和结构化输出映射到 AgentScope | core；AgentScope API 只存在于此模块 |
+| `opspilot-a2a` | A2A 1.0 协议模型与 Artifact 合同、受信 Client、Server Adapter、Task Store 映射和恢复 | core；A2A SDK/HTTP 类型不能进入 core |
+| `opspilot-adapters/*` | PostgreSQL、模型、检索、Source、代码和沙箱等 Port 实现；每个子模块只围绕一种变化原因 | core；可依赖自己的 HTTP/JSON/JDBC/厂商库，禁止 Adapter 间实现依赖 |
+| `opspilot-evaluation` | 读取隔离 Ground Truth，计算 8 类指标，生成 JSON/Markdown 报告 | core 的只读合同；独立 schema/角色及 Artifact 凭证 |
+| `opspilot-server` | REST/SSE、参数校验、错误映射、配置、专用 Registry 装配和唯一 composition root | core、a2a、agent runtime、选定 adapters |
 
 推荐依赖方向：
 
 ```text
-domain ← tool-api / model-provider / a2a-contract / observability
-       ← agent-core / rag / a2a-client / tool-impl
-       ← agentscope-adapter / a2a-server-adapter / evaluation
-       ← server
+core ← tools-default / agent-runtime / a2a / adapters / evaluation ← server
 ```
 
-禁止循环依赖；AgentScope、A2A SDK、Prometheus/Jaeger/Kubernetes/Cloud SDK 类型不能出现在 domain、tool-api、Agent 或产品 REST DTO 中。专业 Agent 不得依赖 Supervisor 的状态 Repository，也不得直接写 Supervisor 所有的 Incident、Hypothesis 或 RCA 表。若首期 Adapter 的依赖产生冲突，再把 Adapter 实现拆成独立 Maven 模块；核心 Port 和 Schema 不随物理拆分变化。
+模块间默认使用显式类型 Port 直接调用；只有 Agent 逻辑边界使用 A2A，只有事务提交后的多消费者通知使用 Domain Event + outbox。禁止循环依赖、全局 Bean 查找和以 Event Bus 隐藏同步业务依赖。专业 Agent 不得依赖 Supervisor 的状态 Repository，也不得直接写 Supervisor 所有的 Incident、Hypothesis 或 RCA 表。
+
+Provider、Source、Tool、代码分析和沙箱是受控多实现扩展点；状态机、Supervisor、A2A、安全 Policy、Agent 角色发现和 Repository 所有权不是扩展点。完整选择依据和交互规则见第 28 章。
 
 ### 4.3 首期参考被测系统
 
@@ -150,6 +150,8 @@ public interface AgentTool<I, O> {
 `HIGH_RISK`（改代码、改配置、Git、任意 Shell、改数据库、生产操作）在 MVP 禁止执行；审批记录不等于自动放开任意命令。
 
 可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`KnowledgeSearchTool` 不属于外部可观测 Source；代码和沙箱使用独立语言 Adapter。新增 Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
+
+`ToolRegistry` 在启动时由 `opspilot-server` 显式注册并冻结。同名 Tool、Schema major 不兼容或默认 `AgentProfile` 依赖的 Tool 缺失时启动失败；不允许 classpath 扫描后“最后一个实现覆盖”。权限、审批、预算和审计中间件由核心按固定顺序包裹 Tool，Tool/Adapter 无权跳过或重排。
 
 ### 4.6 Agent API 与 SSE
 

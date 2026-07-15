@@ -74,6 +74,8 @@ public interface EvidenceNormalizer {
 
 Source Registry 保存受控信息源配置：`sourceId`、`sourceKind`、启用状态、能力集合、`connectionRef`、作用域、Adapter ID/version、超时、并发限制、数据分级和健康状态。Secret Manager/环境变量解析 `connectionRef`；数据库、Observation、日志和 Agent 上下文都不得保存连接凭证。
 
+Source Registry 是第 28 章的专用 Registry：Adapter 由 composition root 显式装配，启动时检测重复 ID、执行共享合同探针并冻结；MVP 不使用通用 Extension Host、classpath 自动发现或运行时热替换。Source 配置可以增删实例，但 Adapter 实现集合的变化必须重启并生成新的 capability snapshot。
+
 选择流程是确定性的：
 
 1. Tool request 给出 Resource、信号类型、时间窗和查询模板；
@@ -150,7 +152,6 @@ Agent 可见 Tool 名使用能力名称，Adapter 才使用产品名称：
 5. 多源交叉证据不会因 OTel 派生链重复计数；
 6. Agent、RCA、Evaluation 代码中不存在 Prometheus/Jaeger/Spring DTO 或客户端类型；
 7. 禁用 Java 代码/Maven Adapter 后，语言无关诊断仍能输出受限报告，且不生成代码级结论；
-8. 新增 Loki 或 Tempo 测试 Adapter 时，只新增 Adapter、配置和合同测试，不修改 Agent 状态机、Evidence/RCA 表结构或 A2A skill major version。
+8. 新增 Loki 或 Tempo 测试 Adapter 时，只新增 Adapter、配置和合同测试，不修改 `opspilot-core`、Agent 状态机、Evidence/RCA 表结构或 A2A skill major version。
 
 新增 `sourceKind` 是 ObservationBatch minor 版本兼容扩展；改变现有来源语义、Resource 身份或 Evidence 引用规则必须升级 major 并通过 ADR。新增语言/数据源 Adapter 必须通过共享 contract suite、安全审查、空结果/失败区分、分页/限流、来源追溯和脱敏测试。
-

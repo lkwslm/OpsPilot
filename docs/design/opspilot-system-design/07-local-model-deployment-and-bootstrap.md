@@ -362,13 +362,14 @@ flowchart TD
     D --> E["启动 Infinity 并加载两个准确 revision"]
     E --> F["执行 /embeddings + /rerank 双能力探针"]
     F --> G["静态解析默认/Agent 配置"]
-    G --> H["导入非敏感 model/prompt 配置"]
-    H --> I["Embedding 真实探针与维度登记"]
-    I --> J["Rerank 真实排序探针"]
-    J --> K["LLM 真实调用与能力探针"]
-    K --> L["加载并校验 6 个 A2A Agent Card"]
-    L --> M["初始化/校验完整知识链路"]
-    M --> N["core readiness = UP，开放 Incident Run"]
+    G --> H["显式构造 Adapter 并注册到专用 Registry"]
+    H --> I["检测 ID 冲突并冻结候选实现"]
+    I --> J["Embedding/Rerank/LLM 真实能力探针"]
+    J --> K["校验 Agent Profile 所需能力闭包"]
+    K --> L["构建统一 Agent Runtime"]
+    L --> M["加载并校验 6 个 A2A Agent Card"]
+    M --> N["初始化/校验完整知识链路"]
+    N --> O["冻结 capability snapshot，readiness = UP"]
 ```
 
 具体步骤：
@@ -377,13 +378,15 @@ flowchart TD
 2. PostgreSQL init 脚本只预置数据库/角色；Flyway migration role 创建扩展、schema、表、约束和关系索引。
 3. 应用以 `ddl-auto=validate` 验证 ORM，不允许 Hibernate 自动改表。
 4. Infinity 按两个准确 revision 下载到统一缓存并分别预热；镜像 digest、模型 revision 和模型缓存哈希写入部署清单。
-5. 应用合并 Bootstrap 配置、PostgreSQL 非敏感配置和 6 个 Agent 稀疏覆盖，生成去密钥有效配置。
-6. Secret Resolver 检查所有启用 Provider 的 Key 引用；外部 LLM model/Key 为空时进程非零退出。
-7. Provider Registry 对唯一配置执行真实探针：Embedding 检查维度；Rerank 检查 query-document 分数；LLM 检查所需 Chat/Tool/Structured/Stream 能力。任一已声明链路依赖失败都阻止 readiness，不允许替代 Provider、Mock 或缩减链路保底。
-8. Embedding 合同写入/核对 `embedding_model_revision`。已有同 identity 但维度不同则失败并要求新 revision，不覆盖旧记录。
-9. 从受信目录获取六个 Agent Card，校验 A2A 1.0、HTTP+JSON interface、skill、媒体类型、安全要求、URL allowlist 和卡摘要；核心 skill 缺失时 readiness 为 DOWN。
-10. 若知识库为空，完整执行 Embedding/Rerank 探针后登记 `KB_EMPTY` 并允许系统启动；若已有 collection，则校验 active revision 和向量覆盖。空库是数据状态，不是技术链路故障。
-11. 只有数据库、状态持久化、LLM、Embedding、Rerank、Supervisor 和全部专业 Agent A2A skill 有效时 readiness 才为 UP；首次 Incident 执行仍检查近期健康和能力快照。
+5. 应用合并 Bootstrap 配置、PostgreSQL 非敏感配置和 6 个 Agent 稀疏覆盖，生成去密钥有效配置；`opspilot-server` 作为唯一 composition root 显式构造选定 Adapter。
+6. 各专用 Registry 注册实现并检查稳定 ID、合同 major 和重复项；冲突或 required 实现缺失时直接退出，不以扫描/Bean 顺序覆盖。
+7. Secret Resolver 检查所有启用 Provider 的 Key 引用；外部 LLM model/Key 为空时进程非零退出。
+8. Provider/Source/Code/Sandbox Registry 对默认 Profile 的能力闭包执行真实探针：Embedding 检查维度；Rerank 检查排序；LLM 检查 Chat/Tool/Structured/Stream；Source 检查受信端点和最小查询。任一 required 链路失败都阻止 readiness。
+9. Embedding 合同写入/核对 `embedding_model_revision`。已有同 identity 但维度不同则失败并要求新 revision，不覆盖旧记录。
+10. 校验每个 `AgentProfile` 的 Tool、Provider、输入输出 Schema、预算和权限引用均能从已探针 Registry 解析，再构建统一 Agent Runtime；新增 Adapter 不会自动扩大 Agent 动作空间。
+11. 从受信目录获取六个 Agent Card，校验 A2A 1.0、HTTP+JSON interface、skill、媒体类型、安全要求、URL allowlist 和卡摘要；核心 skill 缺失时 readiness 为 DOWN。
+12. 若知识库为空，完整执行 Embedding/Rerank 探针后登记 `KB_EMPTY` 并允许系统启动；若已有 collection，则校验 active revision 和向量覆盖。空库是数据状态，不是技术链路故障。
+13. 只有数据库、状态持久化、LLM、Embedding、Rerank、Supervisor 和全部专业 Agent A2A skill 有效时才冻结 capability snapshot 并置 readiness 为 UP；首次 Incident 执行仍检查近期健康。
 
 ### 16.2 健康端点
 
@@ -399,4 +402,4 @@ flowchart TD
 
 ### 16.4 AgentScope 初始化
 
-AgentScope Java 的框架对象只在 Provider Registry、工具策略、状态仓库和 Prompt 模板就绪后构建。实现前必须通过 Maven 构建和合同测试确定可解析版本、Artifact 坐标、结构化输出、工具调用、事件流和许可证。框架 API 适配只允许修改 `opspilot-agent-adapter-agentscope`。
+AgentScope Java 的框架对象只在专用 Registry、固定安全中间件、状态仓库和 Agent Profile 就绪后构建。实现前必须通过 Maven 构建和合同测试确定可解析版本、Artifact 坐标、结构化输出、工具调用、事件流和许可证。框架 API 适配只允许修改 `opspilot-agent-runtime-agentscope`。

@@ -62,11 +62,11 @@ MVP 的“数据库连接池耗尽”是 `order-service` 应用连接使用故�
 ### 21.6 建议实施顺序
 
 1. 执行第 24 章 Phase 0：锁定依赖和镜像，完成 AgentScope/A2A/模型探针 Spike，校验 OpenAPI/JSON Schema；门禁未通过不得进入完整功能开发。
-2. 初始化 Maven 多模块、JDK 21、代码规范；建立 PostgreSQL/pgvector、Flyway、四个 schema、六个 A2A 角色、核心/Source Registry/Resource/Observation/Evidence/模型/RAG/Sample 表及 Testcontainers，并先锁定单活动 Run、来源追溯和 Artifact 存储抽象。
-3. 实现首期 Java Sample System、OTel/Prometheus/Jaeger、测试故障接口，以及 Prometheus/Jaeger/JSONL/Actuator/Compose Adapter 和共享合同测试。
-4. 实现三类 Provider SPI、真实探针、DeepSeek 默认配置，以及同时加载 Embedding/Rerank 的统一 Infinity Compose。
-5. 实现文档版本、精确 pgvector 召回、Rerank、引用和重新向量化。
-6. 实现状态机、PostgreSQL task/state/event、Token Budget、Tool Runtime 和 6 个 Agent；同时实现锁定 A2A 1.0.1 的 contract/client/server adapter、Agent Card、Task Store 和协议合同测试。
+2. 按第 28 章初始化 `core / tools-default / agent-runtime / a2a / adapters / server` 模块和架构测试；先实现领域状态机、Application Port、事务 outbox 与测试实现，证明 core 不依赖 Spring、AgentScope、A2A SDK 或厂商库。
+3. 建立 PostgreSQL/pgvector、Flyway、四个 schema、单活动 Run、来源追溯和 Artifact 存储 Adapter；在 composition root 显式装配 Repository，不把持久化做成动态插件。
+4. 实现首期 Java Sample System、OTel/Prometheus/Jaeger、测试故障接口，以及 Prometheus/Jaeger/JSONL/Actuator/Compose Source Adapter、专用 Source Registry 和共享合同测试。
+5. 实现三个窄 Provider Port、对应专用 Registry、真实探针、DeepSeek 默认配置，以及同时加载 Embedding/Rerank 的统一 Infinity Compose；再实现文档版本、精确 pgvector 召回、Rerank、引用和重新向量化。
+6. 实现 Agent Profile、固定安全中间件、统一 AgentScope Runtime、Tool Registry 和六个角色；同时实现锁定 A2A 1.0.1 的 contract/client/server、Agent Card、Task Store 和协议合同测试。A2A 与状态机保持稳定核心边界，不经通用 Extension Host 转发。
 7. 实现 Fault Lab、3 个场景、Artifact/Ground Truth 隔离、RCA 与 Evaluation。
 8. 按第 25 章运行每场景 5 次质量 Run、技术失败矩阵和恢复测试；只有所有硬门禁和聚合阈值通过才发布。
 9. 按第 26 章实现 GitHub CI 与持续交付，生成不可变 OCI digest、SBOM、测试证据和 Release Manifest；流水线不得自动部署任何环境。

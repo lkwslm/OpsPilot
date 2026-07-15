@@ -19,6 +19,8 @@
 - A2A Agent Card 校验、状态映射、Message/Artifact Schema、messageId 幂等、终态不可续写和取消传播；
 - 证据门禁、`rootCause=null` 的 `INCONCLUSIVE`、补证指纹、无进展检测和所有硬预算停机条件。
 - `ObservationBatch` 单 Source 不变式、联邦 `originSource`、Source/Adapter/Resource 追溯、Observation 到 Evidence 规范化和跨源重复证据识别。
+- 各专用 Registry 的稳定 ID、重复注册、required 缺失、版本不兼容、冻结后不可修改和 `AgentProfile` 能力闭包；冲突必须确定性失败，不能依赖 Bean 顺序。
+- 固定中间件链 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit` 的顺序、短路和 fail-closed 行为。
 
 ### 20.2 PostgreSQL/pgvector 集成测试
 
@@ -48,6 +50,8 @@
 HTTP 协议单测可以使用本地 HTTP fixture，但这不替代真实模型集成测试，也不能作为运行 Provider 注册。
 
 可观测 Source Adapter 使用独立共享 contract suite：所有 Adapter 必须覆盖真实成功、合法空结果、分页/限流、超时、鉴权失败、无效 Schema、部分结果、取消、脱敏、Artifact 哈希和来源追溯。新增数据源只增加 Adapter/配置/测试，不得修改 Agent loop、RCA 或数据库核心身份。
+
+Code Analyzer 与 Sandbox Runner 也各自提供共享 contract suite。新增语言/构建工具实现必须证明只增加 Adapter；`opspilot-core`、Agent 业务逻辑和 A2A Artifact Schema 无需修改。
 
 ### 20.4 A2A 合同与互操作测试
 
@@ -130,6 +134,7 @@ Rerank 模型在本地资源占用、接口兼容性和中文重排效果测试�
 - Source Registry 越权、伪造 `sourceId/sourceKind`、`connectionRef` 泄密、联邦结果缺 `originSource`、跨 Source Observation 冒充独立 Evidence；
 - 日志、Trace、SSE、Actuator 中无明文密钥和 Ground Truth。
 - A2A Agent Card/endpoint 篡改、SSRF、Task 跨调用方访问、Artifact URL 越权、未知 required extension 和伪造 Task 事件。
+- 通过新增 Adapter 试图覆盖同名 ID、绕过固定安全中间件、直接写 Incident 权威表或把厂商 DTO 泄漏到领域/API；架构与集成测试必须阻止。
 
 ### 20.10 CI 测试分层与结果发布
 

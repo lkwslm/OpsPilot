@@ -1,6 +1,6 @@
 # OpsPilot 系统完整设计
 
-> 版本：系统设计 v2.4
+> 版本：系统设计 v3.0
 > 适用范围：MVP / 本地集成测试 / 后续生产化演进  
 > 状态：正式设计；可直接指导实现；文中标为“待确认”的项目在编码或部署前必须闭环
 
@@ -24,7 +24,8 @@
 14. [首版故障场景与确定性评测](opspilot-system-design/14-scenarios-and-deterministic-evaluation.md)
 15. [CI、持续交付与发布治理](opspilot-system-design/15-ci-cd-and-release-governance.md)
 16. [分布式目标系统与可观测数据适配](opspilot-system-design/16-distributed-target-and-observability-adapters.md)
-17. [机器可读 OpenAPI 与 JSON Schema](contracts/README.md)
+17. [内聚核心与受控扩展架构](opspilot-system-design/17-cohesive-core-and-controlled-extensions.md)
+18. [机器可读 OpenAPI 与 JSON Schema](contracts/README.md)
 
 ## 阅读约定
 
@@ -35,3 +36,4 @@
 - Phase 0 门禁通过前只允许骨架与 Spike；通过后，本设计作为首版完整开发和验收基线。
 - 第 26 章中的 CD 只指持续交付：GitHub Actions 生成可验证发布候选后停止，任何目标环境部署均由流水线之外的人工运维流程执行。
 - OpsPilot 核心与被诊断系统的语言、运行平台和可观测产品边界以第 27 章为准；Java/Spring、Prometheus 和 Jaeger 是首期验证实现，不是产品接入前提。
+- 第 28 章定义 v3 的内聚核心、有限扩展点和模块交互语义；它不是通用插件平台，领域状态机、Supervisor 编排、A2A 协作和安全门禁不得被动态替换。

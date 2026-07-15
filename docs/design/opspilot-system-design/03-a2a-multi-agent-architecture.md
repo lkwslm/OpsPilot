@@ -23,6 +23,7 @@
 4. Agent 内部调用日志、指标、代码和知识库等能力仍走 Tool Runtime；A2A 用于 Agent 之间协作，Tool SPI/MCP 用于 Agent 与工具协作，两者不能混用。
 5. Agent 只交换任务所需的 Message、Artifact、状态和引用，不共享隐藏思考、完整内存、数据库实体或框架对象。
 6. MVP 仍由 Supervisor 单向委派，不开放专业 Agent 之间的自由对话或任意级联委派，避免失控循环。
+7. A2A 是 OpsPilot 的稳定协作边界，不作为可动态替换 Extension；具体 HTTP/JSON SDK 由 `opspilot-a2a` 隔离，但 Task/Artifact/幂等/恢复语义属于核心设计。
 
 ### 5.3 六个 Agent 的有界 ReAct 执行模型
 
@@ -50,7 +51,9 @@ Observe：读取当前 A2A Task 输入、checkpoint、已验证 Artifact/Evidenc
 
 本表“ReAct 动作结果”是框架 loop 对一次 Action 返回值的称呼，不等于第 27 章外部数据的 `ObservationRecord/ObservationBatch`。外部信息源必须先经 Adapter 和 EvidenceNormalizer；Agent loop 只能看到标准 Tool result、Evidence/Artifact 引用和受控摘要。
 
-六个 Agent 都使用 AgentScope `ReActAgent` 的内置 reasoning-acting loop。`opspilot-agent-core` 的 `BoundedReActRunner` 是策略包装器，不再实现第二套 `while` 循环；它通过 AgentScope 的 `ReactConfig`、Middleware、事件和中断接口施加 checkpoint、最大轮数、deadline、Token/Tool/A2A Task 预算、取消、重复动作指纹和 `NO_PROGRESS` 停机。AgentScope Adapter 负责把这些 Port 映射到经构建验证的框架 API。业务开发者只配置 Prompt、允许动作/工具、输入输出 Schema、预算和完成条件，无须自行编排 Agent loop。Supervisor 的 ReAct loop 通过允许的 A2A 动作编排专业 Agent；专业 Agent 的 ReAct loop 只执行自身 skill，二者不嵌套接管对方循环。
+六个 Agent 都使用 AgentScope `ReActAgent` 的内置 reasoning-acting loop。`opspilot-core` 的 `BoundedReActRunner` 是策略包装器，不再实现第二套 `while` 循环；它通过 AgentScope 的 `ReactConfig`、Middleware、事件和中断接口施加 checkpoint、最大轮数、deadline、Token/Tool/A2A Task 预算、取消、重复动作指纹和 `NO_PROGRESS` 停机。AgentScope Adapter 负责把这些 Port 映射到经构建验证的框架 API。业务开发者只配置 Prompt、允许动作/工具、输入输出 Schema、预算和完成条件，无须自行编排 Agent loop。Supervisor 的 ReAct loop 通过允许的 A2A 动作编排专业 Agent；专业 Agent 的 ReAct loop 只执行自身 skill，二者不嵌套接管对方循环。
+
+v3 中上述策略包装器位于 `opspilot-core`，实际框架映射位于 `opspilot-agent-runtime-agentscope`。六个角色由受版本控制的 `AgentProfile` 描述，不是六套实现，也不是通过 Extension 扫描动态发现。Profile 只能引用启动时已经冻结的 Tool/Model capability ID；新增 Provider 或 Tool 不会自动扩大任何 Agent 的动作空间。
 
 ### 5.4 A2A 逻辑拓扑
 
@@ -64,11 +67,12 @@ flowchart LR
     AC --> D["Diagnosis A2A Server"]
     AC --> R["Remediation A2A Server"]
 
-    E --> TR["Tool Runtime"]
-    C --> TR
-    K --> TR
-    D --> TR
-    R --> TR
+    E --> AR["统一 Agent Runtime"]
+    C --> AR
+    K --> AR
+    D --> AR
+    R --> AR
+    AR --> TR["Tool Registry + 固定安全中间件"]
     S --> PG[("PostgreSQL")]
     E --> ATS["A2A Task Store"]
     C --> ATS
@@ -314,7 +318,7 @@ public record ReactLoopSnapshot(
 4. 快照、`incident_run.status`、`state_transition`、`a2a_task_binding` 和待发布的 `incident_event` 必须在同一数据库事务中提交或回滚。
 5. Evidence、Hypothesis、Artifact、Approval 和 `ChainFailure` 等对象以各自业务表为权威；快照中的 ID 只是可恢复引用。加载快照时发现必需引用不存在或归属其他 Run，返回 `STATE_REFERENCE_INVALID` 并停止该 Run。
 6. 只有 Supervisor 运行角色可以创建或更新 `opspilot.agent_state`。专业 Agent 只能维护自身 A2A Task Store，通过 A2A Artifact 返回结果，不能直接读取或修改该快照。
-7. AgentScope `AgentStateStore` 由 `opspilot-agent-adapter-agentscope` 适配到 `opspilot_a2a.agent_runtime_state`。框架状态的加载/保存遵守 AgentScope 调用边界，OpsPilot 领域代码不能直接修改其 JSON；保存失败属于状态持久化链路故障，返回 `AGENT_STATE_PERSIST_FAILED`，禁止改用内存或本地文件继续运行。
+7. AgentScope `AgentStateStore` 由 `opspilot-agent-runtime-agentscope` 适配到 `opspilot_a2a.agent_runtime_state`。框架状态的加载/保存遵守 AgentScope 调用边界，OpsPilot 领域代码不能直接修改其 JSON；保存失败属于状态持久化链路故障，返回 `AGENT_STATE_PERSIST_FAILED`，禁止改用内存或本地文件继续运行。
 
 以下内容禁止放入 `IncidentAgentState`：日志/Trace/代码/知识正文、完整 Evidence、模型 Prompt/Response、隐藏推理、A2A Message history、Tool 原始输出、密钥、Ground Truth 和大 Artifact。它们分别存入自己的业务表或受控 Artifact；快照只保存稳定 ID。`steps`、指纹和告警列表都受 Incident 预算上限约束，防止 `state_json` 无界增长。
 

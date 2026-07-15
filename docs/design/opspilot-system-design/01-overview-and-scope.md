@@ -43,8 +43,8 @@ Agent 诊断链路（Agent 间委派统一使用 A2A 1.0）：
 MVP 包含：
 
 - 一个首期 Java/Spring Boot 模拟电商系统：`sample-gateway`、`order-service`、`inventory-service`；它是参考被测系统，不是产品语言边界；
-- 6 个首期 Agent：`SupervisorAgent`、`EvidenceCollectorAgent`、`CodeAnalysisAgent`、`KnowledgeAgent`、`DiagnosisAgent`、`RemediationAgent`；
-- 六个 Agent 均采用统一运行时驱动的有界 ReAct loop，Agent 间委派使用 A2A；业务代码不为每个 Agent 手写循环；
+- 6 个首期 Agent：`SupervisorAgent`、`EvidenceCollectorAgent`、`CodeAnalysisAgent`、`KnowledgeAgent`、`DiagnosisAgent`、`RemediationAgent`；六个角色是受版本控制的 `AgentProfile`，共享同一执行服务和运行时 Adapter，不是六套独立框架；
+- 六个 Agent 均采用统一运行时驱动的有界 ReAct loop，Agent 间委派使用 A2A；业务代码不为每个 Agent 手写循环，也不通过扫描 Extension 动态增加未知角色；
 - 9 类受控工具：日志、指标、Trace、健康、拓扑、配置、代码、知识库、沙箱测试；可观测 Tool 使用能力名称，具体产品由 Adapter 接入；
 - 至少 3 个真实可执行场景：下游链路延迟、数据库连接池耗尽、库存实例停止；
 - 统一 PostgreSQL 业务存储和 PostgreSQL + pgvector 向量存储；
@@ -79,8 +79,8 @@ MVP 完成时必须满足：
 - 工单只暴露真实采集到的症状，不能泄漏根因；Ground Truth 必须由故障场景配置确定。
 - 证据统一为强类型 `Evidence`，至少带来源、服务、时间范围、摘要、原始 Artifact 引用、相关性和可靠性。
 - 根因必须维护支持证据、冲突证据、验证步骤和置信度；证据不足时不得强制生成 Top-1，必须允许 `rootCause=null` 的 `INCONCLUSIVE` 结果。
-- 所有工具都通过统一 Tool SPI 调用；Agent 不能直接执行 SQL、任意 Shell、任意 HTTP 或越权文件读取。
-- 所有模型都通过 Provider SPI 调用；核心业务代码不依赖具体厂商 SDK，也不直接耦合 Infinity 或其他本地推理框架。
+- 所有工具都通过统一 Tool SPI 和冻结的 `ToolRegistry` 调用；Agent 不能直接执行 SQL、任意 Shell、任意 HTTP 或越权文件读取。
+- 所有模型都通过窄 Provider Port 和对应专用 Registry 调用；核心业务代码不依赖具体厂商 SDK，也不直接耦合 Infinity 或其他本地推理框架。
 - 首期子 Agent 串行执行，每一步形成可恢复 checkpoint；Agent 间调用必须经过 A2A 协议，后续并行化不能破坏 A2A Task、状态版本和审计顺序。
 
 ### 2.2 技术约束
@@ -133,7 +133,8 @@ flowchart LR
     FaultLab --> GroundTruth["Ground Truth 隔离卷"]
     FaultLab -->|工单与元数据| PG[("PostgreSQL + pgvector")]
 
-    Server --> Core["Agent Core + AgentScope Adapter"]
+    Server --> Core["OpsPilot Core<br/>Domain + Application + Ports"]
+    Core --> Runtime["AgentScope Runtime Adapter"]
     Core --> A2A["A2A Client / Supervisor A2A Server"]
     A2A --> Remote["5 个专业 Agent A2A Server"]
     Remote --> Tools["受控 Tool Runtime"]
@@ -147,8 +148,8 @@ flowchart LR
     Tools --> RAG["RAG 模块"]
     RAG --> PG
 
-    Core --> Model["统一 Model Provider SPI"]
-    Remote --> Model
+    Runtime --> Model["专用 Model Provider Registry"]
+    Remote --> Runtime
     Model --> LLM["真实 OpenAI-Compatible LLM"]
     Model --> Embed["Embedding Provider"]
     Model --> Rerank["Rerank Provider"]
@@ -193,3 +194,4 @@ flowchart TD
 6. **可评测：**每个结论引用真实 Evidence/Artifact；Ground Truth 与 Agent 运行账户隔离。
 7. **空结果不等于降级：**知识库为空、无匹配和历史案例不足是成功检索后的合法业务结果；Provider/协议/工具故障是技术失败，禁止混淆或降级。
 8. **目标系统与信息源解耦：**Java/Spring 是首期 Sample，Prometheus/Jaeger 是首期 Source Adapter；核心只依赖 Resource、Observation、Evidence 和 Tool/A2A 合同。
+9. **选择性扩展而非全面插件化：**状态机、Supervisor、A2A、安全门禁和领域规则保持为内聚核心；只有 Provider、Source、Tool、代码分析和沙箱等多实现边界通过窄 Port 扩展。同步核心调用显式依赖 Port，异步投影才使用 outbox 事件。

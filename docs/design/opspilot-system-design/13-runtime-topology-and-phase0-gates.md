@@ -4,6 +4,8 @@
 
 首版采用“一个产品/Supervisor 服务 + 五个专业 Agent 服务”。六个服务可以复用同一 OCI 镜像和代码仓库，但必须以不同 `AGENT_ID`、服务身份、数据库角色和 A2A 基地址启动。该拓扑从本地 Compose 到生产保持一致，避免先做进程内多 Agent、后续再重构网络、状态和权限边界。
 
+六个进程复用第 28 章的同一 `opspilot-core`、Agent 执行服务和 AgentScope Adapter；`AGENT_ID` 只选择经过启动校验的内置 `AgentProfile`，不触发 classpath Extension 扫描。各进程仅装配该 Profile 所需的 Tool/Provider/Source Adapter，遵守最小权限；A2A 仍是稳定进程边界，不因物理模块收敛而改为内存直调。
+
 | 服务 | 端口 | Agent ID | 职责 |
 |---|---:|---|---|
 | `opspilot-server` | 8080 | `supervisor` | 产品 REST/SSE、Supervisor A2A Server、领域事务 |
@@ -154,7 +156,7 @@ Spike 必须在真实 Maven 模块中证明：
 6. max rounds、deadline、取消和重复动作指纹均能在运行时中止循环。
 7. 中止后不会继续调用 Tool/Model；状态保存失败不会退化到内存 Store。
 
-所有项必须有自动化测试。若框架 API 无法满足某项，只允许修改 `opspilot-agent-adapter-agentscope`；若必须改变 agent-core Port 或状态所有权，需要 ADR 并重新审查，不能静默绕过。
+所有项必须有自动化测试。若框架 API 无法满足某项，只允许修改 `opspilot-agent-runtime-agentscope`；若必须改变 `opspilot-core` Port 或状态所有权，需要 ADR 并重新审查，不能静默绕过。
 
 ### 24.6 A2A Spike 门禁
 
