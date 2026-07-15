@@ -1,0 +1,45 @@
+{
+  "schemaVersion": "1.0.0",
+  "findingSetId": "30000000-0000-4000-8000-000000000001",
+  "incidentId": "20000000-0000-4000-8000-000000000002",
+  "runId": "20000000-0000-4000-8000-000000000003",
+  "stepId": "analyze-code-1",
+  "repository": {
+    "repositoryId": "sample-commerce",
+    "revision": "8f2a947",
+    "rootArtifactId": null
+  },
+  "query": {
+    "evidenceIds": ["20000000-0000-4000-8000-000000000004"],
+    "symbols": ["InventoryClient"],
+    "pathPrefixes": ["order-service/src/main/java"]
+  },
+  "analyzer": {
+    "analyzerId": "java-semantic-v1",
+    "analyzerVersion": "1.0.0",
+    "language": "Java"
+  },
+  "findings": [
+    {
+      "findingId": "30000000-0000-4000-8000-000000000002",
+      "kind": "RETRY_TIMEOUT",
+      "location": {
+        "path": "order-service/src/main/java/example/InventoryClient.java",
+        "startLine": 41,
+        "endLine": 48,
+        "startColumn": 5,
+        "endColumn": 6,
+        "symbol": "InventoryClient.reserve",
+        "contentHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "observation": "The inventory call timeout is configured to 3000 ms and has no retry policy.",
+      "incidentRelevance": "The timeout matches the latency spike observed during the incident window.",
+      "supportingEvidenceIds": ["20000000-0000-4000-8000-000000000004"],
+      "confidence": 0.96,
+      "artifactIds": ["30000000-0000-4000-8000-000000000003"],
+      "limitations": ["The finding describes the inspected revision and does not prove runtime execution by itself."]
+    }
+  ],
+  "warnings": [],
+  "generatedAt": "2026-07-15T01:12:00Z"
+}

@@ -7,7 +7,7 @@
 - AgentEndpointState、A2A Task、step attempt、Incident Run 四层状态机的合法/非法转换、终态不变式、`runId + version` CAS、取消与恢复；
 - `IncidentAgentState` JSON 序列化/反序列化、Schema 版本迁移、未知版本拒绝、字段边界、列表上限和禁止内容校验；
 - 六个 Agent 的 AgentScope `ReActAgent` + `BoundedReActRunner` 策略包装：框架内置 loop、Middleware/checkpoint、动作白名单、最大轮数、重复动作指纹、NO_PROGRESS、取消和完成条件；验证未实现第二套嵌套 loop；
-- Evidence 去重/时间对齐、Hypothesis 评分、引用有效性；
+- Observation/CodeFinding/KnowledgeResult 到单一 Evidence 的规范化、跨来源去重/时间对齐、Hypothesis 只依赖 Evidence、引用有效性；
 - Tool 权限、审批、Shell 白名单、输出限长、敏感字段脱敏；
 - Scenario YAML 校验、Ground Truth 路径隔离、故障恢复 `finally`；
 - 8 类 Evaluation 指标；
@@ -18,8 +18,8 @@
 - Embedding 批次维度/有限值校验和模型 revision identity。
 - A2A Agent Card 校验、状态映射、Message/Artifact Schema、messageId 幂等、终态不可续写和取消传播；
 - 证据门禁、`rootCause=null` 的 `INCONCLUSIVE`、补证指纹、无进展检测和所有硬预算停机条件。
-- `ObservationBatch` 单 Source 不变式、联邦 `originSource`、Source/Adapter/Resource 追溯、Observation 到 Evidence 规范化和跨源重复证据识别。
-- 各专用 Registry 的稳定 ID、重复注册、required 缺失、版本不兼容、冻结后不可修改和 `AgentProfile` 能力闭包；冲突必须确定性失败，不能依赖 Bean 顺序。
+- `ObservationBatch` 单 Source 不变式、CodeFinding repository/revision/内容哈希、联邦 `originSource`、统一 `provenanceRefs`、三类输入到 Evidence 的规范化和跨源重复证据识别；直接把 CodeFinding/KnowledgeResult 传给 Diagnosis 必须被 Schema 拒绝。
+- 各专用 Registry 的稳定 ID、重复注册、required 缺失、版本不兼容、冻结后不可修改和 `AgentProfile` 的模型/Tool/A2A/沙箱/安全能力闭包；权限取交集且冲突必须确定性失败，不能依赖 Bean 顺序。
 - 固定中间件链 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit` 的顺序、短路和 fail-closed 行为。
 
 ### 20.2 PostgreSQL/pgvector 集成测试

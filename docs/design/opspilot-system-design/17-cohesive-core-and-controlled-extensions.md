@@ -101,13 +101,33 @@ core <- tools-default / agent-runtime / a2a / adapters / evaluation <- server
 
 #### 28.4.4 Code Analyzer
 
-`CodeAnalysisPort` 返回语言无关 `CodeFinding`。首期 Java 实现在 Adapter 内使用 Maven/Java 语义，后续 Go、Python 等实现不改变 CodeAnalysisAgent 和 A2A Artifact。
+`CodeAnalysisPort` 返回语言无关 `CodeFinding`，其合同为 `contracts/schemas/code-findings.schema.json`。它是分析器边界的可追溯中间产物，不是第二套事实模型。CodeAnalysisAgent 必须调用 `opspilot-core` 的 `EvidenceNormalizer.normalizeCode`，把每个可接受 Finding 转换为带 repository/revision/文件哈希来源的 `Evidence(signalType=CODE)`；A2A 结果同时返回 CodeFinding 审计 Artifact 和 EvidenceBundle，Diagnosis 只接收后者的 Evidence ID。首期 Java 实现在 Adapter 内使用 Maven/Java 语义，后续 Go、Python 等实现不改变 Evidence/Hypothesis 合同。
 
 #### 28.4.5 Sandbox Runner
 
 `SandboxRunner` 封装白名单验证动作、隔离环境和产物。Maven 只是首期实现；安全审批与动作等级属于核心 policy，不能由 Sandbox Extension 自行放宽。
 
 PostgreSQL Repository 是基础设施 Adapter，但不是面向第三方的运行时扩展点。A2A、REST/SSE、Agent 角色、状态机和安全 Policy 也不是扩展点。
+
+#### 28.4.6 单一事实层
+
+系统中只有 `Evidence` 是事实。`ObservationBatch`、`CodeFinding` 和 `KnowledgeResult` 分别属于运行采集、代码分析和检索边界的输入产物；它们可以独立演进，但不能被 Diagnosis、Hypothesis 或 RCA 直接消费。
+
+```mermaid
+flowchart LR
+    Runtime["Runtime Source Adapter"] --> Observation["ObservationBatch"]
+    Code["Code Analyzer Adapter"] --> Finding["CodeFinding"]
+    Knowledge["Knowledge Retrieval"] --> KResult["KnowledgeResult"]
+    Observation --> Normalizer["EvidenceNormalizer"]
+    Finding --> Normalizer
+    KResult --> Normalizer
+    Normalizer --> Evidence["Evidence<br/>唯一事实合同"]
+    Evidence --> Hypothesis["Hypothesis"]
+    Evidence --> Diagnosis["Diagnosis assessment"]
+    Evidence --> RCA["RCA citations"]
+```
+
+Evidence 使用统一 `provenanceRefs` 保留来源，因而“事实只有一种”不等于“来源被抹平”。Hypothesis 只保存 `supportingEvidenceIds/conflictingEvidenceIds`；若需要补证，它描述缺少的 Evidence 条件，由 Supervisor 决定再次采集运行、代码或知识输入。任何新增事实来源都必须先扩展 Evidence provenance 合同，不能为下游再增加平行的 `*Finding` 依赖。
 
 ### 28.5 专用 Registry，而非万能 Extension Host
 
@@ -178,6 +198,10 @@ sequenceDiagram
 - 输入输出 Schema；
 - turn、Token、deadline 和调用预算；
 - 完成条件和结构化结果映射器。
+
+`AgentProfile` 的机器合同为 `contracts/schemas/agent-profile.schema.json`。它应包含逻辑 `modelProfileRef` 和少量白名单生成参数，但不包含 Provider URL、API Key 或厂商客户端配置；具体模型由 Model Registry 在启动时解析并探针。Profile 还必须显式包含：输入/输出 Schema、`factsFromEvidenceOnly=true`、Tool/A2A 白名单、预算、沙箱模式/Runner/网络/可写目录/资源上限，以及安全策略引用、资源 scope 和数据分级。
+
+有效权限始终为 `平台安全基线 ∩ 服务身份权限 ∩ AgentProfile ∩ 单次任务约束 ∩ 人工审批`。Profile 只能收紧，不能放宽任一上层约束；首版 Schema 将 Ground Truth、Secret、任意命令和代码修改权限固定为 `false`。沙箱选项描述“该角色最多允许什么”，真正的隔离、审批和命令白名单仍由核心中间件与 SandboxRunner 强制执行。
 
 `AgentProfile` 是受校验配置，不是可执行 Extension。新增角色必须先证明现有角色无法通过新 Tool/Profile 完成，并通过 A2A skill、状态所有权和安全评审；不能通过扫描 classpath 自动出现一个拥有未知权限的新 Agent。
 
@@ -251,5 +275,7 @@ Validate Schema
 8. Domain Event 只在事务提交后可见，重复消费不重复投影；
 9. 禁用所有非默认 Adapter 后，使用测试实现仍能完成核心状态机和恢复测试；
 10. Maven module 数量增加必须由独立发布、依赖冲突或明确复用需求驱动，不能只因为新增一个接口。
+11. Diagnosis/Hypothesis 的合同和运行时上下文拒绝 CodeFinding、ObservationBatch、KnowledgeResult；代码或知识事实未规范化为 Evidence 时必须 fail closed。
+12. AgentProfile 必须通过 Schema、Registry 能力闭包和权限交集校验；Profile 不能携带密钥或扩大平台安全基线。
 
 满足“核心职责集中、变化被隔离、依赖显式、失败可定位”比追求所有能力动态可插拔更重要。这是 OpsPilot 对 `pi` 设计哲学的选择性吸收，而不是复制其产品结构。

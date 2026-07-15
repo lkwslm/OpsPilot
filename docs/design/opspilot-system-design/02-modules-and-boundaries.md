@@ -57,8 +57,8 @@ opspilot/
 
 | 模块 | 高内聚职责 | 允许依赖 |
 |---|---|---|
-| `opspilot-core` | Incident、Evidence、Hypothesis、Remediation、Approval、Artifact 等领域规则；Use Case、Supervisor、状态机、Context Builder、预算、checkpoint；Model/Tool/Source/Repository/A2A 等稳定 Port | JDK/轻量校验；不依赖 Spring、AgentScope、A2A SDK、JPA 或厂商实现 |
-| `opspilot-tools-default` | 九个首期 Agent Tool、EvidenceNormalizer、固定输入输出映射；只编排 core Port，不包含厂商客户端 | core |
+| `opspilot-core` | Incident、Evidence、Hypothesis、Remediation、Approval、Artifact 等领域规则；统一 EvidenceNormalizer；Use Case、Supervisor、状态机、Context Builder、预算、checkpoint；Model/Tool/Source/Repository/A2A 等稳定 Port | JDK/轻量校验；不依赖 Spring、AgentScope、A2A SDK、JPA 或厂商实现 |
+| `opspilot-tools-default` | 九个首期 Agent Tool 和固定输入输出映射；只编排 core Port/Normalizer，不包含厂商客户端 | core |
 | `opspilot-agent-runtime-agentscope` | 把统一 `AgentExecutionService`、六个受版本控制的 `AgentProfile`、工具调用和结构化输出映射到 AgentScope | core；AgentScope API 只存在于此模块 |
 | `opspilot-a2a` | A2A 1.0 协议模型与 Artifact 合同、受信 Client、Server Adapter、Task Store 映射和恢复 | core；A2A SDK/HTTP 类型不能进入 core |
 | `opspilot-adapters/*` | PostgreSQL、模型、检索、Source、代码和沙箱等 Port 实现；每个子模块只围绕一种变化原因 | core；可依赖自己的 HTTP/JSON/JDBC/厂商库，禁止 Adapter 间实现依赖 |
@@ -143,13 +143,13 @@ public interface AgentTool<I, O> {
 | `HealthQueryTool` | 通过 Actuator/HTTP/容器健康 Adapter 查询 | READ_ONLY |
 | `TopologyQueryTool` | 首期查询静态 Compose 拓扑；返回统一 Resource/Relationship | READ_ONLY |
 | `ConfigReadTool` | 只返回脱敏配置，禁止密码/Token/Key/完整凭证 | READ_ONLY |
-| `CodeSearchTool` | 首期 `JavaCodeSearchAdapter` 搜索受限根目录；输出使用语言无关 CodeFinding | READ_ONLY |
+| `CodeSearchTool` | 首期 `JavaCodeSearchAdapter` 搜索受限根目录；生成语言无关 CodeFinding，再规范化为 `Evidence(signalType=CODE)` | READ_ONLY |
 | `KnowledgeSearchTool` | PostgreSQL + pgvector 召回并调用统一 RerankProvider | READ_ONLY |
 | `SandboxTestTool` | 首期 `MavenTestAdapter` 仅执行配置白名单测试 | CONTROLLED_EXECUTION |
 
 `HIGH_RISK`（改代码、改配置、Git、任意 Shell、改数据库、生产操作）在 MVP 禁止执行；审批记录不等于自动放开任意命令。
 
-可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`KnowledgeSearchTool` 不属于外部可观测 Source；代码和沙箱使用独立语言 Adapter。新增 Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
+可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`CodeSearchTool` 可额外返回 CodeFinding Artifact 供审计，但下游只消费规范化后的 Evidence ID。`KnowledgeSearchTool` 不属于外部可观测 Source；检索引用若要参与诊断也必须先规范化为 Evidence。代码和沙箱使用独立语言 Adapter。新增 Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
 
 `ToolRegistry` 在启动时由 `opspilot-server` 显式注册并冻结。同名 Tool、Schema major 不兼容或默认 `AgentProfile` 依赖的 Tool 缺失时启动失败；不允许 classpath 扫描后“最后一个实现覆盖”。权限、审批、预算和审计中间件由核心按固定顺序包裹 Tool，Tool/Adapter 无权跳过或重排。
 

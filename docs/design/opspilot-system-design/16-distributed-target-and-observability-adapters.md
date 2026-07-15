@@ -64,7 +64,9 @@ public interface ObservabilitySourceAdapter {
 }
 
 public interface EvidenceNormalizer {
-    EvidenceBundle normalize(List<ObservationBatch> batches, NormalizationContext context);
+    EvidenceBundle normalizeRuntime(List<ObservationBatch> batches, NormalizationContext context);
+    EvidenceBundle normalizeCode(CodeFindings findings, NormalizationContext context);
+    EvidenceBundle normalizeKnowledge(KnowledgeResult result, NormalizationContext context);
 }
 ```
 
@@ -101,18 +103,22 @@ Source Registry 是第 28 章的专用 Registry：Adapter 由 composition root �
 
 若一个联邦/Cloud Adapter 的单次响应内部来自多个底层系统，Batch 的 `source` 表示联邦入口，每条 Record 必须额外填写实际 `originSource`。没有 `originSource` 时，Record 继承 Batch source。禁止把 Prometheus、Loki、Jaeger 的独立调用人为拼成一个 Batch。
 
-### 27.7 Observation 到 Evidence
+### 27.7 唯一事实层：输入产物到 Evidence
 
-Observation 是“信息源实际返回了什么”；Evidence 是“经过验证后可支持或反驳根因的事实”。`EvidenceNormalizer` 至少执行：
+Observation 是“运行信息源实际返回了什么”，CodeFinding 是“代码分析器在指定 revision 发现了什么”，KnowledgeResult 是“检索链路返回了什么”。三者都是可审计中间产物，不是供分析层直接依赖的事实类型。Evidence 是系统唯一的规范化事实；Diagnosis、Hypothesis、RCA 和 Evaluation 只能依赖 Evidence ID。
+
+`EvidenceNormalizer` 对运行输入至少执行：
 
 1. Schema、Source READY 状态、Adapter version 和 Resource 归属校验；
 2. UTC 时间标准化、Incident window 重叠与时钟偏移标记；
 3. 敏感数据脱敏、内容限长、Artifact 哈希和访问权限校验；
 4. 同源去重和跨源相关，不把相同 OTel 数据经 Prometheus/Jaeger 二次导出误算为独立证据；
 5. freshness、completeness、sampling、truncation 和查询覆盖率判断；
-6. 生成不可变 Evidence 和 `sourceObservationRefs`；无法形成事实的 Observation 仍可审计保存，但不能进入根因引用。
+6. 生成不可变 Evidence 和 `provenanceRefs(kind=RUNTIME_OBSERVATION)`；无法形成事实的 Observation 仍可审计保存，但不能进入根因引用。
 
-`EvidenceBundle` 合同为 `contracts/schemas/evidence-bundle.schema.json`。每条 Evidence 必须通过 `batchId + observationId + sourceId` 回溯；跨源结论包含多个引用。最终 RCA 因而能够区分“Prometheus 指标支持、Loki 日志交叉验证、Jaeger Trace 反驳”和“某数据源不可用/超时/覆盖不足”。
+代码输入还必须校验 repository/revision、文件内容哈希、位置范围、Analyzer 版本和输入 Evidence 归属，再生成 `Evidence(factOrigin=CODE, signalType=CODE)` 以及 `provenanceRefs(kind=CODE_FINDING)`。CodeFinding 中的 `observation` 只有完成这一步后才成为事实；`incidentRelevance` 是规范化提示，不能直接成为根因结论。知识断言若参与判断，同样必须保留文档/内容哈希并生成 `Evidence(factOrigin=KNOWLEDGE)`；未规范化的 KnowledgeResult 只能用于审计或查询规划。
+
+`EvidenceBundle` 合同为 `contracts/schemas/evidence-bundle.schema.json`。每条 Evidence 通过统一 `provenanceRefs` 回溯到 Observation、CodeFinding 或知识引用；跨来源事实可使用 `factOrigin=CORRELATED` 并包含多个引用。最终 RCA 因而能在一个事实模型中区分运行证据、代码证据、背景知识及其交叉验证，而不需要识别三套结果结构。
 
 ### 27.8 去厂商化 Tool 合同
 
@@ -129,7 +135,7 @@ Agent 可见 Tool 名使用能力名称，Adapter 才使用产品名称：
 | `CodeSearchTool` | `JavaCodeSearchAdapter` | Go/Python/.NET/Node Adapter |
 | `SandboxTestTool` | `MavenTestAdapter` | Gradle/pytest/go test/dotnet test Adapter |
 
-`KnowledgeSearchTool` 属于 OpsPilot 内部知识能力，不通过 Observability Adapter。Tool 的通用结果包含 `observationBatchIds`、`evidenceBundleId`、Artifact/Evidence 引用和状态；Agent 不读取 Adapter 原始响应。
+`KnowledgeSearchTool` 属于 OpsPilot 内部知识能力，不通过 Observability Adapter。Tool 的通用结果包含 `observationBatchIds`、`evidenceBundleId`、Artifact/Evidence 引用和状态；Agent 不读取 Adapter 原始响应。后续分析调用的输入合同中不允许出现 ObservationBatch、CodeFinding 或 KnowledgeResult ID。
 
 ### 27.9 失败语义
 

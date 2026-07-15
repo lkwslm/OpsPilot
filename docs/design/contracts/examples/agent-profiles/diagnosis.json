@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "1.0.0",
+  "profileId": "diagnosis-default",
+  "profileVersion": "1.0.0",
+  "role": "DIAGNOSIS",
+  "skillId": "generate-and-verify-hypotheses",
+  "description": "Forms and verifies hypotheses from canonical Evidence only.",
+  "prompt": {
+    "templateId": "diagnosis-v1",
+    "templateVersion": "1.0.0",
+    "systemPolicyTemplateId": "opspilot-system-policy-v1"
+  },
+  "model": {
+    "modelProfileRef": "reasoning-high",
+    "requiredCapabilities": ["STRUCTURED_OUTPUT"],
+    "generation": {
+      "temperature": 0.1,
+      "maxOutputTokens": 3072,
+      "timeoutMs": 60000
+    }
+  },
+  "inputContract": {
+    "schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/diagnosisRequest",
+    "mediaType": "application/vnd.opspilot.generate-and-verify-hypotheses.request+json;v=1"
+  },
+  "outputContract": {
+    "schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/diagnosisResult",
+    "mediaType": "application/vnd.opspilot.generate-and-verify-hypotheses.result+json;v=1"
+  },
+  "contextPolicy": {
+    "allowedInputs": ["INCIDENT", "EVIDENCE", "TASK_STATE", "ARTIFACT"],
+    "factsFromEvidenceOnly": true,
+    "maxEvidenceItems": 500,
+    "maxArtifactBytes": 10485760
+  },
+  "toolPolicy": {
+    "allowedTools": [],
+    "maxPermission": "NONE",
+    "maxCalls": 0,
+    "dynamicDiscovery": false
+  },
+  "a2aPolicy": {
+    "allowedSkills": [],
+    "maxDelegations": 0,
+    "peerToPeerDelegation": false
+  },
+  "budget": {
+    "maxTurns": 10,
+    "maxModelCalls": 10,
+    "maxToolCalls": 0,
+    "maxInputTokensPerCall": 16000,
+    "maxOutputTokensPerCall": 3072,
+    "maxTaskTokens": 40000,
+    "deadlineSeconds": 600
+  },
+  "sandboxPolicy": {
+    "mode": "DISABLED",
+    "runnerRef": null,
+    "requireApproval": false,
+    "allowedTestSuiteIds": [],
+    "networkAccess": "DENY",
+    "writableRoots": [],
+    "limits": null
+  },
+  "securityPolicy": {
+    "policyRef": "diagnosis-readonly-v1",
+    "resourceScopes": ["incident:${incidentId}", "run:${runId}"],
+    "maxDataClassification": "CONFIDENTIAL",
+    "groundTruthAccess": false,
+    "secretAccess": false,
+    "arbitraryCommandExecution": false,
+    "codeMutation": false
+  },
+  "terminationPolicy": {
+    "completionConditions": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"],
+    "noProgressRounds": 2,
+    "resultMapperRef": "diagnosis-result-mapper-v1"
+  }
+}

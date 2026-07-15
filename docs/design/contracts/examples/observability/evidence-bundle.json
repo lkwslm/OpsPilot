@@ -3,15 +3,20 @@
   "bundleId": "20000000-0000-4000-8000-000000000001",
   "incidentId": "20000000-0000-4000-8000-000000000002",
   "runId": "20000000-0000-4000-8000-000000000003",
-  "stepId": "collect-metrics-1",
+  "stepId": "normalize-evidence-1",
   "generatedAt": "2026-07-15T01:10:06Z",
   "observationBatchIds": [
     "10000000-0000-4000-8000-000000000001"
   ],
+  "codeFindingArtifactIds": [
+    "30000000-0000-4000-8000-000000000004"
+  ],
+  "knowledgeResultArtifactIds": [],
   "evidence": [
     {
       "evidenceId": "20000000-0000-4000-8000-000000000004",
       "evidenceCode": "metric.inventory.dependency_latency_high",
+      "factOrigin": "RUNTIME",
       "signalType": "METRIC",
       "resource": {
         "resourceId": "service:inventory-service",
@@ -27,11 +32,39 @@
       "artifactIds": [
         "10000000-0000-4000-8000-000000000003"
       ],
-      "sourceObservationRefs": [
+      "provenanceRefs": [
         {
+          "kind": "RUNTIME_OBSERVATION",
           "batchId": "10000000-0000-4000-8000-000000000001",
           "observationId": "10000000-0000-4000-8000-000000000002",
           "sourceId": "test-prometheus-primary"
+        }
+      ]
+    },
+    {
+      "evidenceId": "20000000-0000-4000-8000-000000000005",
+      "evidenceCode": "code.order.inventory_timeout_without_retry",
+      "factOrigin": "CODE",
+      "signalType": "CODE",
+      "resource": {
+        "resourceId": "symbol:InventoryClient.reserve",
+        "resourceType": "SYMBOL",
+        "systemId": "sample-commerce",
+        "serviceName": "order-service"
+      },
+      "claim": "InventoryClient.reserve configures a 3000 ms timeout and no retry policy in repository revision 8f2a947.",
+      "timeWindow": null,
+      "artifactIds": [
+        "30000000-0000-4000-8000-000000000003"
+      ],
+      "provenanceRefs": [
+        {
+          "kind": "CODE_FINDING",
+          "findingArtifactId": "30000000-0000-4000-8000-000000000004",
+          "findingSetId": "30000000-0000-4000-8000-000000000001",
+          "findingId": "30000000-0000-4000-8000-000000000002",
+          "repositoryId": "sample-commerce",
+          "revision": "8f2a947"
         }
       ]
     }

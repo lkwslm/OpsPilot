@@ -56,12 +56,12 @@ API 的兼容演进只允许：新增可选请求字段、新增响应字段、�
 |---|---|---|
 | `incident-investigation` | `application/vnd.opspilot.investigation-request+json;v=1` | `application/vnd.opspilot.rca+json;v=1` |
 | `collect-observability-evidence` | `application/vnd.opspilot.evidence-request+json;v=1` | `application/vnd.opspilot.evidence-bundle+json;v=1` |
-| `analyze-code-location` | `application/vnd.opspilot.code-analysis-request+json;v=1` | `application/vnd.opspilot.code-findings+json;v=1` |
-| `retrieve-incident-knowledge` | `application/vnd.opspilot.knowledge-request+json;v=1` | `application/vnd.opspilot.knowledge-result+json;v=1` |
+| `analyze-code-location` | `application/vnd.opspilot.code-analysis-request+json;v=1` | `application/vnd.opspilot.code-findings+json;v=1` + `application/vnd.opspilot.evidence-bundle+json;v=1` |
+| `retrieve-incident-knowledge` | `application/vnd.opspilot.knowledge-request+json;v=1` | `application/vnd.opspilot.knowledge-result+json;v=1` + 可选 `application/vnd.opspilot.evidence-bundle+json;v=1` |
 | `generate-and-verify-hypotheses` | `application/vnd.opspilot.diagnosis-request+json;v=1` | `application/vnd.opspilot.diagnosis-assessment+json;v=1` |
 | `propose-remediation` | `application/vnd.opspilot.remediation-request+json;v=1` | `application/vnd.opspilot.remediation-plan+json;v=1` |
 
-请求和结果的机器 Schema 位于 `docs/design/contracts/schemas/a2a-skill-contracts.schema.json`。Source Adapter 输出使用 `application/vnd.opspilot.observation-batch+json;v=1`，Evidence Agent 最终 Artifact 使用表中的 EvidenceBundle 媒体类型。任何接收端必须按以下顺序验证：媒体类型 → major schema version → JSON Schema → Source/Resource/Task/Run 归属 → Artifact 哈希 → 引用权限 → 领域不变量。验证失败不得部分写入领域表。
+请求和结果的机器 Schema 位于 `docs/design/contracts/schemas/a2a-skill-contracts.schema.json`。Source Adapter 输出使用 `application/vnd.opspilot.observation-batch+json;v=1`，代码分析中间产物使用 `code-findings.schema.json`；二者都必须规范化为 EvidenceBundle 后才能进入后续分析。`generate-and-verify-hypotheses` 请求只接受 Evidence ID。任何接收端必须按以下顺序验证：媒体类型 → major schema version → JSON Schema → Source/Resource/Task/Run 归属 → Artifact 哈希 → 引用权限 → 领域不变量。验证失败不得部分写入领域表。
 
 新增可选字段保持 v1；改变 required 字段、枚举含义或引用语义必须发布 v2 媒体类型。Client 在 Agent Card 中只选择自己明确支持的 major version，禁止忽略未知 major 后继续执行。
 

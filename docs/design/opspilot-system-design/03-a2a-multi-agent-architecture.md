@@ -44,9 +44,9 @@ Observe：读取当前 A2A Task 输入、checkpoint、已验证 Artifact/Evidenc
 |---|---|---|---|
 | `SupervisorAgent` | `DELEGATE_A2A_TASK`、`CONTINUE_A2A_TASK`、`REQUEST_USER_INPUT`、`CANCEL_TASK`、`FINISH` | 下游 Task 状态和已校验 Artifact | Investigation plan / RCA Artifact |
 | `EvidenceCollectorAgent` | 调用日志、指标、Trace、事件、健康、配置、拓扑 Tool，或 `FINISH` | Tool result + ObservationBatch/Evidence 引用 | Evidence bundle / Missing evidence Artifact |
-| `CodeAnalysisAgent` | 调用受限代码 Tool，或 `FINISH` | 文件、行号、调用路径和 Evidence 引用 | Code findings Artifact |
-| `KnowledgeAgent` | 调用完整 Knowledge Search 链路，或 `FINISH` | 真实检索结果或正常 `NO_MATCH` | Knowledge result Artifact |
-| `DiagnosisAgent` | `FORM_HYPOTHESES`、`REQUEST_VERIFICATION`、`FINISH` | Evidence/Code/Knowledge Artifact；补证后用同一 Task continuation | Hypothesis set / Diagnosis assessment Artifact |
+| `CodeAnalysisAgent` | 调用受限代码 Tool，或 `FINISH` | 文件、行号、调用路径和输入 Evidence 引用 | Code findings 审计 Artifact + 代码 Evidence bundle |
+| `KnowledgeAgent` | 调用完整 Knowledge Search 链路，或 `FINISH` | 真实检索结果或正常 `NO_MATCH` | Knowledge result Artifact；可引用断言规范化为 Evidence |
+| `DiagnosisAgent` | `FORM_HYPOTHESES`、`REQUEST_VERIFICATION`、`FINISH` | 仅 Evidence ID；补证后用同一 Task continuation | Hypothesis set / Diagnosis assessment Artifact |
 | `RemediationAgent` | `PROPOSE_PLAN`、`REQUEST_APPROVED_TEST`、`FINISH` | 已验证结论、审批和沙箱测试结果 | Remediation plan Artifact |
 
 本表“ReAct 动作结果”是框架 loop 对一次 Action 返回值的称呼，不等于第 27 章外部数据的 `ObservationRecord/ObservationBatch`。外部信息源必须先经 Adapter 和 EvidenceNormalizer；Agent loop 只能看到标准 Tool result、Evidence/Artifact 引用和受控摘要。
@@ -103,9 +103,9 @@ MVP 使用受控静态 Agent Directory，保存允许的 Agent Card URL、期望
 |---|---|---|---|
 | `SupervisorAgent` | `incident-investigation` | Incident ticket、约束和预算 | `investigation-plan`、`rca-report` |
 | `EvidenceCollectorAgent` | `collect-observability-evidence` | 时间窗、服务、证据请求 | `evidence-bundle`、`missing-evidence` |
-| `CodeAnalysisAgent` | `analyze-code-location` | 堆栈、路径和 Evidence 引用 | `code-findings` |
-| `KnowledgeAgent` | `retrieve-incident-knowledge` | 查询和元数据过滤 | `knowledge-result`，允许 `NO_MATCH` |
-| `DiagnosisAgent` | `generate-and-verify-hypotheses` | 证据、代码、知识引用 | `hypothesis-set`、`diagnosis-assessment` |
+| `CodeAnalysisAgent` | `analyze-code-location` | 堆栈、路径和 Evidence 引用 | `code-findings` + `evidence-bundle`；前者只用于追溯 |
+| `KnowledgeAgent` | `retrieve-incident-knowledge` | 查询和元数据过滤 | `knowledge-result` + 可选 `evidence-bundle`，允许 `NO_MATCH` |
+| `DiagnosisAgent` | `generate-and-verify-hypotheses` | 仅规范化 Evidence 引用 | `hypothesis-set`、`diagnosis-assessment` |
 | `RemediationAgent` | `propose-remediation` | 已验证结论和约束 | `remediation-plan` |
 
 ### 5.6 协议操作与数据合同
@@ -226,8 +226,6 @@ public record IncidentAgentState(
     String currentStepId,
     List<AgentStepReference> steps,
     List<String> evidenceIds,
-    List<String> codeFindingIds,
-    List<String> knowledgeResultArtifactIds,
     List<String> hypothesisIds,
     String remediationPlanArtifactId,
     String approvalId,
@@ -292,7 +290,7 @@ public record ReactLoopSnapshot(
 | 身份与并发 | `incidentId`, `runId`, `a2aContextId`, `supervisorAgentSessionId`, `version` | 绑定业务 Run、A2A 上下文、Supervisor 的 AgentScope 会话引用和 CAS 版本 |
 | 业务进度 | `status`, `outcome`, `planArtifactId`, `planVersion`, `currentStepId` | 恢复 Incident 状态机和当前调查计划 |
 | Agent 调度 | `steps` 及其 attempts | 定位每个 A2A Task、派发/对账/校验/重试状态 |
-| 调查结果引用 | Evidence、CodeFinding、KnowledgeResult、Hypothesis、Remediation、Approval ID | 组合上下文和最终 RCA，不复制业务对象正文 |
+| 调查结果引用 | Evidence、Hypothesis、Remediation、Approval ID | Evidence 是唯一事实集合；CodeFinding/KnowledgeResult 只通过 step 的 Artifact 引用保留审计，不进入分析上下文 |
 | 预算与循环 | `budget`, `usage`, `supervisorLoop`, `deadline` | 强制 Token、成本、轮数、重复动作和无进展停机 |
 | 缺失与失败 | `missingEvidence`, `warnings`, `failureId` | 生成限制说明或关联唯一 `ChainFailure` |
 | 完成与取消 | `finalReportArtifactId`, `cancellationRequested` | 恢复报告生成和取消传播 |
@@ -507,9 +505,9 @@ sequenceDiagram
     C->>DB: 校验并保存 Artifact/step 映射
     S->>C: 委派知识检索
     C->>K: message:send(retrieve-incident-knowledge)
-    K-->>C: COMPLETED + knowledge-result
+    K-->>C: COMPLETED + knowledge-result + optional evidence-bundle
     S->>C: 委派诊断
-    C->>D: message:stream(evidence/code/knowledge refs)
+    C->>D: message:stream(evidenceIds only)
     D-->>C: hypothesis-set + diagnosis-assessment
     C->>DB: 保存结果与 checkpoint
     S-->>API: rca-report Artifact + COMPLETED
@@ -584,7 +582,8 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 
 ### 6.8 防幻觉与结论门禁
 
-- 每个根因 Claim 必须引用至少一个当前 Incident 可访问的 Evidence；纯知识/案例只能作为背景，不能单独支撑根因。
+- 每个根因 Claim 必须引用至少一个当前 Incident 可访问的 Evidence；Hypothesis 的支持、冲突和验证输入也只能是 Evidence ID。CodeFinding、Observation、KnowledgeResult 或原始 Artifact 不能直接进入 Hypothesis。
+- 纯知识/案例只能作为背景；若其中的可核验断言参与判断，必须保留文档哈希与引用并规范化为 `Evidence(factOrigin=KNOWLEDGE)`，且不能单独证明运行时根因。
 - 引用必须通过 `CitationValidity`：对象存在、属于当前 Incident/允许 collection、时间范围匹配、内容摘要与 Claim 可核验。
 - 模型输出分离 `observedFacts`、`inferences`、`unknowns`；无法引用的陈述只能放入 `unknowns` 或“待验证假设”。
 - Top-1 结论达到配置化的证据覆盖、冲突检查和验证门槛后才标为 `CONCLUSIVE`；门槛未达到只能是 `PARTIAL` 或 `INCONCLUSIVE`。

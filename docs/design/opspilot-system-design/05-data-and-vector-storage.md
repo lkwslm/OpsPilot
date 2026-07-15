@@ -251,8 +251,8 @@ SET LOCAL ivfflat.probes = <P>;
 | `opspilot.observability_source` | `source_id`, `source_kind`, `adapter_id`, `adapter_version`, `connection_ref`, `environment`, `scope_json`, `capabilities`, `priority`, `state`, `config_version`, `updated_at` | Source Registry；只保存 Secret 引用，不保存 URL 凭证 |
 | `opspilot.observation_batch` | `batch_id`, `run_id`, `step_id`, `source_id`, `query_template_id`, `parameter_hash`, `window_start`, `window_end`, `collected_at`, `upstream_request_id`, `record_count`, `status`, `schema_version`, `artifact_id` | 一次 Adapter 调用和单一来源的审计单元；联邦入口仍是一条 Source |
 | `opspilot.observation_record` | `observation_id`, `batch_id`, `signal_type`, `resource_id`, `origin_source_id`, `observed_at`, `summary`, `attributes`, `quality_json`, `artifact_id` | 规范化 Observation 元数据；原始日志/时序/Span 图放 Artifact |
-| `opspilot.evidence` | `evidence_id`, `run_id`, `signal_type`, `resource_id`, `start_time`, `end_time`, `summary`, `attributes`, `artifact_id`, `relevance`, `reliability` | Evidence 真源；来源通过多对多引用关联，避免单 `source` 字段阻碍跨源证据 |
-| `opspilot.evidence_observation_ref` | `evidence_id`, `batch_id`, `observation_id`, `source_id`, `created_at` | Evidence 到 Observation/Source 的不可变追溯；联合主键防重复 |
+| `opspilot.evidence` | `evidence_id`, `run_id`, `fact_origin`, `signal_type`, `resource_id`, `start_time`, `end_time`, `summary`, `attributes`, `artifact_id`, `relevance`, `reliability` | 系统唯一事实真源；运行、代码和可引用知识断言统一进入此表，Hypothesis/RCA 只引用 `evidence_id` |
+| `opspilot.evidence_provenance_ref` | `evidence_id`, `provenance_kind`, `batch_id`, `observation_id`, `finding_artifact_id`, `finding_set_id`, `finding_id`, `knowledge_result_artifact_id`, `reference_id`, `source_id`, `source_revision`, `created_at` | Evidence 到 Observation、CodeFinding 或知识引用的不可变追溯；CHECK 保证每种 kind 只填写对应字段 |
 | `opspilot.root_cause_hypothesis` | `hypothesis_id`, `run_id`, `title`, `description`, `component`, `confidence`, `supporting_ids`, `conflicting_ids`, `verification_json`, `status` | 多假设及验证状态 |
 | `opspilot.tool_call` | `tool_call_id`, `run_id`, `step_id`, `agent_name`, `tool_name`, `idempotency_key`, `attempt`, `input_summary`, `output_summary`, `permission`, `approval_status`, `status`, `error_code`, `started_at`, `ended_at` | 工具审计；幂等键唯一；敏感输入不落库 |
 | `opspilot.chain_failure` | `failure_id`, `run_id`, `step_id`, `a2a_task_id`, `invocation_id`, `tool_call_id`, `request_id`, `trace_id`, `error_code`, `category`, `failed_component`, `operation`, `retryable`, `attempts`, `upstream_status`, `upstream_request_id`, `checkpoint`, `cause_summary`, `log_artifact_id`, `created_at` | 技术链路失败真源；错误体、SSE、A2A status 和日志共享关联 ID；仅保存脱敏摘要 |
@@ -311,8 +311,8 @@ erDiagram
     TARGET_SYSTEM ||--o{ TARGET_RESOURCE : owns
     TARGET_RESOURCE ||--o{ RESOURCE_RELATION : connects
     INCIDENT_RUN ||--o{ EVIDENCE : collects
-    EVIDENCE ||--o{ EVIDENCE_OBSERVATION_REF : cites
-    OBSERVATION_RECORD ||--o{ EVIDENCE_OBSERVATION_REF : supports
+    EVIDENCE ||--o{ EVIDENCE_PROVENANCE_REF : cites
+    OBSERVATION_RECORD ||--o{ EVIDENCE_PROVENANCE_REF : supports
     INCIDENT_RUN ||--o{ ROOT_CAUSE_HYPOTHESIS : generates
     INCIDENT_RUN ||--o{ TOOL_CALL : audits
     INCIDENT_RUN ||--o{ MODEL_INVOCATION : consumes
@@ -336,7 +336,7 @@ erDiagram
 - `target_resource(system_id, resource_type, valid_to)`、`resource_relation(system_id, from_resource_id, relation_type, valid_to)`；
 - `observability_source(environment, source_kind, state)`，`UNIQUE(source_id, config_version)` 保留配置身份；
 - `observation_batch(run_id, step_id, collected_at)`、`observation_batch(source_id, collected_at)`、`observation_record(batch_id, signal_type, observed_at)`、`observation_record(resource_id, observed_at)`；
-- `evidence(run_id, signal_type, start_time)`、`evidence(run_id, resource_id, start_time)`、`UNIQUE(evidence_observation_ref.evidence_id, evidence_observation_ref.batch_id, evidence_observation_ref.observation_id, evidence_observation_ref.source_id)`；
+- `evidence(run_id, fact_origin, signal_type, start_time)`、`evidence(run_id, resource_id, start_time)`、`UNIQUE(evidence_provenance_ref.evidence_id, evidence_provenance_ref.provenance_kind, evidence_provenance_ref.source_id, evidence_provenance_ref.source_revision)`；Observation 与 CodeFinding 的精确去重键另建 partial unique index；
 - `tool_call(run_id, started_at)`、`UNIQUE(tool_call.idempotency_key)`、`model_invocation(run_id, agent_name, started_at)`；
 - `incident_event(run_id, event_id)` 支撑 SSE 续传；
 - `knowledge_document(document_type, service, fault_type, language) WHERE deleted_at IS NULL`；

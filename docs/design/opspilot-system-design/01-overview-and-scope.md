@@ -77,7 +77,7 @@ MVP 完成时必须满足：
 ### 2.1 功能约束
 
 - 工单只暴露真实采集到的症状，不能泄漏根因；Ground Truth 必须由故障场景配置确定。
-- 证据统一为强类型 `Evidence`，至少带来源、服务、时间范围、摘要、原始 Artifact 引用、相关性和可靠性。
+- 系统事实统一为强类型 `Evidence`，至少带来源、资源、摘要、原始 Artifact/provenance 引用、相关性和可靠性；运行 Observation、CodeFinding 和知识检索结果只有规范化后才能供 Diagnosis/Hypothesis 使用。
 - 根因必须维护支持证据、冲突证据、验证步骤和置信度；证据不足时不得强制生成 Top-1，必须允许 `rootCause=null` 的 `INCONCLUSIVE` 结果。
 - 所有工具都通过统一 Tool SPI 和冻结的 `ToolRegistry` 调用；Agent 不能直接执行 SQL、任意 Shell、任意 HTTP 或越权文件读取。
 - 所有模型都通过窄 Provider Port 和对应专用 Registry 调用；核心业务代码不依赖具体厂商 SDK，也不直接耦合 Infinity 或其他本地推理框架。
