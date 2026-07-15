@@ -1,0 +1,291 @@
+openapi: 3.1.0
+info:
+  title: OpsPilot Product API
+  version: 1.0.0
+servers:
+  - url: http://{host}:{port}/api
+    variables:
+      host: {default: 127.0.0.1}
+      port: {default: '8080'}
+security: []
+paths:
+  /incidents:
+    post:
+      summary: Create an incident
+      operationId: createIncident
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateIncidentRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/IncidentResponse'}
+        '400': {$ref: '#/components/responses/Error'}
+        '409': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}:
+    get:
+      summary: Get an incident
+      operationId: getIncident
+      parameters: [{$ref: '#/components/parameters/IncidentId'}]
+      responses:
+        '200': {$ref: '#/components/responses/IncidentResponse'}
+        '404': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/run:
+    post:
+      summary: Start an incident run
+      operationId: startIncidentRun
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StartRunRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/RunResponse'}
+        '409': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/resume:
+    post:
+      summary: Resume a run waiting for input
+      operationId: resumeIncidentRun
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ResumeRunRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/RunResponse'}
+        '409': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/cancel:
+    post:
+      summary: Cancel an active incident run
+      operationId: cancelIncidentRun
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RunCommandRequest'}
+      responses:
+        '202': {$ref: '#/components/responses/RunResponse'}
+        '409': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/state:
+    get:
+      summary: Get current incident run state
+      operationId: getIncidentState
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/RunIdQuery'}
+      responses:
+        '200': {$ref: '#/components/responses/RunResponse'}
+        '404': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/report:
+    get:
+      summary: Get the generated RCA report
+      operationId: getIncidentReport
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/RunIdQuery'}
+      responses:
+        '200':
+          description: RCA report matching rca.schema.json
+          content:
+            application/json:
+              schema: {type: object}
+            text/markdown:
+              schema: {type: string}
+        '409': {$ref: '#/components/responses/Error'}
+  /incidents/{incidentId}/events:
+    get:
+      summary: Stream persisted incident events
+      operationId: streamIncidentEvents
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/RunIdQuery'}
+        - name: Last-Event-ID
+          in: header
+          schema: {type: integer, format: int64, minimum: 0}
+      responses:
+        '200':
+          description: SSE stream; each data payload validates incident-event.schema.json
+          content:
+            text/event-stream:
+              schema: {type: string}
+  /incidents/{incidentId}/tool-calls:
+    get:
+      summary: List audited tool calls
+      operationId: listToolCalls
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - {$ref: '#/components/parameters/RunIdQuery'}
+        - {$ref: '#/components/parameters/PageToken'}
+      responses:
+        '200':
+          description: Paginated tool audit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: {type: array, items: {$ref: '#/components/schemas/ToolCallSummary'}}
+                  nextPageToken: {type: [string, 'null']}
+  /incidents/{incidentId}/approvals/{approvalId}:
+    post:
+      summary: Approve or reject a controlled action
+      operationId: decideApproval
+      parameters:
+        - {$ref: '#/components/parameters/IncidentId'}
+        - name: approvalId
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/Uuid'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [runId, decision]
+              properties:
+                runId: {$ref: '#/components/schemas/Uuid'}
+                decision: {enum: [APPROVED, REJECTED]}
+                reason: {type: string, maxLength: 1000}
+      responses:
+        '202': {$ref: '#/components/responses/RunResponse'}
+        '409': {$ref: '#/components/responses/Error'}
+components:
+  parameters:
+    IncidentId:
+      name: incidentId
+      in: path
+      required: true
+      schema: {$ref: '#/components/schemas/Uuid'}
+    RunIdQuery:
+      name: runId
+      in: query
+      required: false
+      schema: {$ref: '#/components/schemas/Uuid'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 128, pattern: '^[A-Za-z0-9._:-]+$'}
+    PageToken:
+      name: pageToken
+      in: query
+      schema: {type: string, maxLength: 512}
+  responses:
+    IncidentResponse:
+      description: Incident
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/IncidentResponse'}
+    RunResponse:
+      description: Incident Run
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/RunResponse'}
+    Error:
+      description: Stable error envelope
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/ErrorResponse'}
+  schemas:
+    Uuid: {type: string, format: uuid}
+    CreateIncidentRequest:
+      type: object
+      additionalProperties: false
+      required: [targetSystemId, title, severity, ticket]
+      properties:
+        targetSystemId: {type: string, minLength: 1, maxLength: 256}
+        resourceIds: {type: array, maxItems: 100, uniqueItems: true, items: {type: string, minLength: 1, maxLength: 512}}
+        scenarioId: {type: [string, 'null'], maxLength: 128}
+        title: {type: string, minLength: 1, maxLength: 200}
+        severity: {enum: [LOW, MEDIUM, HIGH, CRITICAL]}
+        ticket: {type: object, additionalProperties: true}
+        inputArtifactIds: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/Uuid'}}
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      required: [modelConfigVersion, evaluationProfile]
+      properties:
+        modelConfigVersion: {type: string, minLength: 1, maxLength: 64}
+        evaluationProfile: {type: string, default: mvp-v1}
+        tokenBudget: {type: integer, minimum: 1}
+        deadlineSeconds: {type: integer, minimum: 60, maximum: 3600, default: 600}
+    ResumeRunRequest:
+      type: object
+      additionalProperties: false
+      required: [runId, input]
+      properties:
+        runId: {$ref: '#/components/schemas/Uuid'}
+        input: {type: object, additionalProperties: true}
+    RunCommandRequest:
+      type: object
+      additionalProperties: false
+      required: [runId]
+      properties:
+        runId: {$ref: '#/components/schemas/Uuid'}
+        reason: {type: string, maxLength: 1000}
+    IncidentResponse:
+      type: object
+      additionalProperties: false
+      required: [requestId, incidentId, targetSystemId, resourceIds, title, severity, status, createdAt]
+      properties:
+        requestId: {$ref: '#/components/schemas/Uuid'}
+        incidentId: {$ref: '#/components/schemas/Uuid'}
+        targetSystemId: {type: string}
+        resourceIds: {type: array, items: {type: string}}
+        title: {type: string}
+        severity: {enum: [LOW, MEDIUM, HIGH, CRITICAL]}
+        status: {type: string}
+        activeRunId: {anyOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}
+        createdAt: {type: string, format: date-time}
+    RunResponse:
+      type: object
+      additionalProperties: false
+      required: [requestId, incidentId, runId, status, version]
+      properties:
+        requestId: {$ref: '#/components/schemas/Uuid'}
+        incidentId: {$ref: '#/components/schemas/Uuid'}
+        runId: {$ref: '#/components/schemas/Uuid'}
+        status: {enum: [CREATED, QUEUED, PLANNING, COLLECTING_EVIDENCE, ANALYZING_CODE, RETRIEVING_KNOWLEDGE, GENERATING_HYPOTHESES, VERIFYING_HYPOTHESES, GENERATING_REMEDIATION, WAITING_INPUT, WAITING_APPROVAL, RUNNING_SANDBOX_TEST, GENERATING_REPORT, CANCELLING, COMPLETED, FAILED, CANCELLED]}
+        outcome: {type: ['string', 'null'], enum: [CONCLUSIVE, PARTIAL, INCONCLUSIVE, null]}
+        version: {type: integer, minimum: 0}
+        error: {anyOf: [{$ref: '#/components/schemas/ErrorResponse'}, {type: 'null'}]}
+    ToolCallSummary:
+      type: object
+      required: [toolCallId, runId, toolName, status, startedAt]
+      properties:
+        toolCallId: {$ref: '#/components/schemas/Uuid'}
+        runId: {$ref: '#/components/schemas/Uuid'}
+        toolName: {type: string}
+        status: {enum: [STARTED, SUCCEEDED, EMPTY, DENIED, FAILED]}
+        errorCode: {type: ['string', 'null']}
+        startedAt: {type: string, format: date-time}
+        endedAt: {type: ['string', 'null'], format: date-time}
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [type, title, status, errorCode, requestId, retryable]
+      properties:
+        type: {type: string, format: uri}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        detail: {type: string, maxLength: 2000}
+        errorCode: {type: string, pattern: '^[A-Z0-9_]+$'}
+        requestId: {$ref: '#/components/schemas/Uuid'}
+        incidentId: {anyOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}
+        runId: {anyOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}
+        retryable: {type: boolean}
+        logArtifactId: {anyOf: [{$ref: '#/components/schemas/Uuid'}, {type: 'null'}]}

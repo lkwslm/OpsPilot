@@ -7,7 +7,7 @@
 ```powershell
 docker compose -f deployment/docker-compose.yml config
 docker compose -f deployment/docker-compose.yml up -d postgres db-migrate retrieval-inference retrieval-model-probe
-docker compose -f deployment/docker-compose.yml up -d prometheus jaeger otel-collector toxiproxy inventory-service order-service sample-gateway opspilot-server
+docker compose -f deployment/docker-compose.yml up -d prometheus jaeger otel-collector toxiproxy inventory-service order-service sample-gateway evidence-agent code-agent knowledge-agent diagnosis-agent remediation-agent opspilot-server
 docker compose -f deployment/docker-compose.yml --profile fault-lab run --rm fault-lab-runner
 docker compose -f deployment/docker-compose.yml --profile evaluation run --rm opspilot-evaluation
 ```
@@ -45,6 +45,8 @@ MVP 的“数据库连接池耗尽”是 `order-service` 应用连接使用故�
 
 ### 21.4 扩缩容与发布
 
+本节描述运行环境具备的发布/回滚能力，不授权 GitHub Actions 自动操作环境。CI 和持续交付边界以第 26 章为准：GitHub 生成 `READY_FOR_MANUAL_DEPLOYMENT` 候选后停止，部署、数据库迁移和回滚均由外部人工运维流程执行。
+
 - OpsPilot Server 可水平扩展，任务由 PostgreSQL task 租约领取，状态/事件不依赖本地内存；Agent 间委派通过 A2A，产品 SSE 断线后从数据库重放。
 - 专业 Agent 可从同容器的独立端口逐步拆为独立进程/容器；无论部署形态如何都使用相同 A2A HTTP+JSON 合同、服务身份和 Task Store，禁止部署优化改变通信语义。
 - Embedding/Rerank 独立扩容；同 revision 实例必须返回相同能力合同。部署新权重时先探针，再旁路重向量化/质量验证，再切 active revision。
@@ -59,13 +61,22 @@ MVP 的“数据库连接池耗尽”是 `order-service` 应用连接使用故�
 
 ### 21.6 建议实施顺序
 
-1. 初始化 Maven 多模块、JDK 21、代码规范和文档；确定 AgentScope 依赖基线。
-2. 建 PostgreSQL/pgvector、Flyway、角色、核心/模型/RAG/Sample 表及 Testcontainers。
-3. 实现 Sample System、OTel/Prometheus/Jaeger 和测试故障接口。
+1. 执行第 24 章 Phase 0：锁定依赖和镜像，完成 AgentScope/A2A/模型探针 Spike，校验 OpenAPI/JSON Schema；门禁未通过不得进入完整功能开发。
+2. 初始化 Maven 多模块、JDK 21、代码规范；建立 PostgreSQL/pgvector、Flyway、四个 schema、六个 A2A 角色、核心/Source Registry/Resource/Observation/Evidence/模型/RAG/Sample 表及 Testcontainers，并先锁定单活动 Run、来源追溯和 Artifact 存储抽象。
+3. 实现首期 Java Sample System、OTel/Prometheus/Jaeger、测试故障接口，以及 Prometheus/Jaeger/JSONL/Actuator/Compose Adapter 和共享合同测试。
 4. 实现三类 Provider SPI、真实探针、DeepSeek 默认配置，以及同时加载 Embedding/Rerank 的统一 Infinity Compose。
 5. 实现文档版本、精确 pgvector 召回、Rerank、引用和重新向量化。
 6. 实现状态机、PostgreSQL task/state/event、Token Budget、Tool Runtime 和 6 个 Agent；同时实现锁定 A2A 1.0.1 的 contract/client/server adapter、Agent Card、Task Store 和协议合同测试。
 7. 实现 Fault Lab、3 个场景、Artifact/Ground Truth 隔离、RCA 与 Evaluation。
-8. 跑全量构建、数据库/模型集成和 3 场景 E2E；用真实结果修正文档与 README。
+8. 按第 25 章运行每场景 5 次质量 Run、技术失败矩阵和恢复测试；只有所有硬门禁和聚合阈值通过才发布。
+9. 按第 26 章实现 GitHub CI 与持续交付，生成不可变 OCI digest、SBOM、测试证据和 Release Manifest；流水线不得自动部署任何环境。
 
 每阶段输出实际文件、命令和测试结果，不能只报告计划。完成定义以真实构建/运行证据为准。
+
+### 21.7 人工部署原则
+
+- GitHub Actions 不持有目标环境凭证，不创建部署 Workflow；
+- 运维人员领取第 26 章发布候选，校验 Manifest、digest、来源证明和 Runbook 后，在 GitHub 流水线之外执行；
+- 运行环境只接受明确 OCI digest，不接受 `latest` 或可变 Tag；
+- 实际部署记录属于环境审计事实，不反写或伪装成 CI 构建结果；
+- 自动部署若成为未来需求，必须单独 ADR 和安全审查，不能在现有持续交付 Job 中直接增加部署步骤。

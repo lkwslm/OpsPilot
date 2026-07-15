@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/observation-batch/1.0.0",
+  "title": "OpsPilot Observation Batch v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "batchId", "source", "query", "collectedAt", "observations"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "batchId": {"$ref": "#/$defs/uuid"},
+    "source": {"$ref": "#/$defs/sourceRef"},
+    "query": {"$ref": "#/$defs/query"},
+    "collectedAt": {"type": "string", "format": "date-time"},
+    "upstreamRequestId": {"type": ["string", "null"], "maxLength": 256},
+    "observations": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/observation"}}
+  },
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "signalType": {"enum": ["LOG", "METRIC", "TRACE", "EVENT", "HEALTH", "CONFIG", "TOPOLOGY"]},
+    "sourceKind": {"enum": ["PROMETHEUS", "LOKI", "ELASTICSEARCH", "JAEGER", "TEMPO", "OPENTELEMETRY", "KUBERNETES", "CLOUDWATCH", "AZURE_MONITOR", "GOOGLE_CLOUD_MONITORING", "FILE", "HTTP", "CUSTOM"]},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cluster": {"type": ["string", "null"], "maxLength": 256},
+        "namespace": {"type": ["string", "null"], "maxLength": 256},
+        "region": {"type": ["string", "null"], "maxLength": 128},
+        "tenant": {"type": ["string", "null"], "maxLength": 256},
+        "account": {"type": ["string", "null"], "maxLength": 256},
+        "subscription": {"type": ["string", "null"], "maxLength": 256},
+        "project": {"type": ["string", "null"], "maxLength": 256}
+      }
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "sourceKind", "adapterId", "adapterVersion", "connectionRef", "environment", "scope"],
+      "properties": {
+        "sourceId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"},
+        "sourceKind": {"$ref": "#/$defs/sourceKind"},
+        "adapterId": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+        "adapterVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "connectionRef": {"type": "string", "pattern": "^observability-source://[A-Za-z0-9._/-]+$"},
+        "environment": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,64}$"},
+        "scope": {"$ref": "#/$defs/scope"}
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["templateId", "parameterHash", "timeWindow"],
+      "properties": {
+        "templateId": {"type": "string", "pattern": "^[A-Za-z0-9._/-]{1,256}$"},
+        "parameterHash": {"$ref": "#/$defs/sha256"},
+        "timeWindow": {"$ref": "#/$defs/window"}
+      }
+    },
+    "resourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "resourceType", "systemId", "environment", "attributes"],
+      "properties": {
+        "resourceId": {"type": "string", "minLength": 1, "maxLength": 512},
+        "resourceType": {"enum": ["SYSTEM", "SERVICE", "INSTANCE", "ENDPOINT", "POD", "CONTAINER", "NODE", "CLUSTER", "NAMESPACE", "DATASTORE", "QUEUE", "EXTERNAL_DEPENDENCY"]},
+        "systemId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "serviceName": {"type": ["string", "null"], "maxLength": 256},
+        "environment": {"type": "string", "minLength": 1, "maxLength": 64},
+        "attributes": {"type": "object", "maxProperties": 50, "additionalProperties": {"type": "string", "maxLength": 512}}
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshnessSeconds", "complete", "truncated", "warnings"],
+      "properties": {
+        "freshnessSeconds": {"type": "integer", "minimum": 0},
+        "complete": {"type": "boolean"},
+        "truncated": {"type": "boolean"},
+        "sampleRate": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "warnings": {"type": "array", "maxItems": 50, "uniqueItems": true, "items": {"type": "string", "maxLength": 256}}
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observationId", "signalType", "resource", "observedAt", "summary", "artifactId", "attributes", "quality"],
+      "properties": {
+        "observationId": {"$ref": "#/$defs/uuid"},
+        "signalType": {"$ref": "#/$defs/signalType"},
+        "resource": {"$ref": "#/$defs/resourceRef"},
+        "observedAt": {"type": "string", "format": "date-time"},
+        "summary": {"type": "string", "maxLength": 4000},
+        "artifactId": {"$ref": "#/$defs/uuid"},
+        "attributes": {"type": "object", "maxProperties": 100, "additionalProperties": {"anyOf": [{"type": "string"}, {"type": "number"}, {"type": "boolean"}, {"type": "null"}]}},
+        "quality": {"$ref": "#/$defs/quality"},
+        "originSource": {"$ref": "#/$defs/sourceRef"},
+        "upstreamRequestId": {"type": ["string", "null"], "maxLength": 256}
+      }
+    }
+  }
+}

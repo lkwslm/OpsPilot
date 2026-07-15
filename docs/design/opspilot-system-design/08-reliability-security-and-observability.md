@@ -44,8 +44,24 @@ Incident 总 deadline
 
 ### 17.4 任务级恢复
 
-- 非关键只读证据源暂不可用时，EvidenceCollector 可返回结构化 `missingEvidence`，由 Supervisor 判断是否仍能给出带限制的结论。
-- 知识库为空、无匹配或无历史案例时，KnowledgeAgent 返回 `COMPLETED` 的结构化空结果。Rerank、Embedding、KnowledgeAgent 或 A2A/Tool 技术链路不可用时，任务有限重试后必须 `FAILED` 并返回 `ChainFailure`；禁止 vector-only、关键词、Mock、固定结果、替代 Provider 或跳过步骤回退。
+- Evidence Source 的关键性由场景合同决定，不能由模型临时判断。默认矩阵如下；场景可以把 `CONDITIONAL` 提升为 `MANDATORY`，不得降级 `MANDATORY`：
+
+| 能力 | 默认级别 | 可继续条件 | 技术失败结果 |
+|---|---|---|---|
+| Incident ticket、Artifact 服务、PostgreSQL 状态库、LLM、A2A endpoint | `MANDATORY` | 无 | step 与 Incident `FAILED` |
+| `LogQueryTool` | `MANDATORY` | 无 | step 与 Incident `FAILED` |
+| `HealthQueryTool` | `MANDATORY` | 无 | step 与 Incident `FAILED` |
+| `MetricQueryTool` | `CONDITIONAL` | 场景未声明 required metric evidence，且日志/Trace 至少一种独立观测源成功 | 记录 `missingEvidence`，step 可完成 |
+| `TraceQueryTool` | `CONDITIONAL` | 场景未声明 required trace evidence，且日志/指标至少一种独立观测源成功 | 记录 `missingEvidence`，step 可完成 |
+| `TopologyQueryTool` | `CONDITIONAL` | 场景已提供版本化静态拓扑，且当前假设不依赖动态实例关系 | 记录 `missingEvidence`，step 可完成 |
+| `ConfigReadTool` | `CONDITIONAL` | 当前假设不依赖配置事实 | 记录 `missingEvidence`，step 可完成 |
+| `CodeSearchTool` | `CONDITIONAL` | 计划明确无需代码定位 | step `SKIPPED`；若已进入调用后技术失败则 Incident `FAILED` |
+| Embedding、Rerank、`KnowledgeSearchTool`、KnowledgeAgent | `MANDATORY_WHEN_CANDIDATES_EXIST` | 空库/零候选是成功业务结果；存在候选时必须完成 Rerank | 技术失败时 Incident `FAILED` |
+| `SandboxTestTool` | `OPTIONAL_APPROVED` | 未批准、拒绝或超时均可生成受限报告 | 已批准后沙箱技术失败则 Incident `FAILED` |
+
+只有表中明确允许继续的 `CONDITIONAL` 空缺才能形成结构化 `missingEvidence`。HTTP 超时、鉴权失败或无效 Schema 仍必须记录 `ChainFailure`；Supervisor 根据矩阵决定该 failure 是终止 Incident 还是作为受限证据缺口继续。E2E 必须分别覆盖“允许缺失”和“强制失败”两类路径。
+- 可观测 Source 的未配置、空结果、技术失败和部分结果严格按第 27.9 节区分；每个 ChainFailure/missingEvidence 必须携带 `sourceId/sourceKind/adapterId`，不得只记录抽象 Tool 名。
+- 知识库为空、无匹配或无历史案例时，KnowledgeAgent 返回 `COMPLETED` 的结构化空结果。Rerank、Embedding、KnowledgeAgent 或 A2A/Tool 技术链路不可用时必须返回 `ChainFailure`；关键能力有限重试后 `FAILED`，仅第 17.4 节明确允许的 conditional 证据源可以记录 `missingEvidence` 后继续。禁止 vector-only、关键词、Mock、固定结果、替代 Provider 或未记录原因地跳过步骤回退。
 - LLM 不可用、状态无法持久化或 Ground Truth 隔离异常属于关键失败，任务不能伪装完成。
 - 错误经 SSE 发布 `ERROR`，包含 `errorCode`、`retryable`、`stepId`、脱敏消息和 `requestId`；完整异常进入受控日志。
 
@@ -95,7 +111,7 @@ Incident 总 deadline
 - A2A Agent 间调用使用独立服务身份；本地为短期服务 Token，生产采用 mTLS 或 OAuth2 client credentials。Agent Card URL、A2A endpoint 和证书/签名进入 allowlist，模型不能修改目标地址。
 - A2A Task 按调用方和 skill scope 授权；专业 Agent 的数据库角色不能写 Supervisor 领域表。受控 Artifact URL 必须短期、限任务、限媒体类型，并在接收端再次校验哈希和访问级别。
 - PostgreSQL、Infinity、Toxiproxy 默认不暴露公网；生产出站策略只允许批准的模型域名和可观测端点。
-- 模型/镜像/依赖使用锁定版本或 digest，保留 SBOM、License 和漏洞扫描记录。
+- 模型/镜像/依赖使用锁定版本或 digest，保留 SBOM、License、漏洞扫描和构建来源证明；第 26 章持续交付把这些证据写入 Release Manifest，但不自动部署。
 
 ## 19. 可观测性与 Token 用量统计
 

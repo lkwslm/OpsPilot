@@ -11,6 +11,7 @@ opspilot/
 │   └── adr/
 ├── opspilot-domain/
 ├── opspilot-model-provider/
+├── opspilot-observability/
 ├── opspilot-agent-core/
 ├── opspilot-agent-adapter-agentscope/
 ├── opspilot-a2a-contract/
@@ -51,13 +52,14 @@ opspilot/
 |---|---|---|
 | `opspilot-domain` | Incident、Evidence、Hypothesis、Remediation、Approval、Artifact、Evaluation 等纯领域对象和规则 | JDK/轻量校验，不依赖 Spring |
 | `opspilot-model-provider` | Chat/Embedding/Rerank SPI、配置解析、OpenAI-Compatible/Infinity HTTP Adapter、能力校验 | HTTP/JSON；不依赖业务模块 |
+| `opspilot-observability` | 语言/厂商无关的 `ResourceRef`、`ObservationQuery`、`ObservationBatch`、Source Registry、`ObservabilitySourceAdapter`、`EvidenceNormalizer`；首期包含 Prometheus/Jaeger/JSONL/Actuator/Compose Adapter 包 | domain、HTTP/JSON；厂商 SDK 类型只存在于 Adapter 包 |
 | `opspilot-tool-api` | Tool SPI、Schema、权限等级、执行上下文和结果 | domain |
 | `opspilot-agent-core` | `BoundedReActRunner` 策略包装器、状态机、调度器、Context Builder、Token Budget、Agent 结果协议、Repository Port | domain、tool-api、model-provider |
 | `opspilot-agent-adapter-agentscope` | 将 6 个 Agent、工具和结构化输出接入实际 AgentScope Java API | agent-core、tool-api、model-provider |
 | `opspilot-a2a-contract` | 锁定 A2A 1.0 协议模型、OpsPilot Artifact Schema/媒体类型和版本兼容规则；优先使用锁定官方 proto/SDK 生成对象 | 不依赖业务实现 |
 | `opspilot-a2a-client` | Agent Card 获取/校验、受信目录、send/stream/get/cancel/subscribe、鉴权、恢复、幂等和协议错误映射 | a2a-contract、domain port |
 | `opspilot-a2a-server-adapter` | 为 6 个 Agent 暴露 Agent Card 和 A2A HTTP+JSON Server，将协议对象映射到 agent-core | a2a-contract、agent-core |
-| `opspilot-tool-impl` | 日志、Prometheus、Jaeger、健康、配置、代码、知识、沙箱工具实现与中间件 | tool-api、rag、基础设施客户端 |
+| `opspilot-tool-impl` | 日志、指标、Trace、健康、拓扑、配置、代码、知识、沙箱能力 Tool 与中间件；可观测 Tool 只编排 Source Adapter 和 Evidence Normalizer | tool-api、observability、rag |
 | `opspilot-rag` | 文档导入、Chunk、向量版本、召回、元数据过滤、重排和引用 | domain、model-provider、PostgreSQL |
 | `opspilot-evaluation` | 读取隔离 Ground Truth，计算 8 类指标，生成 JSON/Markdown 报告 | domain；使用同一 PostgreSQL 中独立 schema/角色及独立 Artifact 凭证 |
 | `opspilot-server` | REST/SSE、参数校验、错误映射、事务装配、配置启动校验 | 上述应用模块 |
@@ -65,15 +67,17 @@ opspilot/
 推荐依赖方向：
 
 ```text
-domain ← tool-api / model-provider / a2a-contract
-       ← agent-core / rag / a2a-client
-       ← agentscope-adapter / a2a-server-adapter / tool-impl / evaluation
+domain ← tool-api / model-provider / a2a-contract / observability
+       ← agent-core / rag / a2a-client / tool-impl
+       ← agentscope-adapter / a2a-server-adapter / evaluation
        ← server
 ```
 
-禁止循环依赖；AgentScope 和 A2A SDK 类型不能出现在 domain、tool-api 或产品 REST DTO 中。专业 Agent 不得依赖 Supervisor 的状态 Repository，也不得直接写 Supervisor 所有的 Incident、Hypothesis 或 RCA 表。
+禁止循环依赖；AgentScope、A2A SDK、Prometheus/Jaeger/Kubernetes/Cloud SDK 类型不能出现在 domain、tool-api、Agent 或产品 REST DTO 中。专业 Agent 不得依赖 Supervisor 的状态 Repository，也不得直接写 Supervisor 所有的 Incident、Hypothesis 或 RCA 表。若首期 Adapter 的依赖产生冲突，再把 Adapter 实现拆成独立 Maven 模块；核心 Port 和 Schema 不随物理拆分变化。
 
-### 4.3 被测业务系统
+### 4.3 首期参考被测系统
+
+Sample System 只用于首期故障注入和验收。OpsPilot 的目标系统模型、Observation/Evidence、Agent 和 RCA 不得依赖以下 Java/Spring 实现；跨语言与分布式接入规则见第 27 章。
 
 - `sample-gateway`：提供统一外部 API、调用 `order-service`、记录 Trace/请求指标、映射下游错误。
 - `order-service`：创建/查询订单，调用 `inventory-service`，使用 PostgreSQL 与 HikariCP，保留线程池、异步任务和测试故障开关。
@@ -133,16 +137,19 @@ public interface AgentTool<I, O> {
 
 | 工具 | 首期实现 | 权限 |
 |---|---|---|
-| `LogSearchTool` | 读取受控 JSONL，按服务/时间/级别/关键字筛选并限条 | READ_ONLY |
-| `PrometheusQueryTool` | Instant/Range Query，PromQL 白名单、采样点与超时限制 | READ_ONLY |
-| `TraceSearchTool` | Jaeger HTTP API 或受控 Trace JSON | READ_ONLY |
-| `ServiceHealthTool` | Actuator、容器状态、HTTP 连通性 | READ_ONLY |
+| `LogQueryTool` | 通过 `JsonlLogAdapter` 查询；结果转换成 Observation/Evidence | READ_ONLY |
+| `MetricQueryTool` | 通过 `PrometheusMetricAdapter` 执行受控模板；Agent 不接触 PromQL | READ_ONLY |
+| `TraceQueryTool` | 通过 `JaegerTraceAdapter` 或受控 Trace Adapter 查询 | READ_ONLY |
+| `HealthQueryTool` | 通过 Actuator/HTTP/容器健康 Adapter 查询 | READ_ONLY |
+| `TopologyQueryTool` | 首期查询静态 Compose 拓扑；返回统一 Resource/Relationship | READ_ONLY |
 | `ConfigReadTool` | 只返回脱敏配置，禁止密码/Token/Key/完整凭证 | READ_ONLY |
-| `CodeSearchTool` | 受限根目录的文件/类/方法/关键字搜索，返回行号与上下文 | READ_ONLY |
+| `CodeSearchTool` | 首期 `JavaCodeSearchAdapter` 搜索受限根目录；输出使用语言无关 CodeFinding | READ_ONLY |
 | `KnowledgeSearchTool` | PostgreSQL + pgvector 召回并调用统一 RerankProvider | READ_ONLY |
-| `SandboxTestTool` | 仅执行配置白名单中的 Maven 测试 | CONTROLLED_EXECUTION |
+| `SandboxTestTool` | 首期 `MavenTestAdapter` 仅执行配置白名单测试 | CONTROLLED_EXECUTION |
 
 `HIGH_RISK`（改代码、改配置、Git、任意 Shell、改数据库、生产操作）在 MVP 禁止执行；审批记录不等于自动放开任意命令。
+
+可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`KnowledgeSearchTool` 不属于外部可观测 Source；代码和沙箱使用独立语言 Adapter。新增 Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
 
 ### 4.6 Agent API 与 SSE
 
@@ -162,6 +169,8 @@ POST /api/incidents/{incidentId}/approvals/{approvalId}
 ```
 
 所有写操作支持 `Idempotency-Key`；响应携带 `requestId`、`incidentId` 和适用时的 `runId`。`state/report/events/tool-calls` 默认读取该 Incident 当前活跃 Run，否则读取最近 Run；可用 `?runId=` 精确指定，服务端必须校验该 Run 属于路径中的 Incident。SSE 事件包括 `STATE_CHANGED`、`PLAN_CREATED`、`AGENT_STARTED`、`AGENT_COMPLETED`、`TOOL_CALL_STARTED`、`TOOL_CALL_COMPLETED`、`EVIDENCE_ADDED`、`HYPOTHESIS_ADDED`、`APPROVAL_REQUIRED`、`REPORT_GENERATED`、`ERROR`。事件 ID 来自 PostgreSQL `incident_event.event_id`，查询通过 `incident_run` 约束 Incident/Run 边界，客户端以 `Last-Event-ID` 断线续传。
+
+创建 Incident 必须提供 `targetSystemId`，可选提供一组 `resourceIds` 收紧调查范围；服务端从第 27 章 Target Resource/Source Registry 校验归属和可访问性。工单中的自然语言服务名只作为线索，不能替代稳定 Resource 身份，也不能由模型生成 source URL。
 
 这些 REST/SSE 接口面向用户和 Fault Lab，不是 Agent 间协议。Agent 间接口必须使用第 5 章定义的 A2A HTTP+JSON 操作；产品 SSE 可以投影 A2A Task 状态，但不得把自定义事件冒充 A2A stream。
 

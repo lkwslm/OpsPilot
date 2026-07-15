@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarioId": "database-pool-exhausted-order",
+  "scenarioVersion": "1.0.0",
+  "rootCauseCode": "database.pool.exhausted.order",
+  "faultService": "order-service",
+  "faultComponent": "HikariCP",
+  "requiredEvidence": [
+    {"evidenceCode": "metric.order.hikari_active_at_max", "sourceType": "METRIC", "service": "order-service", "predicate": {"field": "hikari.active", "operator": "EQ", "value": 4}},
+    {"evidenceCode": "metric.order.hikari_pending_positive", "sourceType": "METRIC", "service": "order-service", "predicate": {"field": "hikari.pending", "operator": "GT", "value": 0}},
+    {"evidenceCode": "log.order.connection_timeout", "sourceType": "LOG", "service": "order-service", "predicate": {"field": "error.code", "operator": "EQ", "value": "DB_CONNECTION_TIMEOUT"}}
+  ],
+  "oneOfEvidenceGroups": [["trace.order.db_wait_high", "config.order.hikari_pool_size_four"]],
+  "requiredToolNames": ["MetricQueryTool", "LogQueryTool"],
+  "optionalToolNames": ["TraceQueryTool", "TopologyQueryTool", "ConfigReadTool", "CodeSearchTool", "KnowledgeSearchTool"],
+  "forbiddenToolNames": ["SandboxTestTool"],
+  "forbiddenRootCauseCodes": ["dependency.latency.inventory", "service.instance.stopped.inventory"],
+  "expectedActionCodes": ["release.leaked.connections", "fix.connection.lifecycle", "add.hikari.pending.alert"],
+  "datasetValidityPredicates": [{"field": "injection.hikari_pending_duration_seconds", "operator": "GTE", "value": 15}],
+  "recoveryPredicates": [{"field": "recovery.hikari_pending", "operator": "EQ", "value": 0}]
+}

@@ -1,0 +1,26 @@
+schemaVersion: 1.0.0
+scenarioId: database-pool-exhausted-order
+scenarioVersion: 1.0.0
+seed: 102
+timeouts: {totalSeconds: 360, recoverySeconds: 60}
+baseline:
+  durationSeconds: 60
+  predicates:
+    - {field: order.hikari_pending, operator: EQ, value: 0}
+    - {field: gateway.success_rate, operator: GTE, value: 0.99}
+injection:
+  type: HIKARI_CONNECTION_HOLD
+  target: order-service
+  parameters: {maximum_pool_size: 4, held_connections: 4, hold_seconds: 90, connection_timeout_ms: 2000}
+  durationSeconds: 120
+load:
+  requestsPerSecond: 5
+  durationSeconds: 240
+  endpoints: [/api/orders]
+collection: {logs: true, metrics: true, traces: true, configs: true}
+recovery:
+  durationSeconds: 60
+  predicates:
+    - {field: order.hikari_pending, operator: EQ, value: 0}
+    - {field: gateway.success_rate, operator: GTE, value: 0.99}
+groundTruthRef: ../ground-truth/database-pool-exhausted-order.json

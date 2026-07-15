@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/ground-truth/1.0.0",
+  "title": "OpsPilot Ground Truth v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarioId", "scenarioVersion", "rootCauseCode", "faultService", "faultComponent", "requiredEvidence", "oneOfEvidenceGroups", "requiredToolNames", "optionalToolNames", "forbiddenToolNames", "forbiddenRootCauseCodes", "expectedActionCodes", "datasetValidityPredicates", "recoveryPredicates"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "scenarioId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+    "scenarioVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "rootCauseCode": {"type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*)+$"},
+    "faultService": {"type": "string"},
+    "faultComponent": {"type": "string"},
+    "requiredEvidence": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/evidenceRule"}},
+    "oneOfEvidenceGroups": {"type": "array", "items": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}},
+    "requiredToolNames": {"$ref": "#/$defs/toolNameSet"},
+    "optionalToolNames": {"$ref": "#/$defs/toolNameSet"},
+    "forbiddenToolNames": {"$ref": "#/$defs/toolNameSet"},
+    "forbiddenRootCauseCodes": {"$ref": "#/$defs/stringSet"},
+    "expectedActionCodes": {"$ref": "#/$defs/stringSet"},
+    "datasetValidityPredicates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}},
+    "recoveryPredicates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}}
+  },
+  "$defs": {
+    "stringSet": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+    "toolName": {"enum": ["LogQueryTool", "MetricQueryTool", "TraceQueryTool", "HealthQueryTool", "TopologyQueryTool", "ConfigReadTool", "CodeSearchTool", "KnowledgeSearchTool", "SandboxTestTool"]},
+    "toolNameSet": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/toolName"}},
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {"type": "string"},
+        "operator": {"enum": ["EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "EXISTS"]},
+        "value": true
+      }
+    },
+    "evidenceRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceCode", "sourceType", "service", "predicate"],
+      "properties": {
+        "evidenceCode": {"type": "string"},
+        "sourceType": {"enum": ["LOG", "METRIC", "TRACE", "EVENT", "HEALTH", "CONFIG", "TOPOLOGY", "CODE", "KNOWLEDGE"]},
+        "service": {"type": "string"},
+        "predicate": {"$ref": "#/$defs/predicate"}
+      }
+    }
+  }
+}

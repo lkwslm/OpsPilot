@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/evidence-bundle/1.0.0",
+  "title": "OpsPilot Evidence Bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bundleId", "incidentId", "runId", "stepId", "generatedAt", "observationBatchIds", "evidence", "missingEvidence"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "bundleId": {"$ref": "#/$defs/uuid"},
+    "incidentId": {"$ref": "#/$defs/uuid"},
+    "runId": {"$ref": "#/$defs/uuid"},
+    "stepId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "observationBatchIds": {"type": "array", "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+    "evidence": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/evidence"}},
+    "missingEvidence": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/missing"}}
+  },
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "signalType": {"enum": ["LOG", "METRIC", "TRACE", "EVENT", "HEALTH", "CONFIG", "TOPOLOGY"]},
+    "resourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "resourceType", "systemId"],
+      "properties": {
+        "resourceId": {"type": "string", "minLength": 1, "maxLength": 512},
+        "resourceType": {"enum": ["SYSTEM", "SERVICE", "INSTANCE", "ENDPOINT", "POD", "CONTAINER", "NODE", "CLUSTER", "NAMESPACE", "DATASTORE", "QUEUE", "EXTERNAL_DEPENDENCY"]},
+        "systemId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "serviceName": {"type": ["string", "null"], "maxLength": 256}
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "observationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["batchId", "observationId", "sourceId"],
+      "properties": {
+        "batchId": {"$ref": "#/$defs/uuid"},
+        "observationId": {"$ref": "#/$defs/uuid"},
+        "sourceId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "evidenceCode", "signalType", "resource", "claim", "timeWindow", "artifactIds", "sourceObservationRefs"],
+      "properties": {
+        "evidenceId": {"$ref": "#/$defs/uuid"},
+        "evidenceCode": {"type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"},
+        "signalType": {"$ref": "#/$defs/signalType"},
+        "resource": {"$ref": "#/$defs/resourceRef"},
+        "claim": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "timeWindow": {"$ref": "#/$defs/window"},
+        "artifactIds": {"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+        "sourceObservationRefs": {"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/observationRef"}}
+      }
+    },
+    "missing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "signalType", "reason", "sourceIds", "retryable"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+        "signalType": {"$ref": "#/$defs/signalType"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "sourceIds": {"type": "array", "maxItems": 50, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"}},
+        "retryable": {"type": "boolean"}
+      }
+    }
+  }
+}

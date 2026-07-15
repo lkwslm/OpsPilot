@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarioId": "dependency-latency-inventory",
+  "scenarioVersion": "1.0.0",
+  "rootCauseCode": "dependency.latency.inventory",
+  "faultService": "inventory-service",
+  "faultComponent": "order-to-inventory network path",
+  "requiredEvidence": [
+    {"evidenceCode": "trace.order.inventory_span_latency_high", "sourceType": "TRACE", "service": "order-service", "predicate": {"field": "span.duration_p95_ms", "operator": "GTE", "value": 2500}},
+    {"evidenceCode": "metric.gateway.request_latency_high", "sourceType": "METRIC", "service": "sample-gateway", "predicate": {"field": "http.latency_p95_ms", "operator": "GTE", "value": 2500}}
+  ],
+  "oneOfEvidenceGroups": [["log.order.inventory_timeout_or_slow", "metric.inventory.resource_normal"]],
+  "requiredToolNames": ["TraceQueryTool", "MetricQueryTool"],
+  "optionalToolNames": ["LogQueryTool", "HealthQueryTool", "TopologyQueryTool", "CodeSearchTool", "KnowledgeSearchTool"],
+  "forbiddenToolNames": ["SandboxTestTool"],
+  "forbiddenRootCauseCodes": ["database.pool.exhausted.order", "service.instance.stopped.inventory"],
+  "expectedActionCodes": ["inspect.downstream.span", "configure.client.timeout", "add.downstream.latency.alert"],
+  "datasetValidityPredicates": [{"field": "injection.inventory_span_p95_ms", "operator": "GTE", "value": 2500}],
+  "recoveryPredicates": [{"field": "recovery.gateway_latency_p95_ms", "operator": "LT", "value": 700}]
+}

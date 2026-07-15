@@ -1,0 +1,26 @@
+schemaVersion: 1.0.0
+scenarioId: dependency-latency-inventory
+scenarioVersion: 1.0.0
+seed: 101
+timeouts: {totalSeconds: 360, recoverySeconds: 60}
+baseline:
+  durationSeconds: 60
+  predicates:
+    - {field: gateway.success_rate, operator: GTE, value: 0.99}
+    - {field: gateway.latency_p95_ms, operator: LT, value: 500}
+injection:
+  type: TOXIPROXY_LATENCY
+  target: order-to-inventory
+  parameters: {latency_ms: 3000, jitter_ms: 100}
+  durationSeconds: 120
+load:
+  requestsPerSecond: 5
+  durationSeconds: 240
+  endpoints: [/api/orders, /api/inventory/SKU-001]
+collection: {logs: true, metrics: true, traces: true, configs: true}
+recovery:
+  durationSeconds: 60
+  predicates:
+    - {field: gateway.success_rate, operator: GTE, value: 0.99}
+    - {field: gateway.latency_p95_ms, operator: LT, value: 700}
+groundTruthRef: ../ground-truth/dependency-latency-inventory.json

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/evaluation-profile/1.0.0",
+  "title": "OpsPilot Evaluation Profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "profile_id", "runs_per_scenario", "model", "quality_thresholds", "hard_gates", "efficiency_limits"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"type": "string"},
+    "runs_per_scenario": {"type": "integer", "minimum": 1, "maximum": 100},
+    "model": {"type": "object", "additionalProperties": false, "required": ["temperature", "fixed_config_snapshot"], "properties": {"temperature": {"type": "number", "minimum": 0, "maximum": 2}, "fixed_config_snapshot": {"const": true}}},
+    "quality_thresholds": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}},
+    "hard_gates": {"type": "object", "additionalProperties": {"anyOf": [{"type": "number"}, {"type": "boolean"}]}},
+    "efficiency_limits": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}}
+  }
+}

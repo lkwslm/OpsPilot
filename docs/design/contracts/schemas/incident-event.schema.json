@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/incident-event/1.0.0",
+  "title": "OpsPilot Incident SSE Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "eventType", "requestId", "incidentId", "runId", "occurredAt", "payload"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "eventId": {"type": "integer", "minimum": 1},
+    "eventType": {"enum": ["STATE_CHANGED", "PLAN_CREATED", "AGENT_STARTED", "AGENT_COMPLETED", "TOOL_CALL_STARTED", "TOOL_CALL_COMPLETED", "EVIDENCE_ADDED", "HYPOTHESIS_ADDED", "APPROVAL_REQUIRED", "REPORT_GENERATED", "ERROR"]},
+    "requestId": {"type": "string", "format": "uuid"},
+    "incidentId": {"type": "string", "format": "uuid"},
+    "runId": {"type": "string", "format": "uuid"},
+    "stepId": {"type": ["string", "null"]},
+    "a2aTaskId": {"type": ["string", "null"]},
+    "occurredAt": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": true}
+  }
+}

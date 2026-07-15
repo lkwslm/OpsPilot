@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/rca/1.0.0",
+  "title": "OpsPilot RCA v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "incidentId", "runId", "summary", "severity", "outcome", "rootCause", "evidenceAssessment", "hypotheses", "actions", "citations", "limitations", "generatedAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "incidentId": {"type": "string", "format": "uuid"},
+    "runId": {"type": "string", "format": "uuid"},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 4000},
+    "severity": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+    "outcome": {"enum": ["CONCLUSIVE", "PARTIAL", "INCONCLUSIVE"]},
+    "rootCause": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rootCauseCode", "title", "component", "confidence", "supportingEvidenceIds", "conflictingEvidenceIds"],
+          "properties": {
+            "rootCauseCode": {"type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9_]*)+$"},
+            "title": {"type": "string", "maxLength": 300},
+            "component": {"type": "string", "maxLength": 200},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "supportingEvidenceIds": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "format": "uuid"}},
+            "conflictingEvidenceIds": {"type": "array", "uniqueItems": true, "items": {"type": "string", "format": "uuid"}}
+          }
+        }
+      ]
+    },
+    "evidenceAssessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coverage", "missingEvidenceCodes", "unavailableCapabilities"],
+      "properties": {
+        "coverage": {"type": "number", "minimum": 0, "maximum": 1},
+        "missingEvidenceCodes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "unavailableCapabilities": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "hypotheses": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"$ref": "#/$defs/hypothesis"}},
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["immediate", "longTerm", "monitoring", "tests", "humanNextSteps", "rollback"],
+      "properties": {
+        "immediate": {"$ref": "#/$defs/actions"},
+        "longTerm": {"$ref": "#/$defs/actions"},
+        "monitoring": {"$ref": "#/$defs/actions"},
+        "tests": {"$ref": "#/$defs/actions"},
+        "humanNextSteps": {"$ref": "#/$defs/actions"},
+        "rollback": {"$ref": "#/$defs/actions"}
+      }
+    },
+    "citations": {"type": "array", "items": {"$ref": "#/$defs/citation"}},
+    "limitations": {"type": "array", "items": {"type": "string", "maxLength": 1000}},
+    "generatedAt": {"type": "string", "format": "date-time"}
+  },
+  "allOf": [
+    {"if": {"properties": {"outcome": {"const": "INCONCLUSIVE"}}}, "then": {"properties": {"rootCause": {"type": "null"}}}},
+    {"if": {"properties": {"outcome": {"enum": ["CONCLUSIVE", "PARTIAL"]}}}, "then": {"properties": {"rootCause": {"type": "object"}}}}
+  ],
+  "$defs": {
+    "actions": {"type": "array", "maxItems": 30, "items": {"type": "object", "additionalProperties": false, "required": ["actionCode", "description"], "properties": {"actionCode": {"type": "string"}, "description": {"type": "string", "maxLength": 2000}, "approvalRequired": {"type": "boolean", "default": false}}}},
+    "hypothesis": {"type": "object", "additionalProperties": false, "required": ["hypothesisId", "title", "status", "confidence", "supportingEvidenceIds", "conflictingEvidenceIds"], "properties": {"hypothesisId": {"type": "string", "format": "uuid"}, "title": {"type": "string", "maxLength": 300}, "status": {"enum": ["SUPPORTED", "REFUTED", "UNVERIFIED"]}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "supportingEvidenceIds": {"type": "array", "items": {"type": "string", "format": "uuid"}}, "conflictingEvidenceIds": {"type": "array", "items": {"type": "string", "format": "uuid"}}}},
+    "citation": {"type": "object", "additionalProperties": false, "required": ["claimId", "evidenceId", "evidenceCode", "artifactId"], "properties": {"claimId": {"type": "string"}, "evidenceId": {"type": "string", "format": "uuid"}, "evidenceCode": {"type": "string"}, "artifactId": {"type": "string", "format": "uuid"}}}
+  }
+}

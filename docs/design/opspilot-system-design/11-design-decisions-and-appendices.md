@@ -17,6 +17,9 @@
 | 知识不足 | 空库/无匹配/无历史案例是正常业务结果；技术链路故障显式失败，绝不降级 |
 | Token | Context Builder、A2A Artifact 引用、压缩和多级预算 |
 | 测试 | 单元可 mock SPI；集成/E2E 必须真实模型和真实 A2A HTTP，不注册运行时 Mock Provider |
+| 目标系统边界 | 面向分布式、跨语言系统；Java/Spring Boot 只作为首期 Sample 和语言 Adapter |
+| 可观测接入 | Source Adapter → 单来源 ObservationBatch → EvidenceNormalizer → EvidenceBundle；每条 Evidence 可回溯 sourceId/batchId/observationId |
+| CI/CD | GitHub Actions 执行 CI 与持续交付，仅生成不可变发布候选；不自动部署、不持有目标环境凭证 |
 
 ### 22.2 专用基础设施职责
 
@@ -34,9 +37,9 @@ Prometheus、Jaeger、隔离 Artifact 卷和 Toxiproxy 分别承担时间序列�
 8. 生产身份认证、出站合规、Prompt/Artifact 数据出境规则和模型成本预算。
 9. 生产是否多实例运行 OpsPilot Server，以及是否启用 `LISTEN/NOTIFY` 作为事件唤醒优化。
 10. 生产 A2A 服务身份方案、Agent Card 签名/信任分发、专业 Agent 独立容器拆分时机和证书轮换。
-11. `CONCLUSIVE/PARTIAL/INCONCLUSIVE` 的证据覆盖、独立证据类型、冲突容忍和置信度阈值，必须由黄金数据集校准。
+11. 生产评测阈值是否在 MVP Profile 之外增加行业/企业 Profile；MVP 的确定性公式和发布阈值已在第 25 章冻结，修改必须发布新 Profile 并保留对比结果。
 
-待确认项必须在对应实现或部署阶段前闭环；空模型、未验证维度、未验证 Rerank 或未验证 AgentScope API 不得进入可运行配置。
+待确认项必须在对应实现或部署阶段前闭环；第 1—4 项属于 Phase 0 完整功能编码门禁，第 5—10 项中仅生产专属内容可延后到生产部署设计。空模型、未验证维度、未验证 Rerank 或未验证 AgentScope API 不得进入可运行配置。
 
 ## 附录 A：关键接口定义
 

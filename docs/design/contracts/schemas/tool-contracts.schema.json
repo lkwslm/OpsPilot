@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/tools/1.0.0",
+  "title": "OpsPilot Tool Invocation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "toolName", "runId", "request", "result"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "toolName": {"enum": ["LogQueryTool", "MetricQueryTool", "TraceQueryTool", "HealthQueryTool", "TopologyQueryTool", "ConfigReadTool", "CodeSearchTool", "KnowledgeSearchTool", "SandboxTestTool"]},
+    "runId": {"type": "string", "format": "uuid"},
+    "request": {"type": "object"},
+    "result": {"$ref": "#/$defs/result"}
+  },
+  "allOf": [
+    {"if": {"properties": {"toolName": {"const": "LogQueryTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/logRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "MetricQueryTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/metricRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "TraceQueryTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/traceRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "HealthQueryTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/healthRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "TopologyQueryTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/topologyRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "ConfigReadTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/configRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "CodeSearchTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/codeRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "KnowledgeSearchTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/knowledgeRequest"}}}},
+    {"if": {"properties": {"toolName": {"const": "SandboxTestTool"}}}, "then": {"properties": {"request": {"$ref": "#/$defs/sandboxRequest"}}}}
+  ],
+  "$defs": {
+    "window": {"type": "object", "additionalProperties": false, "required": ["start", "end"], "properties": {"start": {"type": "string", "format": "date-time"}, "end": {"type": "string", "format": "date-time"}}},
+    "stringList": {"type": "array", "minItems": 1, "maxItems": 100, "items": {"type": "string"}},
+    "result": {"type": "object", "additionalProperties": false, "required": ["status", "summary", "artifactIds", "evidenceCodes", "observationBatchIds", "evidenceBundleId"], "properties": {"status": {"enum": ["SUCCEEDED", "EMPTY", "DENIED", "FAILED"]}, "summary": {"type": "string", "maxLength": 4000}, "artifactIds": {"type": "array", "maxItems": 100, "items": {"type": "string", "format": "uuid"}}, "evidenceCodes": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}, "observationBatchIds": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"type": "string", "format": "uuid"}}, "evidenceBundleId": {"type": ["string", "null"], "format": "uuid"}, "errorCode": {"type": ["string", "null"]}}},
+    "logRequest": {"type": "object", "additionalProperties": false, "required": ["services", "timeWindow", "levels", "keywords", "limit"], "properties": {"services": {"$ref": "#/$defs/stringList"}, "timeWindow": {"$ref": "#/$defs/window"}, "levels": {"type": "array", "items": {"enum": ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"]}}, "keywords": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 200}}, "limit": {"type": "integer", "minimum": 1, "maximum": 1000}}},
+    "metricRequest": {"type": "object", "additionalProperties": false, "required": ["queryTemplateId", "parameters", "timeWindow", "stepSeconds", "maxPoints"], "properties": {"queryTemplateId": {"type": "string"}, "parameters": {"type": "object", "additionalProperties": {"type": "string"}}, "timeWindow": {"$ref": "#/$defs/window"}, "stepSeconds": {"type": "integer", "minimum": 1, "maximum": 300}, "maxPoints": {"type": "integer", "minimum": 1, "maximum": 2000}}},
+    "traceRequest": {"type": "object", "additionalProperties": false, "required": ["services", "timeWindow", "minDurationMs", "errorOnly", "limit"], "properties": {"services": {"$ref": "#/$defs/stringList"}, "timeWindow": {"$ref": "#/$defs/window"}, "minDurationMs": {"type": "integer", "minimum": 0}, "errorOnly": {"type": "boolean"}, "limit": {"type": "integer", "minimum": 1, "maximum": 200}}},
+    "healthRequest": {"type": "object", "additionalProperties": false, "required": ["services", "checks"], "properties": {"services": {"$ref": "#/$defs/stringList"}, "checks": {"type": "array", "minItems": 1, "items": {"enum": ["READINESS", "LIVENESS", "HTTP_CONNECTIVITY", "CONTAINER_STATE"]}}}},
+    "topologyRequest": {"type": "object", "additionalProperties": false, "required": ["systemIds", "resourceTypes", "relationshipTypes", "maxNodes"], "properties": {"systemIds": {"$ref": "#/$defs/stringList"}, "resourceTypes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["SYSTEM", "SERVICE", "INSTANCE", "ENDPOINT", "POD", "CONTAINER", "NODE", "CLUSTER", "NAMESPACE", "DATASTORE", "QUEUE", "EXTERNAL_DEPENDENCY"]}}, "relationshipTypes": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["CALLS", "DEPENDS_ON", "RUNS_ON", "READS_FROM", "WRITES_TO", "PUBLISHES_TO", "CONSUMES_FROM"]}}, "maxNodes": {"type": "integer", "minimum": 1, "maximum": 1000}}},
+    "configRequest": {"type": "object", "additionalProperties": false, "required": ["service", "allowedKeys"], "properties": {"service": {"type": "string"}, "allowedKeys": {"$ref": "#/$defs/stringList"}}},
+    "codeRequest": {"type": "object", "additionalProperties": false, "required": ["repositoryId", "query", "pathPrefixes", "maxMatches", "contextLines"], "properties": {"repositoryId": {"type": "string"}, "query": {"type": "string", "minLength": 1, "maxLength": 500}, "pathPrefixes": {"type": "array", "maxItems": 20, "items": {"type": "string"}}, "maxMatches": {"type": "integer", "minimum": 1, "maximum": 200}, "contextLines": {"type": "integer", "minimum": 0, "maximum": 20}}},
+    "knowledgeRequest": {"type": "object", "additionalProperties": false, "required": ["collectionId", "query", "filters", "candidateK", "topK"], "properties": {"collectionId": {"type": "string", "format": "uuid"}, "query": {"type": "string", "minLength": 1, "maxLength": 4000}, "filters": {"type": "object", "additionalProperties": true}, "candidateK": {"type": "integer", "minimum": 1, "maximum": 100}, "topK": {"type": "integer", "minimum": 1, "maximum": 20}}},
+    "sandboxRequest": {"type": "object", "additionalProperties": false, "required": ["approvalId", "testSuiteId", "timeoutSeconds"], "properties": {"approvalId": {"type": "string", "format": "uuid"}, "testSuiteId": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"}, "timeoutSeconds": {"type": "integer", "minimum": 1, "maximum": 900}}}
+  }
+}

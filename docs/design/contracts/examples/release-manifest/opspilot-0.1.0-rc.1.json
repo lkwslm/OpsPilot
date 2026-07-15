@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0.0",
+  "releaseId": "opspilot-0.1.0-rc.1",
+  "version": "0.1.0-rc.1",
+  "deliveryStatus": "READY_FOR_MANUAL_DEPLOYMENT",
+  "source": {
+    "repository": "example-org/opspilot",
+    "commitSha": "0123456789abcdef0123456789abcdef01234567",
+    "ref": "refs/tags/v0.1.0-rc.1"
+  },
+  "build": {
+    "workflowRunId": 1001,
+    "workflowUrl": "https://github.com/example-org/opspilot/actions/runs/1001",
+    "builtAt": "2026-07-12T08:00:00Z",
+    "jdk": "temurin-21.0.8+9",
+    "versionsLockDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "artifacts": [
+    {
+      "name": "opspilot-server",
+      "type": "JAR",
+      "uri": "release://opspilot-0.1.0-rc.1/opspilot-server.jar",
+      "digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    },
+    {
+      "name": "opspilot-runtime",
+      "type": "OCI_IMAGE",
+      "uri": "ghcr.io/example-org/opspilot@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "name": "opspilot-contracts",
+      "type": "CONTRACT_BUNDLE",
+      "uri": "release://opspilot-0.1.0-rc.1/opspilot-contracts.tar.gz",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "name": "opspilot-sbom",
+      "type": "SBOM",
+      "uri": "release://opspilot-0.1.0-rc.1/opspilot-sbom.spdx.json",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "name": "opspilot-migrations",
+      "type": "MIGRATION_BUNDLE",
+      "uri": "release://opspilot-0.1.0-rc.1/opspilot-migrations.tar.gz",
+      "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    {
+      "name": "opspilot-test-evidence",
+      "type": "TEST_EVIDENCE",
+      "uri": "release://opspilot-0.1.0-rc.1/test-evidence.tar.gz",
+      "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+    },
+    {
+      "name": "manual-deployment-runbook",
+      "type": "RUNBOOK",
+      "uri": "release://opspilot-0.1.0-rc.1/manual-deployment-runbook.md",
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    {
+      "name": "opspilot-build-provenance",
+      "type": "PROVENANCE",
+      "uri": "release://opspilot-0.1.0-rc.1/build-provenance.json",
+      "digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
+    }
+  ],
+  "models": [
+    {"capability": "CHAT", "modelId": "deepseek-chat", "immutableRevision": "provider-snapshot-2026-07"},
+    {"capability": "EMBEDDING", "modelId": "selected-embedding-model", "immutableRevision": "immutable-commit-a1"},
+    {"capability": "RERANK", "modelId": "selected-rerank-model", "immutableRevision": "immutable-commit-b1"}
+  ],
+  "qualityGates": [
+    {"name": "CONTRACTS", "status": "PASSED", "evidenceArtifact": "evidence://contracts.json"},
+    {"name": "BUILD_TEST", "status": "PASSED", "evidenceArtifact": "evidence://build-test.json"},
+    {"name": "POSTGRES_INTEGRATION", "status": "PASSED", "evidenceArtifact": "evidence://postgres-integration.json"},
+    {"name": "COMPOSE_SMOKE", "status": "PASSED", "evidenceArtifact": "evidence://compose-smoke.json"},
+    {"name": "SECURITY", "status": "PASSED", "evidenceArtifact": "evidence://security.json"},
+    {"name": "MODEL_INTEGRATION", "status": "PASSED", "evidenceArtifact": "evidence://model-integration.json"},
+    {"name": "A2A_INTEROPERABILITY", "status": "PASSED", "evidenceArtifact": "evidence://a2a.json"},
+    {"name": "EVALUATION", "status": "PASSED", "evidenceArtifact": "evidence://evaluation.json"}
+  ],
+  "database": {
+    "baselineVersion": "0",
+    "targetVersion": "1",
+    "migrationDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+    "backwardCompatible": true,
+    "destructiveChanges": false
+  },
+  "evaluation": {
+    "profileId": "mvp-v1",
+    "scenarioVersions": [
+      "dependency-latency-inventory/1.0.0",
+      "database-pool-exhausted-order/1.0.0",
+      "service-instance-stopped-inventory/1.0.0"
+    ],
+    "runsPerScenario": 5,
+    "evidenceArtifact": "evidence://evaluation.json"
+  },
+  "deployment": {
+    "automaticDeployment": false,
+    "deploymentPerformed": false,
+    "runbookArtifact": "release://opspilot-0.1.0-rc.1/manual-deployment-runbook.md"
+  }
+}

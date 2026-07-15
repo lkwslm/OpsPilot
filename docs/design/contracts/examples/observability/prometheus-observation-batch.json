@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0.0",
+  "batchId": "10000000-0000-4000-8000-000000000001",
+  "source": {
+    "sourceId": "test-prometheus-primary",
+    "sourceKind": "PROMETHEUS",
+    "adapterId": "prometheus-metric-adapter",
+    "adapterVersion": "1.0.0",
+    "connectionRef": "observability-source://test/prometheus-primary",
+    "environment": "test",
+    "scope": {
+      "cluster": "compose-local",
+      "namespace": "sample-system",
+      "region": null,
+      "tenant": "opspilot-system",
+      "account": null,
+      "subscription": null,
+      "project": null
+    }
+  },
+  "query": {
+    "templateId": "service-latency-p95/v1",
+    "parameterHash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "timeWindow": {
+      "start": "2026-07-15T01:00:00Z",
+      "end": "2026-07-15T01:10:00Z"
+    }
+  },
+  "collectedAt": "2026-07-15T01:10:05Z",
+  "upstreamRequestId": "prom-query-1001",
+  "observations": [
+    {
+      "observationId": "10000000-0000-4000-8000-000000000002",
+      "signalType": "METRIC",
+      "resource": {
+        "resourceId": "service:inventory-service",
+        "resourceType": "SERVICE",
+        "systemId": "sample-commerce",
+        "serviceName": "inventory-service",
+        "environment": "test",
+        "attributes": {
+          "deployment": "compose",
+          "protocol": "http"
+        }
+      },
+      "observedAt": "2026-07-15T01:09:30Z",
+      "summary": "inventory-service dependency latency p95 exceeded the scenario baseline",
+      "artifactId": "10000000-0000-4000-8000-000000000003",
+      "attributes": {
+        "metric": "http_client_request_duration_seconds",
+        "quantile": 0.95,
+        "valueSeconds": 2.4
+      },
+      "quality": {
+        "freshnessSeconds": 35,
+        "complete": true,
+        "truncated": false,
+        "sampleRate": 1.0,
+        "warnings": []
+      },
+      "upstreamRequestId": "prom-query-1001"
+    }
+  ]
+}

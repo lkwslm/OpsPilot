@@ -33,20 +33,22 @@ Observe：读取当前 A2A Task 输入、checkpoint、已验证 Artifact/Evidenc
 → Reason：模型输出结构化 Decision（不持久化隐藏思考过程）
 → Validate：Schema、权限、预算、重复动作和终止条件校验
 → Act：执行一个白名单 Tool 动作或 A2A 委派动作
-→ Checkpoint：保存动作、可审计决策摘要、Observation 引用、Usage 和状态
+→ Checkpoint：保存动作、可审计决策摘要、Tool/A2A 结果引用、Usage 和状态
 → Stop/Next：满足结束条件则生成 Artifact，否则进入下一轮
 ```
 
 各 Agent 的动作空间固定如下，模型不能创造新动作类型：
 
-| Agent | ReAct Action | Observation | 终止输出 |
+| Agent | ReAct Action | ReAct 动作结果 | 终止输出 |
 |---|---|---|---|
 | `SupervisorAgent` | `DELEGATE_A2A_TASK`、`CONTINUE_A2A_TASK`、`REQUEST_USER_INPUT`、`CANCEL_TASK`、`FINISH` | 下游 Task 状态和已校验 Artifact | Investigation plan / RCA Artifact |
-| `EvidenceCollectorAgent` | 调用日志、指标、Trace、健康、配置 Tool，或 `FINISH` | Tool result + Evidence 引用 | Evidence bundle / Missing evidence Artifact |
+| `EvidenceCollectorAgent` | 调用日志、指标、Trace、事件、健康、配置、拓扑 Tool，或 `FINISH` | Tool result + ObservationBatch/Evidence 引用 | Evidence bundle / Missing evidence Artifact |
 | `CodeAnalysisAgent` | 调用受限代码 Tool，或 `FINISH` | 文件、行号、调用路径和 Evidence 引用 | Code findings Artifact |
 | `KnowledgeAgent` | 调用完整 Knowledge Search 链路，或 `FINISH` | 真实检索结果或正常 `NO_MATCH` | Knowledge result Artifact |
 | `DiagnosisAgent` | `FORM_HYPOTHESES`、`REQUEST_VERIFICATION`、`FINISH` | Evidence/Code/Knowledge Artifact；补证后用同一 Task continuation | Hypothesis set / Diagnosis assessment Artifact |
 | `RemediationAgent` | `PROPOSE_PLAN`、`REQUEST_APPROVED_TEST`、`FINISH` | 已验证结论、审批和沙箱测试结果 | Remediation plan Artifact |
+
+本表“ReAct 动作结果”是框架 loop 对一次 Action 返回值的称呼，不等于第 27 章外部数据的 `ObservationRecord/ObservationBatch`。外部信息源必须先经 Adapter 和 EvidenceNormalizer；Agent loop 只能看到标准 Tool result、Evidence/Artifact 引用和受控摘要。
 
 六个 Agent 都使用 AgentScope `ReActAgent` 的内置 reasoning-acting loop。`opspilot-agent-core` 的 `BoundedReActRunner` 是策略包装器，不再实现第二套 `while` 循环；它通过 AgentScope 的 `ReactConfig`、Middleware、事件和中断接口施加 checkpoint、最大轮数、deadline、Token/Tool/A2A Task 预算、取消、重复动作指纹和 `NO_PROGRESS` 停机。AgentScope Adapter 负责把这些 Port 映射到经构建验证的框架 API。业务开发者只配置 Prompt、允许动作/工具、输入输出 Schema、预算和完成条件，无须自行编排 Agent loop。Supervisor 的 ReAct loop 通过允许的 A2A 动作编排专业 Agent；专业 Agent 的 ReAct loop 只执行自身 skill，二者不嵌套接管对方循环。
 
@@ -365,7 +367,7 @@ FAILED/REJECTED → RETRY_SCHEDULED → 新 attempt 的 PENDING
 | `CREATED` | Run 已创建但尚未进入调度队列 |
 | `QUEUED` | 顶层任务已入队，等待 Supervisor 领取 |
 | `PLANNING` | 正在生成或修订有限调查计划 |
-| `COLLECTING_EVIDENCE` | 正在收集现场日志、指标、Trace、健康和配置 |
+| `COLLECTING_EVIDENCE` | 正在通过 Adapter 收集现场日志、指标、Trace、事件、健康、配置和拓扑 |
 | `ANALYZING_CODE` | 正在定位与证据相关的代码路径 |
 | `RETRIEVING_KNOWLEDGE` | 正在执行结果可为空、但技术链路不可降级的知识/案例检索 |
 | `GENERATING_HYPOTHESES` | 正在生成证据约束的候选根因 |
@@ -379,6 +381,37 @@ FAILED/REJECTED → RETRY_SCHEDULED → 新 attempt 的 PENDING
 | `COMPLETED` | 编排按设计结束；结论质量由独立 `InvestigationOutcome` 表示 |
 | `FAILED` | 核心依赖或不可恢复一致性/安全错误导致编排无法完成 |
 | `CANCELLED` | 取消流程已收敛或达到取消 deadline |
+
+以下转换矩阵是 Incident Run 状态机的**唯一权威定义**。代码中的 allowlist、数据库测试、恢复测试和下方 Mermaid 图都必须与此矩阵一致；若图与矩阵冲突，以矩阵为准。任何新增状态或迁移都必须先修改矩阵、Schema 和迁移测试，再修改实现。
+
+| From | Event/条件 | To |
+|---|---|---|
+| `CREATED` | 顶层任务持久化成功 | `QUEUED` |
+| `CREATED` | 创建后、入队前取消 | `CANCELLED` |
+| `QUEUED` | Supervisor 获得租约 | `PLANNING` |
+| `PLANNING` | 计划有效 | `COLLECTING_EVIDENCE` |
+| `PLANNING`, `COLLECTING_EVIDENCE`, `ANALYZING_CODE`, `RETRIEVING_KNOWLEDGE`, `GENERATING_HYPOTHESES`, `VERIFYING_HYPOTHESES` | 当前步骤返回可回答的业务输入缺失 | `WAITING_INPUT` |
+| `WAITING_INPUT` | 输入通过 Schema 和权限校验 | `PLANNING` |
+| `WAITING_INPUT` | 用户拒绝、超时或达到 continuation 上限 | `GENERATING_REPORT` |
+| `COLLECTING_EVIDENCE` | 证据收集完成 | `ANALYZING_CODE` |
+| `COLLECTING_EVIDENCE` | 计划确认无需代码定位 | `RETRIEVING_KNOWLEDGE` |
+| `ANALYZING_CODE` | 代码分析完成 | `RETRIEVING_KNOWLEDGE` |
+| `RETRIEVING_KNOWLEDGE` | 检索成功，包含 `NO_MATCH` | `GENERATING_HYPOTHESES` |
+| `GENERATING_HYPOTHESES` | 候选 Schema 与门禁通过 | `VERIFYING_HYPOTHESES` |
+| `VERIFYING_HYPOTHESES` | 有新 Evidence 且补证预算允许 | `COLLECTING_EVIDENCE` |
+| `VERIFYING_HYPOTHESES` | 达到结论门槛 | `GENERATING_REMEDIATION` |
+| `VERIFYING_HYPOTHESES` | `NO_PROGRESS`、预算耗尽或证据不足 | `GENERATING_REPORT` |
+| `GENERATING_REMEDIATION` | 需要执行 `CONTROLLED_EXECUTION` | `WAITING_APPROVAL` |
+| `GENERATING_REMEDIATION` | 不需要执行测试 | `GENERATING_REPORT` |
+| `WAITING_APPROVAL` | 批准且策略再次校验通过 | `RUNNING_SANDBOX_TEST` |
+| `WAITING_APPROVAL` | 拒绝或超时 | `GENERATING_REPORT` |
+| `RUNNING_SANDBOX_TEST` | 测试完成或受控失败结果已记录 | `GENERATING_REPORT` |
+| `GENERATING_REPORT` | RCA JSON、引用和 Markdown 渲染校验通过 | `COMPLETED` |
+| 任一非终态（`CREATED` 除外） | 接受取消 | `CANCELLING` |
+| `CANCELLING` | 下游取消已收敛或取消 deadline 到达 | `CANCELLED` |
+| 任一非终态 | `ChainFailure` 属于不可恢复的关键链路失败 | `FAILED` |
+
+`WAITING_INPUT` 恢复后一律回到 `PLANNING`，由 Supervisor 根据已完成 step 和新输入生成新 plan version；不直接跳回中断前状态，从而避免把过期步骤上下文作为当前事实。`RUNNING_SANDBOX_TEST` 中的测试断言失败是业务观察结果，不自动等于系统技术失败；沙箱不可启动、越权或结果合同损坏才进入 `FAILED`。
 
 ```mermaid
 stateDiagram-v2
@@ -419,7 +452,7 @@ stateDiagram-v2
     CANCELLING --> CANCELLED
 ```
 
-`COMPLETED`、`FAILED`、`CANCELLED` 是 Incident Run 终态。任何非终态遇到状态库不可用、核心 LLM 不可用且重试耗尽、协议安全错误或不可恢复的数据损坏时可进入 `FAILED`；知识空/无匹配、历史案例不足、证据不足、预算耗尽或 `NO_PROGRESS` 不应自动进入 `FAILED`，而应进入 `GENERATING_REPORT` 并完成为 `PARTIAL/INCONCLUSIVE`。
+`COMPLETED`、`FAILED`、`CANCELLED` 是 Incident Run 终态。任何非终态遇到状态库不可用、核心 LLM 不可用且重试耗尽、协议安全错误或不可恢复的数据损坏时按权威矩阵进入 `FAILED`；知识空/无匹配、历史案例不足、证据不足、预算耗尽或 `NO_PROGRESS` 不应自动进入 `FAILED`，而应进入 `GENERATING_REPORT` 并完成为 `PARTIAL/INCONCLUSIVE`。
 
 阶段只允许因任务本身不需要某能力而按计划跳过，例如无需代码定位时 `COLLECTING_EVIDENCE → RETRIEVING_KNOWLEDGE`。已经进入计划的技术链路若不可用，必须有限重试后进入 `FAILED` 并返回详细错误，禁止以跳过该阶段实现保底降级。所有跳转必须出现在版本化白名单中，并记录 `fromStatus`、`toStatus`、`reasonCode`、actor、对应 A2A taskId 和状态版本。
 
@@ -483,7 +516,7 @@ sequenceDiagram
 
 系统必须区分三类信息：
 
-1. **现场事实：**日志、指标、Trace、健康状态、配置和代码；是诊断的主要证据。
+1. **现场事实：**经来源校验的日志、指标、Trace、事件、健康状态、配置、拓扑和代码；是诊断的主要证据。
 2. **领域知识：**知识库文档；用于解释机制、扩展候选和验证方法，不能替代现场证据。
 3. **历史案例：**相似 Incident；只提供先验和对照，不能直接证明当前根因。
 
@@ -506,7 +539,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 ```text
 知识无匹配
 → 收紧时间窗并检查现场 Evidence 完整性
-→ 依据日志/指标/Trace/配置/代码生成证据约束假设
+→ 依据日志/指标/Trace/事件/健康/配置/拓扑/代码生成证据约束假设
 → 用只读工具执行可证伪验证
 → 证据足够：输出 CONCLUSIVE 或 PARTIAL RCA
 → 证据仍不足：请求明确输入或输出 INCONCLUSIVE RCA
@@ -514,7 +547,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 
 系统不在 MVP 中自动访问互联网，也不把模型预训练记忆包装成内部知识引用。若任务确实依赖缺失的领域规则、运行手册或业务语义，进入 `INPUT_REQUIRED`，列出所需文档/负责人/字段；用户不补充时仍应在预算内结束为 `INCONCLUSIVE`，保留已确认事实和后续采集建议。
 
-上述规则只适用于“真实链路成功执行，但业务结果为空”。Embedding、Rerank、KnowledgeAgent、A2A、数据库或 Tool 调用超时/鉴权失败/协议错误/响应 Schema 无效属于技术链路失败：完成有限重试和对账后必须把下游 Task 与 Incident Run 标为 `FAILED`，禁止切换到 Mock/Fake、固定结果、关键词检索、vector-only、备用自然语言排序、模型预训练记忆或跳过计划步骤。
+上述规则只适用于“真实链路成功执行，但业务结果为空”。Embedding、Rerank、KnowledgeAgent、A2A、数据库或 Tool 调用超时/鉴权失败/协议错误/响应 Schema 无效属于技术链路失败：必须生成 `ChainFailure`，再按第 17.4 节能力矩阵决定 Incident `FAILED` 或记录 `missingEvidence` 后继续。任何情况都禁止切换到 Mock/Fake、固定结果、关键词检索、vector-only、备用自然语言排序、模型预训练记忆或未记录原因地跳过计划步骤。
 
 技术失败统一返回 `ChainFailure`，并在产品 API/SSE、A2A Task status message、审计表和结构化日志中使用相同关联 ID：
 

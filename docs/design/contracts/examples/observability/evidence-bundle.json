@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "bundleId": "20000000-0000-4000-8000-000000000001",
+  "incidentId": "20000000-0000-4000-8000-000000000002",
+  "runId": "20000000-0000-4000-8000-000000000003",
+  "stepId": "collect-metrics-1",
+  "generatedAt": "2026-07-15T01:10:06Z",
+  "observationBatchIds": [
+    "10000000-0000-4000-8000-000000000001"
+  ],
+  "evidence": [
+    {
+      "evidenceId": "20000000-0000-4000-8000-000000000004",
+      "evidenceCode": "metric.inventory.dependency_latency_high",
+      "signalType": "METRIC",
+      "resource": {
+        "resourceId": "service:inventory-service",
+        "resourceType": "SERVICE",
+        "systemId": "sample-commerce",
+        "serviceName": "inventory-service"
+      },
+      "claim": "inventory-service dependency latency p95 exceeded the scenario baseline during the incident window",
+      "timeWindow": {
+        "start": "2026-07-15T01:00:00Z",
+        "end": "2026-07-15T01:10:00Z"
+      },
+      "artifactIds": [
+        "10000000-0000-4000-8000-000000000003"
+      ],
+      "sourceObservationRefs": [
+        {
+          "batchId": "10000000-0000-4000-8000-000000000001",
+          "observationId": "10000000-0000-4000-8000-000000000002",
+          "sourceId": "test-prometheus-primary"
+        }
+      ]
+    }
+  ],
+  "missingEvidence": []
+}

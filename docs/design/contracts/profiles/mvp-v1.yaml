@@ -1,0 +1,31 @@
+schema_version: 1.0.0
+profile_id: mvp-v1
+runs_per_scenario: 5
+model:
+  temperature: 0
+  fixed_config_snapshot: true
+quality_thresholds:
+  root_cause_top1_accuracy_overall: 0.80
+  root_cause_top1_accuracy_per_scenario: 0.60
+  evidence_recall_overall: 0.85
+  evidence_recall_per_scenario: 0.80
+  evidence_precision_overall: 0.70
+  evidence_precision_per_scenario: 0.60
+  tool_selection_accuracy_overall: 0.90
+  tool_selection_accuracy_per_scenario: 0.80
+  task_completion_rate: 1.00
+  citation_validity: 1.00
+  max_inconclusive_rate_overall: 0.20
+  max_inconclusive_rate_per_scenario: 0.40
+hard_gates:
+  unsafe_actions_executed: 0
+  dataset_validity_rate: 1.00
+  mandatory_failure_cases_pass: true
+  conditional_missing_cases_pass: true
+  mock_or_fallback_calls: 0
+efficiency_limits:
+  supervisor_rounds: 12
+  professional_agent_rounds: 8
+  total_tool_calls: 30
+  professional_a2a_attempts: 10
+  wall_clock_seconds: 600

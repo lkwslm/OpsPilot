@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "toolName": "MetricQueryTool",
+  "runId": "20000000-0000-4000-8000-000000000003",
+  "request": {
+    "queryTemplateId": "service-latency-p95/v1",
+    "parameters": {
+      "systemId": "sample-commerce",
+      "service": "inventory-service"
+    },
+    "timeWindow": {
+      "start": "2026-07-15T01:00:00Z",
+      "end": "2026-07-15T01:10:00Z"
+    },
+    "stepSeconds": 15,
+    "maxPoints": 100
+  },
+  "result": {
+    "status": "SUCCEEDED",
+    "summary": "Metric observations were normalized into one evidence bundle",
+    "artifactIds": [
+      "10000000-0000-4000-8000-000000000003"
+    ],
+    "evidenceCodes": [
+      "metric.inventory.dependency_latency_high"
+    ],
+    "observationBatchIds": [
+      "10000000-0000-4000-8000-000000000001"
+    ],
+    "evidenceBundleId": "20000000-0000-4000-8000-000000000001",
+    "errorCode": null
+  }
+}

@@ -151,6 +151,10 @@ services:
       timeout: 5s
       retries: 20
 
+  # 五个专业 Agent 不是 opspilot-server 内的进程内快捷调用。完整的
+  # evidence-agent/code-agent/knowledge-agent/diagnosis-agent/remediation-agent
+  # Compose 定义、端口、角色和 Agent Directory 以第 24 章为权威基线。
+
   # 独立评测进程是 Ground Truth 隔离边界；Server 无该 schema/卷权限。
   opspilot-evaluation:
     image: opspilot-server:local
@@ -284,6 +288,7 @@ volumes:
 - Embedding 和 Rerank 共享服务进程、端口和缓存卷，但使用两个锁定模型 revision、独立模型别名、批量限制和调用指标。压测必须验证并发资源竞争；资源不足时调低并发或扩大该服务资源，不能删除 Rerank 或改走其他链路。
 - Infinity 整体不可用、任一模型未加载或任一能力探针失败时，统一检索推理 capability 为 DOWN；在途任务有限重试后显式失败。
 - Server 只挂 Agent 输入只读卷和报告可写卷；独立 Evaluation 才能同时读取 Ground Truth，并只获写 `evaluation_result` 与评测 Artifact 所需权限。
+- Server/Agent readiness 校验第 27 章 Source Registry：每个启用 Source 的 Adapter 存在、版本兼容、`connectionRef` 可解析且 capability probe 成功；Source 不可用时保留具体 `sourceId/sourceKind/adapterId`，不能只报告“可观测服务失败”。
 - CPU-only 是可移植基线；GPU 通过单独 Compose override 显式配置。资源初值必须根据本地压测调整。
 - 只有 API、Prometheus/Jaeger 调试端口在需要时绑定 `127.0.0.1`；数据库和模型端口默认不暴露宿主机。
 
@@ -305,6 +310,7 @@ volumes:
 | `DB_USERNAME` | 无 | 否 | 运行角色 |
 | `DB_PASSWORD` | 无 | 是 | 外部注入 |
 | `FLYWAY_USER` / `FLYWAY_PASSWORD` | 无 | 后者是 | 只注入一次性 `db-migrate`，绝不注入长期运行 Server |
+| `OBSERVABILITY_SOURCE_CONFIG` | `/app/config/observability-sources.yaml` | 否 | 版本化 Source/Adapter/作用域/能力配置；只包含 `connectionRef`，不包含凭证 |
 | `DEFAULT_LLM_PROVIDER` | `openai-compatible` | 否 | 默认 Chat 协议 |
 | `DEFAULT_LLM_BASE_URL` | `https://api.deepseek.com` | 否 | API 根地址 |
 | `DEEPSEEK_API_KEY` | 空 | 是 | 缺失时 fail-fast |
@@ -389,7 +395,7 @@ flowchart TD
 
 ### 16.3 A2A 初始化
 
-启动时构建受信 Agent Directory 和 A2A Client。每个 Agent Server 先恢复自己的 A2A Task Store，再开放 Agent Card 与任务端点。能力探针必须执行一次真实的最小 `message:send → tasks/{id} → cancel` 合同；开启 streaming 的 Agent 还需验证 stream/subscribe。MVP 即使同容器部署，也必须经环回 HTTP 调用，禁止用 Spring Bean 直调绕过协议。
+启动时从第 24.2 节定义的只读配置构建受信 Agent Directory 和 A2A Client。Supervisor 位于 `opspilot-server`，五个专业 Agent 使用独立 Compose 服务和 origin。每个 Agent Server 先恢复自己的 A2A Task Store，再开放 Agent Card 与任务端点。能力探针必须执行一次真实的最小 `message:send → tasks/{id} → cancel` 合同；开启 streaming 的 Agent 还需验证 stream/subscribe。所有委派必须经 Compose 网络 HTTP 调用，禁止用 Spring Bean 直调绕过协议。
 
 ### 16.4 AgentScope 初始化
 
