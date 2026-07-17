@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/evidence-bundle/1.0.0",
+  "title": "OpsPilot Evidence Bundle v1",
+  "description": "The single canonical fact contract for downstream analysis. Runtime observations, code findings, and cited knowledge must be normalized into Evidence before diagnosis or hypothesis evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bundleId", "incidentId", "runId", "stepId", "generatedAt", "observationBatchIds", "codeFindingArtifactIds", "knowledgeResultArtifactIds", "evidence", "missingEvidence"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "bundleId": {"$ref": "#/$defs/uuid"},
+    "incidentId": {"$ref": "#/$defs/uuid"},
+    "runId": {"$ref": "#/$defs/uuid"},
+    "stepId": {"$ref": "#/$defs/uuid"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "observationBatchIds": {"type": "array", "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+    "codeFindingArtifactIds": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+    "knowledgeResultArtifactIds": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+    "evidence": {"type": "array", "maxItems": 1000, "items": {"$ref": "#/$defs/evidence"}},
+    "missingEvidence": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/missing"}}
+  },
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "runtimeSignalType": {"enum": ["LOG", "METRIC", "TRACE", "EVENT", "HEALTH", "CONFIG", "TOPOLOGY"]},
+    "signalType": {"enum": ["LOG", "METRIC", "TRACE", "EVENT", "HEALTH", "CONFIG", "TOPOLOGY", "CODE", "KNOWLEDGE"]},
+    "resourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resourceId", "resourceType", "systemId"],
+      "properties": {
+        "resourceId": {"type": "string", "minLength": 1, "maxLength": 512},
+        "resourceType": {"enum": ["SYSTEM", "SERVICE", "INSTANCE", "ENDPOINT", "POD", "CONTAINER", "NODE", "CLUSTER", "NAMESPACE", "DATASTORE", "QUEUE", "EXTERNAL_DEPENDENCY", "REPOSITORY", "SOURCE_FILE", "SYMBOL", "KNOWLEDGE_DOCUMENT"]},
+        "systemId": {"type": "string", "minLength": 1, "maxLength": 256},
+        "serviceName": {"type": ["string", "null"], "maxLength": 256}
+      }
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "string", "format": "date-time"},
+        "end": {"type": "string", "format": "date-time"}
+      }
+    },
+    "runtimeObservationRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "batchId", "observationId", "sourceId"],
+      "properties": {
+        "kind": {"const": "RUNTIME_OBSERVATION"},
+        "batchId": {"$ref": "#/$defs/uuid"},
+        "observationId": {"$ref": "#/$defs/uuid"},
+        "sourceId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"}
+      }
+    },
+    "codeFindingRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "findingArtifactId", "findingSetId", "findingId", "repositoryId", "revision"],
+      "properties": {
+        "kind": {"const": "CODE_FINDING"},
+        "findingArtifactId": {"$ref": "#/$defs/uuid"},
+        "findingSetId": {"$ref": "#/$defs/uuid"},
+        "findingId": {"$ref": "#/$defs/uuid"},
+        "repositoryId": {"type": "string", "pattern": "^[A-Za-z0-9._:/-]{1,512}$"},
+        "revision": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "knowledgeReferenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "knowledgeResultArtifactId", "referenceId", "documentId", "contentHash"],
+      "properties": {
+        "kind": {"const": "KNOWLEDGE_REFERENCE"},
+        "knowledgeResultArtifactId": {"$ref": "#/$defs/uuid"},
+        "referenceId": {"$ref": "#/$defs/uuid"},
+        "documentId": {"$ref": "#/$defs/uuid"},
+        "contentHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+      }
+    },
+    "provenanceRef": {
+      "oneOf": [
+        {"$ref": "#/$defs/runtimeObservationRef"},
+        {"$ref": "#/$defs/codeFindingRef"},
+        {"$ref": "#/$defs/knowledgeReferenceRef"}
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "evidenceCode", "factOrigin", "signalType", "resource", "claim", "timeWindow", "artifactIds", "provenanceRefs"],
+      "properties": {
+        "evidenceId": {"$ref": "#/$defs/uuid"},
+        "evidenceCode": {"type": "string", "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$"},
+        "factOrigin": {"enum": ["RUNTIME", "CODE", "KNOWLEDGE", "CORRELATED"]},
+        "signalType": {"$ref": "#/$defs/signalType"},
+        "resource": {"$ref": "#/$defs/resourceRef"},
+        "claim": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "timeWindow": {"oneOf": [{"$ref": "#/$defs/window"}, {"type": "null"}]},
+        "artifactIds": {"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+        "provenanceRefs": {"type": "array", "minItems": 1, "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/provenanceRef"}}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"factOrigin": {"const": "RUNTIME"}}},
+          "then": {"properties": {"signalType": {"$ref": "#/$defs/runtimeSignalType"}, "timeWindow": {"$ref": "#/$defs/window"}, "provenanceRefs": {"items": {"$ref": "#/$defs/runtimeObservationRef"}}}}
+        },
+        {
+          "if": {"properties": {"factOrigin": {"const": "CODE"}}},
+          "then": {"properties": {"signalType": {"const": "CODE"}, "timeWindow": {"type": "null"}, "provenanceRefs": {"items": {"$ref": "#/$defs/codeFindingRef"}}}}
+        },
+        {
+          "if": {"properties": {"factOrigin": {"const": "KNOWLEDGE"}}},
+          "then": {"properties": {"signalType": {"const": "KNOWLEDGE"}, "timeWindow": {"type": "null"}, "provenanceRefs": {"items": {"$ref": "#/$defs/knowledgeReferenceRef"}}}}
+        },
+        {
+          "if": {"properties": {"factOrigin": {"const": "CORRELATED"}}},
+          "then": {"properties": {"timeWindow": {"$ref": "#/$defs/window"}, "provenanceRefs": {"minItems": 2, "allOf": [{"contains": {"$ref": "#/$defs/runtimeObservationRef"}, "minContains": 1}, {"contains": {"oneOf": [{"$ref": "#/$defs/codeFindingRef"}, {"$ref": "#/$defs/knowledgeReferenceRef"}]}, "minContains": 1}]}}}
+        }
+      ]
+    },
+    "missing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "signalType", "reason", "sourceIds", "retryable"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+        "signalType": {"$ref": "#/$defs/signalType"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1000},
+        "sourceIds": {"type": "array", "maxItems": 50, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"}},
+        "retryable": {"type": "boolean"}
+      }
+    }
+  }
+}

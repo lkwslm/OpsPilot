@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/release-manifest/1.0.0",
+  "title": "OpsPilot Release Manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "releaseId", "version", "deliveryStatus", "source",
+    "build", "artifacts", "models", "qualityGates", "database",
+    "evaluation", "deployment"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "releaseId": {"type": "string", "pattern": "^opspilot-[0-9]+\\.[0-9]+\\.[0-9]+(?:-rc\\.[0-9]+)?$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-rc\\.[0-9]+)?$"},
+    "deliveryStatus": {"enum": ["READY_FOR_MANUAL_DEPLOYMENT", "BLOCKED", "FAILED"]},
+    "source": {"$ref": "#/$defs/source"},
+    "build": {"$ref": "#/$defs/build"},
+    "artifacts": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/artifact"},
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"type": {"const": "JAR"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "OCI_IMAGE"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "CONTRACT_BUNDLE"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "MIGRATION_BUNDLE"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "SBOM"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "TEST_EVIDENCE"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "RUNBOOK"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"type": {"const": "PROVENANCE"}}}, "minContains": 1}
+      ]
+    },
+    "models": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/model"},
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"capability": {"const": "CHAT"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"capability": {"const": "EMBEDDING"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"capability": {"const": "RERANK"}}}, "minContains": 1}
+      ]
+    },
+    "qualityGates": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/gate"},
+      "allOf": [
+        {"contains": {"type": "object", "properties": {"name": {"const": "CONTRACTS"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "BUILD_TEST"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "POSTGRES_INTEGRATION"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "COMPOSE_SMOKE"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "SECURITY"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "MODEL_INTEGRATION"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "A2A_INTEROPERABILITY"}}}, "minContains": 1},
+        {"contains": {"type": "object", "properties": {"name": {"const": "EVALUATION"}}}, "minContains": 1}
+      ]
+    },
+    "database": {"$ref": "#/$defs/database"},
+    "evaluation": {"$ref": "#/$defs/evaluation"},
+    "deployment": {"$ref": "#/$defs/deployment"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"deliveryStatus": {"const": "READY_FOR_MANUAL_DEPLOYMENT"}}},
+      "then": {
+        "properties": {
+          "qualityGates": {"type": "array", "items": {"type": "object", "properties": {"status": {"const": "PASSED"}}}},
+          "database": {"type": "object", "properties": {"backwardCompatible": {"const": true}, "destructiveChanges": {"const": false}}},
+          "deployment": {"type": "object", "properties": {"automaticDeployment": {"const": false}, "deploymentPerformed": {"const": false}}}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "commitSha", "ref"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "commitSha": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+        "ref": {"type": "string", "pattern": "^refs/tags/v[0-9]+\\.[0-9]+\\.[0-9]+(?:-rc\\.[0-9]+)?$"}
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workflowRunId", "workflowUrl", "builtAt", "jdk", "versionsLockDigest"],
+      "properties": {
+        "workflowRunId": {"type": "integer", "minimum": 1},
+        "workflowUrl": {"type": "string", "format": "uri"},
+        "builtAt": {"type": "string", "format": "date-time"},
+        "jdk": {"type": "string", "minLength": 1},
+        "versionsLockDigest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type", "uri", "digest"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "type": {"enum": ["JAR", "OCI_IMAGE", "CONTRACT_BUNDLE", "MIGRATION_BUNDLE", "SBOM", "TEST_EVIDENCE", "RUNBOOK", "PROVENANCE"]},
+        "uri": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "modelId", "immutableRevision"],
+      "properties": {
+        "capability": {"enum": ["CHAT", "EMBEDDING", "RERANK"]},
+        "modelId": {"type": "string", "minLength": 1},
+        "immutableRevision": {"type": "string", "minLength": 1}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "evidenceArtifact"],
+      "properties": {
+        "name": {"enum": ["CONTRACTS", "BUILD_TEST", "POSTGRES_INTEGRATION", "COMPOSE_SMOKE", "SECURITY", "MODEL_INTEGRATION", "A2A_INTEROPERABILITY", "EVALUATION"]},
+        "status": {"enum": ["PASSED", "FAILED", "BLOCKED", "NOT_APPLICABLE", "CANCELLED"]},
+        "evidenceArtifact": {"type": "string", "minLength": 1}
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baselineVersion", "targetVersion", "migrationDigest", "backwardCompatible", "destructiveChanges"],
+      "properties": {
+        "baselineVersion": {"type": "string", "minLength": 1},
+        "targetVersion": {"type": "string", "minLength": 1},
+        "migrationDigest": {"$ref": "#/$defs/sha256"},
+        "backwardCompatible": {"type": "boolean"},
+        "destructiveChanges": {"type": "boolean"}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "scenarioVersions", "runsPerScenario", "evidenceArtifact"],
+      "properties": {
+        "profileId": {"type": "string", "minLength": 1},
+        "scenarioVersions": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "runsPerScenario": {"type": "integer", "minimum": 1},
+        "evidenceArtifact": {"type": "string", "minLength": 1}
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automaticDeployment", "deploymentPerformed", "runbookArtifact"],
+      "properties": {
+        "automaticDeployment": {"const": false},
+        "deploymentPerformed": {"const": false},
+        "runbookArtifact": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

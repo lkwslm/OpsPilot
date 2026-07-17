@@ -23,6 +23,7 @@
 4. Agent 内部调用日志、指标、代码和知识库等能力仍走 Tool Runtime；A2A 用于 Agent 之间协作，Tool SPI/MCP 用于 Agent 与工具协作，两者不能混用。
 5. Agent 只交换任务所需的 Message、Artifact、状态和引用，不共享隐藏思考、完整内存、数据库实体或框架对象。
 6. MVP 仍由 Supervisor 单向委派，不开放专业 Agent 之间的自由对话或任意级联委派，避免失控循环。
+7. A2A 是 OpsPilot 的稳定协作边界，不作为可动态替换 Extension；具体 HTTP/JSON SDK 由 `opspilot-a2a` 隔离，但 Task/Artifact/幂等/恢复语义属于核心设计。
 
 ### 5.3 六个 Agent 的有界 ReAct 执行模型
 
@@ -33,22 +34,26 @@ Observe：读取当前 A2A Task 输入、checkpoint、已验证 Artifact/Evidenc
 → Reason：模型输出结构化 Decision（不持久化隐藏思考过程）
 → Validate：Schema、权限、预算、重复动作和终止条件校验
 → Act：执行一个白名单 Tool 动作或 A2A 委派动作
-→ Checkpoint：保存动作、可审计决策摘要、Observation 引用、Usage 和状态
+→ Checkpoint：保存动作、可审计决策摘要、Tool/A2A 结果引用、Usage 和状态
 → Stop/Next：满足结束条件则生成 Artifact，否则进入下一轮
 ```
 
 各 Agent 的动作空间固定如下，模型不能创造新动作类型：
 
-| Agent | ReAct Action | Observation | 终止输出 |
+| Agent | ReAct Action | ReAct 动作结果 | 终止输出 |
 |---|---|---|---|
 | `SupervisorAgent` | `DELEGATE_A2A_TASK`、`CONTINUE_A2A_TASK`、`REQUEST_USER_INPUT`、`CANCEL_TASK`、`FINISH` | 下游 Task 状态和已校验 Artifact | Investigation plan / RCA Artifact |
-| `EvidenceCollectorAgent` | 调用日志、指标、Trace、健康、配置 Tool，或 `FINISH` | Tool result + Evidence 引用 | Evidence bundle / Missing evidence Artifact |
-| `CodeAnalysisAgent` | 调用受限代码 Tool，或 `FINISH` | 文件、行号、调用路径和 Evidence 引用 | Code findings Artifact |
-| `KnowledgeAgent` | 调用完整 Knowledge Search 链路，或 `FINISH` | 真实检索结果或正常 `NO_MATCH` | Knowledge result Artifact |
-| `DiagnosisAgent` | `FORM_HYPOTHESES`、`REQUEST_VERIFICATION`、`FINISH` | Evidence/Code/Knowledge Artifact；补证后用同一 Task continuation | Hypothesis set / Diagnosis assessment Artifact |
+| `EvidenceCollectorAgent` | 调用日志、指标、Trace、事件、健康、配置、拓扑 Tool，或 `FINISH` | Tool result + ObservationBatch/Evidence 引用 | Evidence bundle / Missing evidence Artifact |
+| `CodeAnalysisAgent` | 调用受限代码 Tool，或 `FINISH` | 文件、行号、调用路径和输入 Evidence 引用 | Code findings 审计 Artifact + 代码 Evidence bundle |
+| `KnowledgeAgent` | 调用完整 Knowledge Search 链路，或 `FINISH` | 真实检索结果或正常 `NO_MATCH` | Knowledge result Artifact；可引用断言规范化为 Evidence |
+| `DiagnosisAgent` | `FORM_HYPOTHESES`、`REQUEST_VERIFICATION`、`FINISH` | 仅 Evidence ID；补证后用同一 Task continuation | Hypothesis set / Diagnosis assessment Artifact |
 | `RemediationAgent` | `PROPOSE_PLAN`、`REQUEST_APPROVED_TEST`、`FINISH` | 已验证结论、审批和沙箱测试结果 | Remediation plan Artifact |
 
-六个 Agent 都使用 AgentScope `ReActAgent` 的内置 reasoning-acting loop。`opspilot-agent-core` 的 `BoundedReActRunner` 是策略包装器，不再实现第二套 `while` 循环；它通过 AgentScope 的 `ReactConfig`、Middleware、事件和中断接口施加 checkpoint、最大轮数、deadline、Token/Tool/A2A Task 预算、取消、重复动作指纹和 `NO_PROGRESS` 停机。AgentScope Adapter 负责把这些 Port 映射到经构建验证的框架 API。业务开发者只配置 Prompt、允许动作/工具、输入输出 Schema、预算和完成条件，无须自行编排 Agent loop。Supervisor 的 ReAct loop 通过允许的 A2A 动作编排专业 Agent；专业 Agent 的 ReAct loop 只执行自身 skill，二者不嵌套接管对方循环。
+本表“ReAct 动作结果”是框架 loop 对一次 Action 返回值的称呼，不等于第 27 章外部数据的 `ObservationRecord/ObservationBatch`。外部信息源必须先经 Adapter 和 EvidenceNormalizer；Agent loop 只能看到标准 Tool result、Evidence/Artifact 引用和受控摘要。
+
+六个 Agent 都使用 AgentScope `ReActAgent` 的内置 reasoning-acting loop。`opspilot-core` 的 `BoundedReActRunner` 是策略包装器，不再实现第二套 `while` 循环；它通过 AgentScope 的 `ReactConfig`、Middleware、事件和中断接口施加 checkpoint、最大轮数、deadline、Token/Tool/A2A Task 预算、取消、重复动作指纹和 `NO_PROGRESS` 停机。AgentScope Adapter 负责把这些 Port 映射到经构建验证的框架 API。业务开发者只配置 Prompt、允许动作/工具、输入输出 Schema、预算和完成条件，无须自行编排 Agent loop。Supervisor 的 ReAct loop 通过允许的 A2A 动作编排专业 Agent；专业 Agent 的 ReAct loop 只执行自身 skill，二者不嵌套接管对方循环。
+
+v3 中上述策略包装器位于 `opspilot-core`，实际框架映射位于 `opspilot-agent-runtime-agentscope`。六个角色由受版本控制的 `AgentProfile` 描述，不是六套实现，也不是通过 Extension 扫描动态发现。Profile 只能引用启动时已经冻结的 Tool/Model capability ID；新增 Provider 或 Tool 不会自动扩大任何 Agent 的动作空间。
 
 ### 5.4 A2A 逻辑拓扑
 
@@ -62,11 +67,12 @@ flowchart LR
     AC --> D["Diagnosis A2A Server"]
     AC --> R["Remediation A2A Server"]
 
-    E --> TR["Tool Runtime"]
-    C --> TR
-    K --> TR
-    D --> TR
-    R --> TR
+    E --> AR["统一 Agent Runtime"]
+    C --> AR
+    K --> AR
+    D --> AR
+    R --> AR
+    AR --> TR["Tool Registry + 固定安全中间件"]
     S --> PG[("PostgreSQL")]
     E --> ATS["A2A Task Store"]
     C --> ATS
@@ -97,9 +103,9 @@ MVP 使用受控静态 Agent Directory，保存允许的 Agent Card URL、期望
 |---|---|---|---|
 | `SupervisorAgent` | `incident-investigation` | Incident ticket、约束和预算 | `investigation-plan`、`rca-report` |
 | `EvidenceCollectorAgent` | `collect-observability-evidence` | 时间窗、服务、证据请求 | `evidence-bundle`、`missing-evidence` |
-| `CodeAnalysisAgent` | `analyze-code-location` | 堆栈、路径和 Evidence 引用 | `code-findings` |
-| `KnowledgeAgent` | `retrieve-incident-knowledge` | 查询和元数据过滤 | `knowledge-result`，允许 `NO_MATCH` |
-| `DiagnosisAgent` | `generate-and-verify-hypotheses` | 证据、代码、知识引用 | `hypothesis-set`、`diagnosis-assessment` |
+| `CodeAnalysisAgent` | `analyze-code-location` | 堆栈、路径和 Evidence 引用 | `code-findings` + `evidence-bundle`；前者只用于追溯 |
+| `KnowledgeAgent` | `retrieve-incident-knowledge` | 查询和元数据过滤 | `knowledge-result` + 可选 `evidence-bundle`，允许 `NO_MATCH` |
+| `DiagnosisAgent` | `generate-and-verify-hypotheses` | 仅规范化 Evidence 引用 | `hypothesis-set`、`diagnosis-assessment` |
 | `RemediationAgent` | `propose-remediation` | 已验证结论和约束 | `remediation-plan` |
 
 ### 5.6 协议操作与数据合同
@@ -217,11 +223,9 @@ public record IncidentAgentState(
     InvestigationOutcome outcome,          // 仅终态设置；执行中为 null
     String planArtifactId,
     int planVersion,
-    String currentStepId,
+    UUID currentStepId,
     List<AgentStepReference> steps,
     List<String> evidenceIds,
-    List<String> codeFindingIds,
-    List<String> knowledgeResultArtifactIds,
     List<String> hypothesisIds,
     String remediationPlanArtifactId,
     String approvalId,
@@ -239,7 +243,7 @@ public record IncidentAgentState(
 ) {}
 
 public record AgentStepReference(
-    String stepId,
+    UUID stepId,
     StepStatus status,
     List<StepAttemptReference> attempts
 ) {}
@@ -286,7 +290,7 @@ public record ReactLoopSnapshot(
 | 身份与并发 | `incidentId`, `runId`, `a2aContextId`, `supervisorAgentSessionId`, `version` | 绑定业务 Run、A2A 上下文、Supervisor 的 AgentScope 会话引用和 CAS 版本 |
 | 业务进度 | `status`, `outcome`, `planArtifactId`, `planVersion`, `currentStepId` | 恢复 Incident 状态机和当前调查计划 |
 | Agent 调度 | `steps` 及其 attempts | 定位每个 A2A Task、派发/对账/校验/重试状态 |
-| 调查结果引用 | Evidence、CodeFinding、KnowledgeResult、Hypothesis、Remediation、Approval ID | 组合上下文和最终 RCA，不复制业务对象正文 |
+| 调查结果引用 | Evidence、Hypothesis、Remediation、Approval ID | Evidence 是唯一事实集合；CodeFinding/KnowledgeResult 只通过 step 的 Artifact 引用保留审计，不进入分析上下文 |
 | 预算与循环 | `budget`, `usage`, `supervisorLoop`, `deadline` | 强制 Token、成本、轮数、重复动作和无进展停机 |
 | 缺失与失败 | `missingEvidence`, `warnings`, `failureId` | 生成限制说明或关联唯一 `ChainFailure` |
 | 完成与取消 | `finalReportArtifactId`, `cancellationRequested` | 恢复报告生成和取消传播 |
@@ -312,7 +316,7 @@ public record ReactLoopSnapshot(
 4. 快照、`incident_run.status`、`state_transition`、`a2a_task_binding` 和待发布的 `incident_event` 必须在同一数据库事务中提交或回滚。
 5. Evidence、Hypothesis、Artifact、Approval 和 `ChainFailure` 等对象以各自业务表为权威；快照中的 ID 只是可恢复引用。加载快照时发现必需引用不存在或归属其他 Run，返回 `STATE_REFERENCE_INVALID` 并停止该 Run。
 6. 只有 Supervisor 运行角色可以创建或更新 `opspilot.agent_state`。专业 Agent 只能维护自身 A2A Task Store，通过 A2A Artifact 返回结果，不能直接读取或修改该快照。
-7. AgentScope `AgentStateStore` 由 `opspilot-agent-adapter-agentscope` 适配到 `opspilot_a2a.agent_runtime_state`。框架状态的加载/保存遵守 AgentScope 调用边界，OpsPilot 领域代码不能直接修改其 JSON；保存失败属于状态持久化链路故障，返回 `AGENT_STATE_PERSIST_FAILED`，禁止改用内存或本地文件继续运行。
+7. AgentScope `AgentStateStore` 由 `opspilot-agent-runtime-agentscope` 适配到 `opspilot_a2a.agent_runtime_state`。框架状态的加载/保存遵守 AgentScope 调用边界，OpsPilot 领域代码不能直接修改其 JSON；保存失败属于状态持久化链路故障，返回 `AGENT_STATE_PERSIST_FAILED`，禁止改用内存或本地文件继续运行。
 
 以下内容禁止放入 `IncidentAgentState`：日志/Trace/代码/知识正文、完整 Evidence、模型 Prompt/Response、隐藏推理、A2A Message history、Tool 原始输出、密钥、Ground Truth 和大 Artifact。它们分别存入自己的业务表或受控 Artifact；快照只保存稳定 ID。`steps`、指纹和告警列表都受 Incident 预算上限约束，防止 `state_json` 无界增长。
 
@@ -365,7 +369,7 @@ FAILED/REJECTED → RETRY_SCHEDULED → 新 attempt 的 PENDING
 | `CREATED` | Run 已创建但尚未进入调度队列 |
 | `QUEUED` | 顶层任务已入队，等待 Supervisor 领取 |
 | `PLANNING` | 正在生成或修订有限调查计划 |
-| `COLLECTING_EVIDENCE` | 正在收集现场日志、指标、Trace、健康和配置 |
+| `COLLECTING_EVIDENCE` | 正在通过 Adapter 收集现场日志、指标、Trace、事件、健康、配置和拓扑 |
 | `ANALYZING_CODE` | 正在定位与证据相关的代码路径 |
 | `RETRIEVING_KNOWLEDGE` | 正在执行结果可为空、但技术链路不可降级的知识/案例检索 |
 | `GENERATING_HYPOTHESES` | 正在生成证据约束的候选根因 |
@@ -379,6 +383,41 @@ FAILED/REJECTED → RETRY_SCHEDULED → 新 attempt 的 PENDING
 | `COMPLETED` | 编排按设计结束；结论质量由独立 `InvestigationOutcome` 表示 |
 | `FAILED` | 核心依赖或不可恢复一致性/安全错误导致编排无法完成 |
 | `CANCELLED` | 取消流程已收敛或达到取消 deadline |
+
+以下转换矩阵是 Incident Run 状态机的**唯一权威定义**。代码中的 allowlist、数据库测试、恢复测试和下方 Mermaid 图都必须与此矩阵一致；若图与矩阵冲突，以矩阵为准。任何新增状态或迁移都必须先修改矩阵、Schema 和迁移测试，再修改实现。
+
+| From | Event/条件 | To |
+|---|---|---|
+| `CREATED` | 顶层任务持久化成功 | `QUEUED` |
+| `CREATED` | 创建后、入队前取消 | `CANCELLED` |
+| `QUEUED` | Supervisor 获得租约 | `PLANNING` |
+| `PLANNING` | 计划有效 | `COLLECTING_EVIDENCE` |
+| `PLANNING`, `COLLECTING_EVIDENCE`, `ANALYZING_CODE`, `RETRIEVING_KNOWLEDGE`, `GENERATING_HYPOTHESES`, `VERIFYING_HYPOTHESES` | 当前步骤返回可回答的业务输入缺失 | `WAITING_INPUT` |
+| `WAITING_INPUT` | 输入通过 Schema 和权限校验 | `PLANNING` |
+| `WAITING_INPUT` | 用户拒绝、超时或达到 continuation 上限 | `GENERATING_REPORT` |
+| `COLLECTING_EVIDENCE` | 证据收集完成 | `ANALYZING_CODE` |
+| `COLLECTING_EVIDENCE` | 计划确认无需代码定位 | `RETRIEVING_KNOWLEDGE` |
+| `ANALYZING_CODE` | 代码分析完成 | `RETRIEVING_KNOWLEDGE` |
+| `RETRIEVING_KNOWLEDGE` | 检索成功，包含 `NO_MATCH` | `GENERATING_HYPOTHESES` |
+| `GENERATING_HYPOTHESES` | 候选 Schema 与门禁通过 | `VERIFYING_HYPOTHESES` |
+| `VERIFYING_HYPOTHESES` | 有新 Evidence 且补证预算允许 | `COLLECTING_EVIDENCE` |
+| `VERIFYING_HYPOTHESES` | 达到结论门槛 | `GENERATING_REMEDIATION` |
+| `VERIFYING_HYPOTHESES` | `NO_PROGRESS`、预算耗尽或证据不足 | `GENERATING_REPORT` |
+| `GENERATING_REMEDIATION` | 需要执行 `CONTROLLED_EXECUTION` | `WAITING_APPROVAL` |
+| `GENERATING_REMEDIATION` | 不需要执行测试 | `GENERATING_REPORT` |
+| `WAITING_APPROVAL` | 批准且策略再次校验通过 | `RUNNING_SANDBOX_TEST` |
+| `WAITING_APPROVAL` | 拒绝或超时 | `GENERATING_REPORT` |
+| `RUNNING_SANDBOX_TEST` | 测试完成或受控失败结果已记录 | `GENERATING_REPORT` |
+| `GENERATING_REPORT` | RCA JSON、引用和 Markdown 渲染校验通过 | `COMPLETED` |
+| 任一非终态（`CREATED` 除外） | 接受取消 | `CANCELLING` |
+| `CANCELLING` | 下游取消已收敛或取消 deadline 到达 | `CANCELLED` |
+| 任一非终态 | `ChainFailure` 属于不可恢复的关键链路失败 | `FAILED` |
+
+`WAITING_INPUT` 恢复后一律回到 `PLANNING`，由 Supervisor 根据已完成 step 和新输入生成新 plan version；不直接跳回中断前状态，从而避免把过期步骤上下文作为当前事实。`RUNNING_SANDBOX_TEST` 中的测试断言失败是业务观察结果，不自动等于系统技术失败；沙箱不可启动、越权或结果合同损坏才进入 `FAILED`。
+
+进入 `GENERATING_REPORT` 是分析封账点。状态迁移事务必须先确认当前 Run 的计划内 step/attempt 已进入终态、所有已接收 Artifact 均完成校验和领域事务写入、未得到的输入已明确记录为 `missingEvidence`，然后递增 `runVersion` 并设置 `analysisSealedAt`。封账后 Repository 拒绝为该 Run 新增或修改 Evidence、Hypothesis、Hypothesis-Evidence 关系和验证结果；报告失败重试继续使用同一封账数据。若确需补充新证据，必须创建新的 Incident Run，不能修改已封账 Run。
+
+RCA 生成不复制第二份输入快照表。`RcaReportService` 在短只读 `REPEATABLE READ` 事务中按 `runId` 直接读取该 Run 的全部 Evidence、Hypothesis、支持/冲突关系、验证结果和 `missingEvidence`，校验其归属及封账 `runVersion` 后构造有界结构化输入；事务结束后才调用模型。模型输出必须再次校验引用和 `rootCauseCode`，随后保存一条与 `runId + runVersion` 绑定的 RCA 元数据和同源 JSON/Markdown Artifact。报告生成期间禁止保持数据库事务或锁。
 
 ```mermaid
 stateDiagram-v2
@@ -419,7 +458,7 @@ stateDiagram-v2
     CANCELLING --> CANCELLED
 ```
 
-`COMPLETED`、`FAILED`、`CANCELLED` 是 Incident Run 终态。任何非终态遇到状态库不可用、核心 LLM 不可用且重试耗尽、协议安全错误或不可恢复的数据损坏时可进入 `FAILED`；知识空/无匹配、历史案例不足、证据不足、预算耗尽或 `NO_PROGRESS` 不应自动进入 `FAILED`，而应进入 `GENERATING_REPORT` 并完成为 `PARTIAL/INCONCLUSIVE`。
+`COMPLETED`、`FAILED`、`CANCELLED` 是 Incident Run 终态。任何非终态遇到状态库不可用、核心 LLM 不可用且重试耗尽、协议安全错误或不可恢复的数据损坏时按权威矩阵进入 `FAILED`；知识空/无匹配、历史案例不足、证据不足、预算耗尽或 `NO_PROGRESS` 不应自动进入 `FAILED`，而应进入 `GENERATING_REPORT` 并完成为 `PARTIAL/INCONCLUSIVE`。
 
 阶段只允许因任务本身不需要某能力而按计划跳过，例如无需代码定位时 `COLLECTING_EVIDENCE → RETRIEVING_KNOWLEDGE`。已经进入计划的技术链路若不可用，必须有限重试后进入 `FAILED` 并返回详细错误，禁止以跳过该阶段实现保底降级。所有跳转必须出现在版本化白名单中，并记录 `fromStatus`、`toStatus`、`reasonCode`、actor、对应 A2A taskId 和状态版本。
 
@@ -470,9 +509,9 @@ sequenceDiagram
     C->>DB: 校验并保存 Artifact/step 映射
     S->>C: 委派知识检索
     C->>K: message:send(retrieve-incident-knowledge)
-    K-->>C: COMPLETED + knowledge-result
+    K-->>C: COMPLETED + knowledge-result + optional evidence-bundle
     S->>C: 委派诊断
-    C->>D: message:stream(evidence/code/knowledge refs)
+    C->>D: message:stream(evidenceIds only)
     D-->>C: hypothesis-set + diagnosis-assessment
     C->>DB: 保存结果与 checkpoint
     S-->>API: rca-report Artifact + COMPLETED
@@ -483,7 +522,7 @@ sequenceDiagram
 
 系统必须区分三类信息：
 
-1. **现场事实：**日志、指标、Trace、健康状态、配置和代码；是诊断的主要证据。
+1. **现场事实：**经来源校验的日志、指标、Trace、事件、健康状态、配置、拓扑和代码；是诊断的主要证据。
 2. **领域知识：**知识库文档；用于解释机制、扩展候选和验证方法，不能替代现场证据。
 3. **历史案例：**相似 Incident；只提供先验和对照，不能直接证明当前根因。
 
@@ -506,7 +545,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 ```text
 知识无匹配
 → 收紧时间窗并检查现场 Evidence 完整性
-→ 依据日志/指标/Trace/配置/代码生成证据约束假设
+→ 依据日志/指标/Trace/事件/健康/配置/拓扑/代码生成证据约束假设
 → 用只读工具执行可证伪验证
 → 证据足够：输出 CONCLUSIVE 或 PARTIAL RCA
 → 证据仍不足：请求明确输入或输出 INCONCLUSIVE RCA
@@ -514,7 +553,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 
 系统不在 MVP 中自动访问互联网，也不把模型预训练记忆包装成内部知识引用。若任务确实依赖缺失的领域规则、运行手册或业务语义，进入 `INPUT_REQUIRED`，列出所需文档/负责人/字段；用户不补充时仍应在预算内结束为 `INCONCLUSIVE`，保留已确认事实和后续采集建议。
 
-上述规则只适用于“真实链路成功执行，但业务结果为空”。Embedding、Rerank、KnowledgeAgent、A2A、数据库或 Tool 调用超时/鉴权失败/协议错误/响应 Schema 无效属于技术链路失败：完成有限重试和对账后必须把下游 Task 与 Incident Run 标为 `FAILED`，禁止切换到 Mock/Fake、固定结果、关键词检索、vector-only、备用自然语言排序、模型预训练记忆或跳过计划步骤。
+上述规则只适用于“真实链路成功执行，但业务结果为空”。Embedding、Rerank、KnowledgeAgent、A2A、数据库或 Tool 调用超时/鉴权失败/协议错误/响应 Schema 无效属于技术链路失败：必须生成 `ChainFailure`，再按第 17.4 节能力矩阵决定 Incident `FAILED` 或记录 `missingEvidence` 后继续。任何情况都禁止切换到 Mock/Fake、固定结果、关键词检索、vector-only、备用自然语言排序、模型预训练记忆或未记录原因地跳过计划步骤。
 
 技术失败统一返回 `ChainFailure`，并在产品 API/SSE、A2A Task status message、审计表和结构化日志中使用相同关联 ID：
 
@@ -530,7 +569,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
   "retriesExhausted": true,
   "incidentId": "inc-001",
   "runId": "run-001",
-  "stepId": "knowledge-01",
+  "stepId": "20000000-0000-4000-8000-000000000004",
   "a2aTaskId": "task-001",
   "invocationId": "inv-001",
   "requestId": "req-001",
@@ -547,7 +586,8 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
 
 ### 6.8 防幻觉与结论门禁
 
-- 每个根因 Claim 必须引用至少一个当前 Incident 可访问的 Evidence；纯知识/案例只能作为背景，不能单独支撑根因。
+- 每个根因 Claim 必须引用至少一个当前 Incident 可访问的 Evidence；Hypothesis 的支持、冲突和验证输入也只能是 Evidence ID。CodeFinding、Observation、KnowledgeResult 或原始 Artifact 不能直接进入 Hypothesis。
+- 纯知识/案例只能作为背景；若其中的可核验断言参与判断，必须保留文档哈希与引用并规范化为 `Evidence(factOrigin=KNOWLEDGE)`，且不能单独证明运行时根因。
 - 引用必须通过 `CitationValidity`：对象存在、属于当前 Incident/允许 collection、时间范围匹配、内容摘要与 Claim 可核验。
 - 模型输出分离 `observedFacts`、`inferences`、`unknowns`；无法引用的陈述只能放入 `unknowns` 或“待验证假设”。
 - Top-1 结论达到配置化的证据覆盖、冲突检查和验证门槛后才标为 `CONCLUSIVE`；门槛未达到只能是 `PARTIAL` 或 `INCONCLUSIVE`。

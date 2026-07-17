@@ -4,6 +4,8 @@
 
 | 决策 | 结论 |
 |---|---|
+| 总体模块策略 | 模块化核心 + 窄 Port + 受控多实现扩展点；不建设通用微内核、万能 Registry、动态插件或热加载平台 |
+| 物理模块 | 领域/应用/Port 收敛为 `opspilot-core`；A2A contract/client/server 先包级隔离；只有独立发布、复用或依赖冲突才继续拆分 |
 | 业务关系库 | 统一 PostgreSQL |
 | 向量库 | PostgreSQL + pgvector；MVP 精确检索，无 ANN |
 | 运行状态/SSE/任务/幂等 | PostgreSQL 状态快照 + transition/event/task/idempotency |
@@ -12,11 +14,16 @@
 | 本地检索推理 | 单个 Infinity 容器同时加载 Embedding 与 Rerank 两个锁定模型，统一基地址、缓存、健康检查与监控 |
 | 测试 Embedding | Infinity `/embeddings`，候选 `BAAI/bge-m3`，实际维度探针 |
 | 测试 Rerank | 同一 Infinity `/rerank`，候选 `BAAI/bge-reranker-v2-m3`，真实分数和索引探针 |
-| Agent | 6 个首期 Agent 全部使用 AgentScope `ReActAgent` 内置 loop；统一 `BoundedReActRunner` 仅施加预算/checkpoint/停机策略，Supervisor 通过 A2A 1.0 委派 5 个专业 Agent |
+| Agent | 6 个首期角色是受版本控制的 Agent Profile，共享 AgentScope `ReActAgent` 内置 loop 和统一执行服务；`BoundedReActRunner` 仅施加预算/checkpoint/停机策略，Supervisor 通过 A2A 1.0 委派 5 个专业 Agent |
 | A2A | 锁定官方 v1.0.1；Agent Card + HTTP+JSON + Message/Task/Artifact + stream/get/cancel/subscribe |
 | 知识不足 | 空库/无匹配/无历史案例是正常业务结果；技术链路故障显式失败，绝不降级 |
 | Token | Context Builder、A2A Artifact 引用、压缩和多级预算 |
 | 测试 | 单元可 mock SPI；集成/E2E 必须真实模型和真实 A2A HTTP，不注册运行时 Mock Provider |
+| 目标系统边界 | 面向分布式、跨语言系统；Java/Spring Boot 只作为首期 Sample 和语言 Adapter |
+| 可观测接入 | Source Adapter → 单来源 ObservationBatch → EvidenceNormalizer → EvidenceBundle；每条 Evidence 可回溯 sourceId/batchId/observationId |
+| 扩展点 | 仅 Model Provider、Source Adapter、Agent Tool、Code Analyzer、Sandbox Runner；启动时显式装配到专用 Registry 并冻结，冲突直接失败 |
+| 模块交互 | 同进程请求/响应走类型化 Port，Agent 协作走 A2A，多消费者异步通知走事务 outbox；禁止用 Event Bus 隐藏同步依赖 |
+| CI/CD | GitHub Actions 执行 CI 与持续交付，仅生成不可变发布候选；不自动部署、不持有目标环境凭证 |
 
 ### 22.2 专用基础设施职责
 
@@ -34,9 +41,9 @@ Prometheus、Jaeger、隔离 Artifact 卷和 Toxiproxy 分别承担时间序列�
 8. 生产身份认证、出站合规、Prompt/Artifact 数据出境规则和模型成本预算。
 9. 生产是否多实例运行 OpsPilot Server，以及是否启用 `LISTEN/NOTIFY` 作为事件唤醒优化。
 10. 生产 A2A 服务身份方案、Agent Card 签名/信任分发、专业 Agent 独立容器拆分时机和证书轮换。
-11. `CONCLUSIVE/PARTIAL/INCONCLUSIVE` 的证据覆盖、独立证据类型、冲突容忍和置信度阈值，必须由黄金数据集校准。
+11. 生产评测阈值是否在 MVP Profile 之外增加行业/企业 Profile；MVP 的确定性公式和发布阈值已在第 25 章冻结，修改必须发布新 Profile 并保留对比结果。
 
-待确认项必须在对应实现或部署阶段前闭环；空模型、未验证维度、未验证 Rerank 或未验证 AgentScope API 不得进入可运行配置。
+待确认项必须在对应实现或部署阶段前闭环；第 1—4 项属于 Phase 0 完整功能编码门禁，第 5—10 项中仅生产专属内容可延后到生产部署设计。空模型、未验证维度、未验证 Rerank 或未验证 AgentScope API 不得进入可运行配置。
 
 ## 附录 A：关键接口定义
 
@@ -94,7 +101,7 @@ public record AgentStepResult<T>(
 ```java
 public interface A2ATaskBindingRepository {
     A2ATaskBinding createPending(A2ADelegation delegation);
-    Optional<A2ATaskBinding> findByRunAndStep(String runId, String stepId);
+    Optional<A2ATaskBinding> findByRunAndStep(String runId, UUID stepId);
     A2ATaskBinding bindRemoteTask(String messageId, String contextId, String a2aTaskId);
     A2ATaskBinding recordArtifact(String a2aTaskId, String artifactId, String sha256);
 }
@@ -111,3 +118,4 @@ public interface A2ATaskBindingRepository {
 - A2A v1.0 协议规范定义 Agent Card、Message、Task、Artifact、操作和协议绑定：https://a2a-protocol.org/v1.0.0/specification/
 - A2A 官方 v1.0.1 release：https://github.com/a2aproject/A2A/releases/tag/v1.0.1
 - A2A Agent discovery 与 Agent Card：https://a2a-protocol.org/latest/topics/agent-discovery/
+- Pi coding agent 的 Extension 注册、生命周期、工具/Provider 注册表、拦截与错误隔离实现仅作为第 28 章的设计参考，不作为 OpsPilot 结构模板：https://github.com/earendil-works/pi

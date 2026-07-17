@@ -10,7 +10,7 @@
 → 单次任务允许的受控覆盖（仅预算/输出长度等白名单字段）
 ```
 
-每个 Agent 都支持独立设置 Provider、Base URL、API Key 引用、模型、Temperature、Max Tokens、Timeout、重试次数、并发限制、上下文长度、流式输出、工具调用能力和结构化输出能力。没有覆盖的字段继承默认值；不得把整套默认配置复制到每个 Agent。
+每个 Agent 都通过 `AgentProfile.model.modelProfileRef` 选择逻辑模型档位，并允许覆盖 Temperature、Max Tokens 和 Timeout 等白名单生成参数。Provider、Base URL、API Key 引用、具体模型、重试、并发和上下文能力属于被引用的 `model_profile` 与部署配置，不复制进 AgentProfile；这样角色策略不绑定厂商，也不会把密钥带入 Profile。没有覆盖的字段继承默认值。
 
 ### 7.2 Bootstrap 配置示例
 
@@ -18,6 +18,7 @@
 models:
   defaults:
     llm:
+      profile_id: openai-compatible-default
       provider: openai-compatible
       base_url: https://api.deepseek.com
       api_key: ""
@@ -38,6 +39,7 @@ models:
 
 agents:
   supervisor:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0.1
       max_tokens: 2048
@@ -49,6 +51,7 @@ agents:
       max_calls: 12
 
   evidence_collector:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0
       max_tokens: 1024
@@ -60,6 +63,7 @@ agents:
       max_calls: 8
 
   code_analysis:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0
       max_tokens: 1536
@@ -70,6 +74,7 @@ agents:
       max_calls: 8
 
   knowledge:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0
       max_tokens: 768
@@ -80,6 +85,7 @@ agents:
       max_calls: 6
 
   diagnosis:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0.1
       max_tokens: 3072
@@ -90,6 +96,7 @@ agents:
       max_calls: 10
 
   remediation:
+    model_profile_ref: openai-compatible-default
     llm:
       temperature: 0.1
       max_tokens: 3072
@@ -134,11 +141,11 @@ agents:
 + 当前结构化任务
 + 必要状态摘要
 + 允许工具的 Schema
-+ 精确 Evidence/Artifact/代码/知识引用
++ 精确 Evidence 引用；必要 Artifact 只能作为 Evidence provenance 按权限展开
 + 输出 Schema
 ```
 
-不向所有 Agent 广播完整会话、完整仓库、所有工具结果、其他 Agent 的完整输出或推理过程。日志和 Trace 先按时间窗聚合，代码按文件与行号加载，知识先召回再重排；Prompt 中记录引用 ID，只有当前 Agent 确实需要完整正文时才加载。
+不向所有 Agent 广播完整会话、完整仓库、所有工具结果、其他 Agent 的完整输出或推理过程。运行 Observation、CodeFinding 和可引用知识断言先规范化为 Evidence；Diagnosis/Hypothesis 上下文只记录 Evidence ID。只有为核验某条 Evidence 且权限允许时，Context Builder 才沿 `provenanceRefs` 加载最小 Artifact 片段。
 
 ### 8.2 状态分层与压缩
 

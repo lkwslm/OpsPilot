@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/scenario/1.0.0",
+  "title": "OpsPilot Fault Scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarioId", "scenarioVersion", "seed", "timeouts", "baseline", "injection", "load", "collection", "recovery", "groundTruthRef"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "scenarioId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+    "scenarioVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "seed": {"type": "integer", "minimum": 0},
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["totalSeconds", "recoverySeconds"],
+      "properties": {
+        "totalSeconds": {"type": "integer", "minimum": 60, "maximum": 3600},
+        "recoverySeconds": {"type": "integer", "minimum": 10, "maximum": 600}
+      }
+    },
+    "baseline": {"$ref": "#/$defs/phase"},
+    "injection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "target", "parameters", "durationSeconds"],
+      "properties": {
+        "type": {"enum": ["TOXIPROXY_LATENCY", "HIKARI_CONNECTION_HOLD", "CONTAINER_STOP"]},
+        "target": {"type": "string"},
+        "parameters": {"type": "object", "additionalProperties": true},
+        "durationSeconds": {"type": "integer", "minimum": 10, "maximum": 600}
+      }
+    },
+    "load": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestsPerSecond", "durationSeconds", "endpoints"],
+      "properties": {
+        "requestsPerSecond": {"type": "number", "exclusiveMinimum": 0},
+        "durationSeconds": {"type": "integer", "minimum": 10},
+        "endpoints": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logs", "metrics", "traces", "configs"],
+      "properties": {
+        "logs": {"type": "boolean"},
+        "metrics": {"type": "boolean"},
+        "traces": {"type": "boolean"},
+        "configs": {"type": "boolean"}
+      }
+    },
+    "recovery": {"$ref": "#/$defs/phase"},
+    "groundTruthRef": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["durationSeconds", "predicates"],
+      "properties": {
+        "durationSeconds": {"type": "integer", "minimum": 10, "maximum": 600},
+        "predicates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/predicate"}}
+      }
+    },
+    "predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {"type": "string"},
+        "operator": {"enum": ["EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "EXISTS"]},
+        "value": true
+      }
+    }
+  }
+}

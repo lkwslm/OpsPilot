@@ -7,7 +7,7 @@
 - AgentEndpointState、A2A Task、step attempt、Incident Run 四层状态机的合法/非法转换、终态不变式、`runId + version` CAS、取消与恢复；
 - `IncidentAgentState` JSON 序列化/反序列化、Schema 版本迁移、未知版本拒绝、字段边界、列表上限和禁止内容校验；
 - 六个 Agent 的 AgentScope `ReActAgent` + `BoundedReActRunner` 策略包装：框架内置 loop、Middleware/checkpoint、动作白名单、最大轮数、重复动作指纹、NO_PROGRESS、取消和完成条件；验证未实现第二套嵌套 loop；
-- Evidence 去重/时间对齐、Hypothesis 评分、引用有效性；
+- Observation/CodeFinding/KnowledgeResult 到单一 Evidence 的规范化、跨来源去重/时间对齐、Hypothesis 只依赖 Evidence、引用有效性；
 - Tool 权限、审批、Shell 白名单、输出限长、敏感字段脱敏；
 - Scenario YAML 校验、Ground Truth 路径隔离、故障恢复 `finally`；
 - 8 类 Evaluation 指标；
@@ -18,6 +18,10 @@
 - Embedding 批次维度/有限值校验和模型 revision identity。
 - A2A Agent Card 校验、状态映射、Message/Artifact Schema、messageId 幂等、终态不可续写和取消传播；
 - 证据门禁、`rootCause=null` 的 `INCONCLUSIVE`、补证指纹、无进展检测和所有硬预算停机条件。
+- `ObservationBatch` 单 Source 不变式、CodeFinding repository/revision/内容哈希、联邦 `originSource`、统一 `provenanceRefs`、三类输入到 Evidence 的规范化和跨源重复证据识别；直接把 CodeFinding/KnowledgeResult 传给 Diagnosis 必须被 Schema 拒绝。
+- `GENERATING_REPORT` 封账前置条件、封账后分析事实写入拒绝、按 runId 全量读取 Evidence/Hypothesis/关系/验证结果、报告失败同数据重试和模型调用期间无数据库事务。
+- 各专用 Registry 的稳定 ID、重复注册、required 缺失、版本不兼容、冻结后不可修改和 `AgentProfile` 的模型/Tool/A2A/沙箱/安全能力闭包；权限取交集且冲突必须确定性失败，不能依赖 Bean 顺序。
+- 固定中间件链 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit` 的顺序、短路和 fail-closed 行为。
 
 ### 20.2 PostgreSQL/pgvector 集成测试
 
@@ -35,6 +39,8 @@
 10. 验证文档更新/删除、旁路重向量化、100% 覆盖后原子切换和回滚。
 11. 验证 `opspilot_app_role` 无法访问 `opspilot_eval`。
 12. 验证 SSE `Last-Event-ID` 只重放目标 Incident/Run 的后续事件。
+13. 验证 Code Source/Repository/Resource Binding/CodeSnapshot 外键、完整 commit、同 step 幂等和 CodeFinding provenance 能回溯到唯一 Source/Repository/commit。
+14. 验证 Hypothesis-Evidence/Verification 关系约束、一个 Run 唯一 RCA、`analysis_sealed_at` 后写保护和报告查询全量性。
 
 ### 20.3 Provider 合同测试
 
@@ -45,6 +51,12 @@
 - Rerank：query + documents、`top_n`、原 index、分数有限值、模型 mismatch、超限候选和超时。
 
 HTTP 协议单测可以使用本地 HTTP fixture，但这不替代真实模型集成测试，也不能作为运行 Provider 注册。
+
+可观测 Source Adapter 使用独立共享 contract suite：所有 Adapter 必须覆盖真实成功、合法空结果、分页/限流、超时、鉴权失败、无效 Schema、部分结果、取消、脱敏、Artifact 哈希和来源追溯。新增数据源只增加 Adapter/配置/测试，不得修改 Agent loop、RCA 或数据库核心身份。
+
+Code Source Adapter 使用另一套共享 contract suite：GitHub/GitLab 必须把同一 repository/commit 映射成同一 CodeSnapshot 领域语义，覆盖分页、限流、鉴权、超时、commit 不存在、Manifest/Artifact 哈希、归档大小、路径穿越、符号链接、子模块/LFS 和 workspace 销毁；禁止回退 `main`、任意 URL 或 Agent 本地目录。新增托管平台不得修改 Code Analyzer、Agent Tool、Evidence 或 RCA。
+
+Code Analyzer 与 Sandbox Runner 也各自提供共享 contract suite。新增语言/构建工具实现必须证明只增加 Adapter；`opspilot-core`、Agent 业务逻辑和 A2A Artifact Schema 无需修改。
 
 ### 20.4 A2A 合同与互操作测试
 
@@ -77,9 +89,9 @@ HTTP 协议单测可以使用本地 HTTP fixture，但这不替代真实模型�
 |---|---|---|
 | 可运行 | 锁定 Infinity 镜像、两个模型 ID/revision 可下载和同时加载 | 冷/热启动均成功，无未声明代码执行依赖 |
 | 接口 | `/rerank` 返回 query-document 真实分数和索引 | 合同测试全过，无生成式伪装 |
-| 中文效果 | 基于首期故障知识集比较向量召回与重排 | NDCG@K/MRR 不低于仅向量基线；目标值待基准确认 |
-| 资源 | CPU/GPU、内存/显存、镜像/权重大小 | 在目标开发机不 OOM；预算待确认 |
-| 延迟 | 不同候选数/长度的 p50/p95 | 满足待确认的 RAG SLO |
+| 中文效果 | 基于首期故障知识集比较向量召回与重排 | NDCG@10 与 MRR 均不得低于仅向量基线，且至少一项提升 ≥ 5% |
+| 资源 | CPU/GPU、内存/显存、镜像/权重大小 | 第 24 章 Phase 0 在目标开发机完成并发探针且不 OOM，实际预算写入版本锁和验收记录 |
+| 延迟 | 不同候选数/长度的 p50/p95 | 完整 Embedding+召回+Rerank p95 < 2s |
 | License/供应链 | 模型、框架、镜像、权重来源 | 许可证与项目使用方式兼容，revision/digest 可追溯 |
 
 Rerank 模型在本地资源占用、接口兼容性和中文重排效果测试通过后确定。
@@ -106,7 +118,7 @@ Rerank 模型在本地资源占用、接口兼容性和中文重排效果测试�
 每个故障场景覆盖两组严格区分的矩阵：
 
 - **正常空结果：**`KB_EMPTY`、真实检索 `NO_MATCH`、历史案例为 0。任务必须在 deadline 和预算内输出 `CONCLUSIVE/PARTIAL/INCONCLUSIVE` 之一，不得生成不存在的引用。
-- **技术链路失败：**LLM、Embedding、Rerank、KnowledgeAgent、任一 A2A endpoint 和 Tool 分别不可用/超时/鉴权失败/Schema 无效。任务必须在有限重试后 `FAILED`，错误体和日志含完整关联 ID、attempt、上游状态、checkpoint 和 `logArtifactId`；断言从未调用 Mock、vector-only、关键词、固定结果、替代 Provider 或跳过计划步骤。
+- **技术链路失败：**LLM、Embedding、Rerank、KnowledgeAgent、任一 A2A endpoint 和 Tool 分别不可用/超时/鉴权失败/Schema 无效。第 17.4 节矩阵中的 `MANDATORY`、`MANDATORY_WHEN_CANDIDATES_EXIST` 和“已进入调用的关键步骤”必须在有限重试后 `FAILED`；明确满足继续条件的 `CONDITIONAL` 能力必须记录 `ChainFailure + missingEvidence` 后继续并生成受限报告。两类路径都要校验完整关联 ID、attempt、上游状态、checkpoint 和 `logArtifactId`；断言从未调用 Mock、vector-only、关键词、固定结果、替代 Provider 或未记录原因地跳过计划步骤。
 
 构造重复补证场景，验证连续两轮无进展后停止；构造每个 Agent 的 ReAct 动作序列，验证动作只能来自白名单且 loop 由统一运行时而非 Agent 业务代码控制。
 
@@ -123,6 +135,19 @@ Rerank 模型在本地资源占用、接口兼容性和中文重排效果测试�
 - Prompt injection 试图更改工具权限、读取密钥或执行 Shell；
 - API 幂等冲突、跨 Incident `runId`、伪造 `Last-Event-ID`；
 - HIGH_RISK/未审批动作、PromQL/代码路径/模型 URL allowlist 绕过；
+- Code Source host/repository allowlist 绕过、模型注入 URL/branch/Token/本地路径、短 SHA/错误部署映射、归档炸弹、路径穿越、符号链接逃逸和 workspace 残留；
 - 数据库/模型/Prometheus/Jaeger/Toxiproxy 不可用、超时和恢复；
+- Source Registry 越权、伪造 `sourceId/sourceKind`、`connectionRef` 泄密、联邦结果缺 `originSource`、跨 Source Observation 冒充独立 Evidence；
 - 日志、Trace、SSE、Actuator 中无明文密钥和 Ground Truth。
 - A2A Agent Card/endpoint 篡改、SSRF、Task 跨调用方访问、Artifact URL 越权、未知 required extension 和伪造 Task 事件。
+- 通过新增 Adapter 试图覆盖同名 ID、绕过固定安全中间件、直接写 Incident 权威表或把厂商 DTO 泄漏到领域/API；架构与集成测试必须阻止。
+
+### 20.10 CI 测试分层与结果发布
+
+本章定义“测什么”，第 26 章定义“在哪个 GitHub Workflow、何时以及以什么门禁状态执行”。测试报告必须按层级独立发布，至少包含 commit SHA、Workflow run、测试套件版本、开始/结束时间、通过/失败/跳过数量和原始报告哈希。
+
+- PR 必需：合同、Maven 单元、架构规则、PostgreSQL/pgvector Testcontainers、Flyway、Compose Smoke 和安全策略；
+- 受控 Runner 必需：真实模型、A2A 互操作、故障断链；缺少 Secret/Runner 时标记 `BLOCKED`，不得显示成功；
+- 发布候选必需：第 25 章三个场景各 5 次及全部硬门禁；
+- GitHub Actions 只生成报告、不可变制品和 Release Manifest，不部署运行环境；
+- 所有发布证据必须进入 Release Manifest；Chat 消息、Job Summary 或单个绿色徽章不能替代机器可读证据。

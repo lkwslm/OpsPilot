@@ -119,7 +119,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: test
       DB_URL: jdbc:postgresql://postgres:5432/opspilot
-      DB_USERNAME: opspilot_app
+      DB_USERNAME: opspilot_app_role
       DB_PASSWORD: ${OPSPILOT_APP_PASSWORD:?required}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEFAULT_LLM_MODEL: ${DEFAULT_LLM_MODEL:-}
@@ -137,8 +137,8 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
-      retrieval-model-probe:
-        condition: service_completed_successfully
+      retrieval-inference:
+        condition: service_started
     ports:
       - "127.0.0.1:8080:8080"
     networks: [opspilot-backend]
@@ -150,6 +150,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+
+  # 五个专业 Agent 不是 opspilot-server 内的进程内快捷调用。完整的
+  # evidence-agent/code-agent/knowledge-agent/diagnosis-agent/remediation-agent
+  # Compose 定义、端口、角色和 Agent Directory 以第 24 章为权威基线。
 
   # 独立评测进程是 Ground Truth 隔离边界；Server 无该 schema/卷权限。
   opspilot-evaluation:
@@ -192,7 +196,7 @@ services:
     build: ../sample-system/order-service
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
-      DB_USERNAME: sample_app
+      DB_USERNAME: sample_app_role
       DB_PASSWORD: ${SAMPLE_APP_PASSWORD:?required}
       INVENTORY_BASE_URL: http://toxiproxy:8666
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -211,7 +215,7 @@ services:
     build: ../sample-system/inventory-service
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
-      DB_USERNAME: sample_app
+      DB_USERNAME: sample_app_role
       DB_PASSWORD: ${SAMPLE_APP_PASSWORD:?required}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
@@ -279,11 +283,12 @@ volumes:
 ### 14.3 服务依赖与资源
 
 - PostgreSQL 健康后由一次性 `db-migrate` 运行 Flyway；Server 只持有 DML 账户，并检查 `vector` 扩展和 schema 版本。
-- Infinity `/health` 或 `/models` 只证明进程和模型注册；`retrieval-model-probe` 必须分别调用真实 `/embeddings` 与 `/rerank` 并验证结构、维度、有限分数和索引，否则应用不启动。
+- Infinity `/health` 或 `/models` 只证明进程和模型注册；`retrieval-model-probe` 必须分别调用真实 `/embeddings` 与 `/rerank` 并验证结构、维度、有限分数和索引。一次性 `retrieval-model-probe` 是部署前/Phase 0 资格门禁，不作为 Server/Agent 的 `service_completed_successfully` 启动依赖；Server/Agent 自身执行等价的运行时探针。模型身份、revision、维度或响应合同等确定性不兼容属于启动失败并非零退出；配置合法但端点暂时不可达时进程保持 liveness UP、readiness DOWN，并在恢复后重新探针，不接收新任务。
 - `InfinityEmbeddingProvider` 将 OpenAI-aligned Embedding 响应映射为统一领域结果；`InfinityRerankProvider` 将 Cohere-aligned `results[index,relevance_score]` 映射为第 13 章结果。
 - Embedding 和 Rerank 共享服务进程、端口和缓存卷，但使用两个锁定模型 revision、独立模型别名、批量限制和调用指标。压测必须验证并发资源竞争；资源不足时调低并发或扩大该服务资源，不能删除 Rerank 或改走其他链路。
 - Infinity 整体不可用、任一模型未加载或任一能力探针失败时，统一检索推理 capability 为 DOWN；在途任务有限重试后显式失败。
 - Server 只挂 Agent 输入只读卷和报告可写卷；独立 Evaluation 才能同时读取 Ground Truth，并只获写 `evaluation_result` 与评测 Artifact 所需权限。
+- Server/Agent readiness 校验第 27 章 Source Registry：每个启用 Source 的 Adapter 存在、版本兼容、`connectionRef` 可解析且 capability probe 成功；Source 不可用时保留具体 `sourceId/sourceKind/adapterId`，不能只报告“可观测服务失败”。
 - CPU-only 是可移植基线；GPU 通过单独 Compose override 显式配置。资源初值必须根据本地压测调整。
 - 只有 API、Prometheus/Jaeger 调试端口在需要时绑定 `127.0.0.1`；数据库和模型端口默认不暴露宿主机。
 
@@ -305,6 +310,7 @@ volumes:
 | `DB_USERNAME` | 无 | 否 | 运行角色 |
 | `DB_PASSWORD` | 无 | 是 | 外部注入 |
 | `FLYWAY_USER` / `FLYWAY_PASSWORD` | 无 | 后者是 | 只注入一次性 `db-migrate`，绝不注入长期运行 Server |
+| `OBSERVABILITY_SOURCE_CONFIG` | `/app/config/observability-sources.yaml` | 否 | 版本化 Source/Adapter/作用域/能力配置；只包含 `connectionRef`，不包含凭证 |
 | `DEFAULT_LLM_PROVIDER` | `openai-compatible` | 否 | 默认 Chat 协议 |
 | `DEFAULT_LLM_BASE_URL` | `https://api.deepseek.com` | 否 | API 根地址 |
 | `DEEPSEEK_API_KEY` | 空 | 是 | 缺失时 fail-fast |
@@ -356,13 +362,14 @@ flowchart TD
     D --> E["启动 Infinity 并加载两个准确 revision"]
     E --> F["执行 /embeddings + /rerank 双能力探针"]
     F --> G["静态解析默认/Agent 配置"]
-    G --> H["导入非敏感 model/prompt 配置"]
-    H --> I["Embedding 真实探针与维度登记"]
-    I --> J["Rerank 真实排序探针"]
-    J --> K["LLM 真实调用与能力探针"]
-    K --> L["加载并校验 6 个 A2A Agent Card"]
-    L --> M["初始化/校验完整知识链路"]
-    M --> N["core readiness = UP，开放 Incident Run"]
+    G --> H["显式构造 Adapter 并注册到专用 Registry"]
+    H --> I["检测 ID 冲突并冻结候选实现"]
+    I --> J["Embedding/Rerank/LLM 真实能力探针"]
+    J --> K["校验 Agent Profile 所需能力闭包"]
+    K --> L["构建统一 Agent Runtime"]
+    L --> M["加载并校验 6 个 A2A Agent Card"]
+    M --> N["初始化/校验完整知识链路"]
+    N --> O["冻结 capability snapshot，readiness = UP"]
 ```
 
 具体步骤：
@@ -371,13 +378,15 @@ flowchart TD
 2. PostgreSQL init 脚本只预置数据库/角色；Flyway migration role 创建扩展、schema、表、约束和关系索引。
 3. 应用以 `ddl-auto=validate` 验证 ORM，不允许 Hibernate 自动改表。
 4. Infinity 按两个准确 revision 下载到统一缓存并分别预热；镜像 digest、模型 revision 和模型缓存哈希写入部署清单。
-5. 应用合并 Bootstrap 配置、PostgreSQL 非敏感配置和 6 个 Agent 稀疏覆盖，生成去密钥有效配置。
-6. Secret Resolver 检查所有启用 Provider 的 Key 引用；外部 LLM model/Key 为空时进程非零退出。
-7. Provider Registry 对唯一配置执行真实探针：Embedding 检查维度；Rerank 检查 query-document 分数；LLM 检查所需 Chat/Tool/Structured/Stream 能力。任一已声明链路依赖失败都阻止 readiness，不允许替代 Provider、Mock 或缩减链路保底。
-8. Embedding 合同写入/核对 `embedding_model_revision`。已有同 identity 但维度不同则失败并要求新 revision，不覆盖旧记录。
-9. 从受信目录获取六个 Agent Card，校验 A2A 1.0、HTTP+JSON interface、skill、媒体类型、安全要求、URL allowlist 和卡摘要；核心 skill 缺失时 readiness 为 DOWN。
-10. 若知识库为空，完整执行 Embedding/Rerank 探针后登记 `KB_EMPTY` 并允许系统启动；若已有 collection，则校验 active revision 和向量覆盖。空库是数据状态，不是技术链路故障。
-11. 只有数据库、状态持久化、LLM、Embedding、Rerank、Supervisor 和全部专业 Agent A2A skill 有效时 readiness 才为 UP；首次 Incident 执行仍检查近期健康和能力快照。
+5. 应用合并 Bootstrap 配置、PostgreSQL 非敏感配置和 6 个 Agent 稀疏覆盖，生成去密钥有效配置；`opspilot-server` 作为唯一 composition root 显式构造选定 Adapter。
+6. 各专用 Registry 注册实现并检查稳定 ID、合同 major 和重复项；冲突或 required 实现缺失时直接退出，不以扫描/Bean 顺序覆盖。
+7. Secret Resolver 检查所有启用 Provider 的 Key 引用；外部 LLM model/Key 为空时进程非零退出。
+8. Provider/Source/Code/Sandbox Registry 对默认 Profile 的能力闭包执行真实探针：Embedding 检查维度；Rerank 检查排序；LLM 检查 Chat/Tool/Structured/Stream；Source 检查受信端点和最小查询。任一 required 链路失败都阻止 readiness。
+9. Embedding 合同写入/核对 `embedding_model_revision`。已有同 identity 但维度不同则失败并要求新 revision，不覆盖旧记录。
+10. 校验每个 `AgentProfile` 的 Tool、Provider、输入输出 Schema、预算和权限引用均能从已探针 Registry 解析，再构建统一 Agent Runtime；新增 Adapter 不会自动扩大 Agent 动作空间。
+11. 从受信目录获取六个 Agent Card，校验 A2A 1.0、HTTP+JSON interface、skill、媒体类型、安全要求、URL allowlist 和卡摘要；核心 skill 缺失时 readiness 为 DOWN。
+12. 若知识库为空，完整执行 Embedding/Rerank 探针后登记 `KB_EMPTY` 并允许系统启动；若已有 collection，则校验 active revision 和向量覆盖。空库是数据状态，不是技术链路故障。
+13. 只有数据库、状态持久化、LLM、Embedding、Rerank、Supervisor 和全部专业 Agent A2A skill 有效时才冻结 capability snapshot 并置 readiness 为 UP；首次 Incident 执行仍检查近期健康。
 
 ### 16.2 健康端点
 
@@ -389,8 +398,8 @@ flowchart TD
 
 ### 16.3 A2A 初始化
 
-启动时构建受信 Agent Directory 和 A2A Client。每个 Agent Server 先恢复自己的 A2A Task Store，再开放 Agent Card 与任务端点。能力探针必须执行一次真实的最小 `message:send → tasks/{id} → cancel` 合同；开启 streaming 的 Agent 还需验证 stream/subscribe。MVP 即使同容器部署，也必须经环回 HTTP 调用，禁止用 Spring Bean 直调绕过协议。
+启动时从第 24.2 节定义的只读配置构建受信 Agent Directory 和 A2A Client。Supervisor 位于 `opspilot-server`，五个专业 Agent 使用独立 Compose 服务和 origin。每个 Agent Server 先恢复自己的 A2A Task Store，再开放 Agent Card 与任务端点。能力探针必须执行一次真实的最小 `message:send → tasks/{id} → cancel` 合同；开启 streaming 的 Agent 还需验证 stream/subscribe。所有委派必须经 Compose 网络 HTTP 调用，禁止用 Spring Bean 直调绕过协议。
 
 ### 16.4 AgentScope 初始化
 
-AgentScope Java 的框架对象只在 Provider Registry、工具策略、状态仓库和 Prompt 模板就绪后构建。实现前必须通过 Maven 构建和合同测试确定可解析版本、Artifact 坐标、结构化输出、工具调用、事件流和许可证。框架 API 适配只允许修改 `opspilot-agent-adapter-agentscope`。
+AgentScope Java 的框架对象只在专用 Registry、固定安全中间件、状态仓库和 Agent Profile 就绪后构建。实现前必须通过 Maven 构建和合同测试确定可解析版本、Artifact 坐标、结构化输出、工具调用、事件流和许可证。框架 API 适配只允许修改 `opspilot-agent-runtime-agentscope`。

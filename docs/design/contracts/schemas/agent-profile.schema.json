@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/agent-profile/1.0.0",
+  "title": "OpsPilot Agent Profile v1",
+  "description": "Versioned declarative role policy consumed by the shared agent runtime. It references registered capabilities and may only narrow platform security policy.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileId", "profileVersion", "role", "skillId", "prompt", "model", "inputContract", "outputContract", "contextPolicy", "toolPolicy", "a2aPolicy", "budget", "sandboxPolicy", "securityPolicy", "terminationPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "profileId": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,63}$"},
+    "profileVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "role": {"enum": ["SUPERVISOR", "EVIDENCE_COLLECTOR", "CODE_ANALYSIS", "KNOWLEDGE", "DIAGNOSIS", "REMEDIATION"]},
+    "skillId": {"enum": ["incident-investigation", "collect-observability-evidence", "analyze-code-location", "retrieve-incident-knowledge", "generate-and-verify-hypotheses", "propose-remediation"]},
+    "description": {"type": "string", "maxLength": 1000},
+    "prompt": {"$ref": "#/$defs/prompt"},
+    "model": {"$ref": "#/$defs/model"},
+    "inputContract": {"$ref": "#/$defs/contract"},
+    "outputContract": {"$ref": "#/$defs/contract"},
+    "contextPolicy": {"$ref": "#/$defs/contextPolicy"},
+    "toolPolicy": {"$ref": "#/$defs/toolPolicy"},
+    "a2aPolicy": {"$ref": "#/$defs/a2aPolicy"},
+    "budget": {"$ref": "#/$defs/budget"},
+    "sandboxPolicy": {"$ref": "#/$defs/sandboxPolicy"},
+    "securityPolicy": {"$ref": "#/$defs/securityPolicy"},
+    "terminationPolicy": {"$ref": "#/$defs/terminationPolicy"}
+  },
+  "$defs": {
+    "stableId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"},
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["templateId", "templateVersion", "systemPolicyTemplateId"],
+      "properties": {
+        "templateId": {"$ref": "#/$defs/stableId"},
+        "templateVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "systemPolicyTemplateId": {"$ref": "#/$defs/stableId"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modelProfileRef", "requiredCapabilities", "generation"],
+      "properties": {
+        "modelProfileRef": {"$ref": "#/$defs/stableId"},
+        "requiredCapabilities": {"type": "array", "uniqueItems": true, "items": {"enum": ["TOOL_CALLS", "STRUCTURED_OUTPUT", "STREAMING"]}},
+        "generation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["temperature", "maxOutputTokens", "timeoutMs"],
+          "properties": {
+            "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+            "maxOutputTokens": {"type": "integer", "minimum": 1},
+            "timeoutMs": {"type": "integer", "minimum": 1000, "maximum": 600000}
+          }
+        }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaId", "mediaType"],
+      "properties": {
+        "schemaId": {"type": "string", "format": "uri"},
+        "mediaType": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "contextPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedInputs", "factsFromEvidenceOnly", "maxEvidenceItems", "maxArtifactBytes"],
+      "properties": {
+        "allowedInputs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["INCIDENT", "EVIDENCE", "ARTIFACT", "TASK_STATE", "APPROVAL"]}},
+        "factsFromEvidenceOnly": {"const": true},
+        "maxEvidenceItems": {"type": "integer", "minimum": 0, "maximum": 5000},
+        "maxArtifactBytes": {"type": "integer", "minimum": 0, "maximum": 104857600}
+      }
+    },
+    "toolRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["toolId", "contractMajor"],
+      "properties": {
+        "toolId": {"$ref": "#/$defs/stableId"},
+        "contractMajor": {"type": "integer", "minimum": 1}
+      }
+    },
+    "toolPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedTools", "maxPermission", "maxCalls", "dynamicDiscovery"],
+      "properties": {
+        "allowedTools": {"type": "array", "maxItems": 100, "items": {"$ref": "#/$defs/toolRef"}},
+        "maxPermission": {"enum": ["NONE", "READ_ONLY", "CONTROLLED_EXECUTION"]},
+        "maxCalls": {"type": "integer", "minimum": 0, "maximum": 100},
+        "dynamicDiscovery": {"const": false}
+      }
+    },
+    "a2aPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowedSkills", "maxDelegations", "peerToPeerDelegation"],
+      "properties": {
+        "allowedSkills": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9-]{2,127}$"}},
+        "maxDelegations": {"type": "integer", "minimum": 0, "maximum": 50},
+        "peerToPeerDelegation": {"const": false}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxTurns", "maxModelCalls", "maxToolCalls", "maxInputTokensPerCall", "maxOutputTokensPerCall", "maxTaskTokens", "deadlineSeconds"],
+      "properties": {
+        "maxTurns": {"type": "integer", "minimum": 1, "maximum": 100},
+        "maxModelCalls": {"type": "integer", "minimum": 1, "maximum": 100},
+        "maxToolCalls": {"type": "integer", "minimum": 0, "maximum": 100},
+        "maxInputTokensPerCall": {"type": "integer", "minimum": 1},
+        "maxOutputTokensPerCall": {"type": "integer", "minimum": 1},
+        "maxTaskTokens": {"type": "integer", "minimum": 1},
+        "deadlineSeconds": {"type": "integer", "minimum": 1, "maximum": 86400}
+      }
+    },
+    "resourceLimits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxDurationSeconds", "maxCpu", "maxMemoryMb"],
+      "properties": {
+        "maxDurationSeconds": {"type": "integer", "minimum": 1, "maximum": 3600},
+        "maxCpu": {"type": "number", "exclusiveMinimum": 0, "maximum": 16},
+        "maxMemoryMb": {"type": "integer", "minimum": 64, "maximum": 65536}
+      }
+    },
+    "sandboxPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "runnerRef", "requireApproval", "allowedTestSuiteIds", "networkAccess", "writableRoots", "limits"],
+      "properties": {
+        "mode": {"enum": ["DISABLED", "READ_ONLY", "APPROVED_TEST"]},
+        "runnerRef": {"oneOf": [{"$ref": "#/$defs/stableId"}, {"type": "null"}]},
+        "requireApproval": {"type": "boolean"},
+        "allowedTestSuiteIds": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/stableId"}},
+        "networkAccess": {"enum": ["DENY", "ALLOWLIST"]},
+        "writableRoots": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "maxLength": 1024}},
+        "limits": {"oneOf": [{"$ref": "#/$defs/resourceLimits"}, {"type": "null"}]}
+      }
+    },
+    "securityPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policyRef", "resourceScopes", "maxDataClassification", "groundTruthAccess", "secretAccess", "arbitraryCommandExecution", "codeMutation"],
+      "properties": {
+        "policyRef": {"$ref": "#/$defs/stableId"},
+        "resourceScopes": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"type": "string", "maxLength": 512}},
+        "maxDataClassification": {"enum": ["PUBLIC", "INTERNAL", "CONFIDENTIAL"]},
+        "groundTruthAccess": {"const": false},
+        "secretAccess": {"const": false},
+        "arbitraryCommandExecution": {"const": false},
+        "codeMutation": {"const": false}
+      }
+    },
+    "terminationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["completionConditions", "noProgressRounds", "resultMapperRef"],
+      "properties": {
+        "completionConditions": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"]}},
+        "noProgressRounds": {"type": "integer", "minimum": 1, "maximum": 10},
+        "resultMapperRef": {"$ref": "#/$defs/stableId"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"sandboxPolicy": {"properties": {"mode": {"const": "DISABLED"}}}}},
+      "then": {"properties": {"sandboxPolicy": {"properties": {"runnerRef": {"type": "null"}, "requireApproval": {"const": false}, "allowedTestSuiteIds": {"maxItems": 0}, "networkAccess": {"const": "DENY"}, "writableRoots": {"maxItems": 0}, "limits": {"type": "null"}}}}}
+    },
+    {
+      "if": {"properties": {"sandboxPolicy": {"properties": {"mode": {"enum": ["READ_ONLY", "APPROVED_TEST"]}}}}},
+      "then": {"properties": {"sandboxPolicy": {"properties": {"runnerRef": {"$ref": "#/$defs/stableId"}, "limits": {"$ref": "#/$defs/resourceLimits"}}}}}
+    },
+    {
+      "if": {"properties": {"sandboxPolicy": {"properties": {"mode": {"const": "APPROVED_TEST"}}}}},
+      "then": {"properties": {"sandboxPolicy": {"properties": {"runnerRef": {"$ref": "#/$defs/stableId"}, "requireApproval": {"const": true}, "allowedTestSuiteIds": {"minItems": 1}}}}}
+    },
+    {"if": {"properties": {"role": {"const": "SUPERVISOR"}}}, "then": {"properties": {"skillId": {"const": "incident-investigation"}}}},
+    {"if": {"properties": {"role": {"const": "EVIDENCE_COLLECTOR"}}}, "then": {"properties": {"skillId": {"const": "collect-observability-evidence"}}}},
+    {"if": {"properties": {"role": {"const": "CODE_ANALYSIS"}}}, "then": {"properties": {"skillId": {"const": "analyze-code-location"}}}},
+    {"if": {"properties": {"role": {"const": "KNOWLEDGE"}}}, "then": {"properties": {"skillId": {"const": "retrieve-incident-knowledge"}}}},
+    {"if": {"properties": {"role": {"const": "DIAGNOSIS"}}}, "then": {"properties": {"skillId": {"const": "generate-and-verify-hypotheses"}}}},
+    {"if": {"properties": {"role": {"const": "REMEDIATION"}}}, "then": {"properties": {"skillId": {"const": "propose-remediation"}}}}
+  ]
+}

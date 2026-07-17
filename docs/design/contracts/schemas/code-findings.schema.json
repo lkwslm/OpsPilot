@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/code-findings/1.0.0",
+  "title": "OpsPilot Code Findings v1",
+  "description": "Language-neutral, auditable intermediate output of a code analyzer. A CodeFinding is not a canonical fact and must be normalized into Evidence before diagnosis or hypothesis evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "findingSetId", "incidentId", "runId", "stepId", "repository", "query", "analyzer", "findings", "generatedAt"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "findingSetId": {"$ref": "#/$defs/uuid"},
+    "incidentId": {"$ref": "#/$defs/uuid"},
+    "runId": {"$ref": "#/$defs/uuid"},
+    "stepId": {"$ref": "#/$defs/uuid"},
+    "repository": {"$ref": "#/$defs/repository"},
+    "query": {"$ref": "#/$defs/query"},
+    "analyzer": {"$ref": "#/$defs/analyzer"},
+    "findings": {"type": "array", "maxItems": 500, "items": {"$ref": "#/$defs/finding"}},
+    "warnings": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": 1000}},
+    "generatedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "uuid": {"type": "string", "format": "uuid"},
+    "refs": {"type": "array", "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryId", "revision"],
+      "properties": {
+        "repositoryId": {"type": "string", "pattern": "^[A-Za-z0-9._:/-]{1,512}$"},
+        "revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "rootArtifactId": {"type": ["string", "null"], "format": "uuid"}
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceIds", "symbols", "pathPrefixes"],
+      "properties": {
+        "evidenceIds": {"$ref": "#/$defs/refs"},
+        "symbols": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"type": "string", "maxLength": 512}},
+        "pathPrefixes": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"type": "string", "maxLength": 1024}}
+      }
+    },
+    "analyzer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analyzerId", "analyzerVersion", "language"],
+      "properties": {
+        "analyzerId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,256}$"},
+        "analyzerVersion": {"type": "string", "minLength": 1, "maxLength": 128},
+        "language": {"type": "string", "pattern": "^[A-Za-z0-9.+#_-]{1,64}$"}
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "startLine", "endLine", "contentHash"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "startLine": {"type": "integer", "minimum": 1},
+        "endLine": {"type": "integer", "minimum": 1},
+        "startColumn": {"type": ["integer", "null"], "minimum": 1},
+        "endColumn": {"type": ["integer", "null"], "minimum": 1},
+        "symbol": {"type": ["string", "null"], "maxLength": 512},
+        "contentHash": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["findingId", "kind", "location", "observation", "incidentRelevance", "supportingEvidenceIds", "confidence", "artifactIds", "limitations"],
+      "properties": {
+        "findingId": {"$ref": "#/$defs/uuid"},
+        "kind": {"enum": ["SYMBOL_DEFINITION", "CALL_PATH", "CONFIGURATION_USAGE", "RESOURCE_CONFIGURATION", "DATA_ACCESS", "ERROR_HANDLING", "CONCURRENCY", "DEPENDENCY", "RETRY_TIMEOUT", "HEALTH_CHECK", "TEST_COVERAGE"]},
+        "location": {"$ref": "#/$defs/location"},
+        "observation": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "incidentRelevance": {"type": "string", "minLength": 1, "maxLength": 4000},
+        "supportingEvidenceIds": {"$ref": "#/$defs/refs"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "artifactIds": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
+        "limitations": {"type": "array", "maxItems": 20, "items": {"type": "string", "maxLength": 1000}}
+      }
+    }
+  }
+}

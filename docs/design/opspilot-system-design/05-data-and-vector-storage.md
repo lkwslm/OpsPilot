@@ -158,7 +158,7 @@ ORDER BY embedding <=> CAST(:query_vector AS vector)
 LIMIT :candidate_k;
 ```
 
-调用前必须验证 Query 向量维度等于 revision 维度。`candidate_k` 是重排候选数，最终 `top_k` 由 RerankProvider 返回；若重排禁用，只能在明确配置下使用向量排序，并在结果中记录 `rerankApplied=false`。
+调用前必须验证 Query 向量维度等于 revision 维度。`candidate_k` 是重排候选数，最终 `top_k` 由 RerankProvider 返回。MVP 不提供禁用 Rerank 的配置：候选为空时返回 `COMPLETED + NO_MATCH` 且不调用 Rerank；候选非空时 Rerank 是必经步骤，失败必须显式失败。`rerankApplied=false` 只允许出现在候选为空的 `NO_MATCH` 结果中，不能表示 vector-only 降级。
 
 ### 9.6 索引策略
 
@@ -237,16 +237,30 @@ SET LOCAL ivfflat.probes = <P>;
 
 | 表 | 关键字段 | 说明/约束 |
 |---|---|---|
-| `opspilot.incident` | `incident_id`, `scenario_id`, `ticket_json`, `severity`, `status`, `created_at` | 工单与当前状态；不存 Ground Truth |
-| `opspilot.incident_run` | `run_id`, `incident_id`, `status`, `model_config_snapshot`, `token_budget_json`, `started_at`, `ended_at` | 一次可恢复执行；同 Incident 活跃运行唯一 |
+| `opspilot.incident` | `incident_id`, `target_system_id`, `resource_scope_json`, `scenario_id`, `ticket_json`, `severity`, `status`, `created_at` | 工单、目标系统/资源范围与当前状态；不存 Ground Truth |
+| `opspilot.incident_run` | `run_id`, `incident_id`, `status`, `run_version`, `analysis_sealed_at`, `model_config_snapshot`, `token_budget_json`, `started_at`, `ended_at` | 一次可恢复执行；同 Incident 活跃运行唯一；进入 `GENERATING_REPORT` 后封账并拒绝新的分析事实写入 |
 | `opspilot.task` | `task_id`, `run_id`, `type`, `status`, `payload jsonb`, `priority`, `attempts`, `max_attempts`, `available_at`, `lease_owner`, `lease_until`, `idempotency_key`, `last_error` | PostgreSQL 持久任务队列；`SKIP LOCKED` 领取、过期租约恢复、幂等键唯一 |
 | `opspilot.api_idempotency` | `idempotency_key`, `operation`, `request_hash`, `resource_id`, `response_status`, `response_body`, `expires_at` | API 写请求幂等；相同 Key 不同请求哈希返回冲突 |
 | `opspilot.agent_state` | `run_id`, `schema_version`, `state_json`, `version`, `updated_at` | `IncidentAgentState` 当前快照；每个 Run 一行，`run_id` 主键/FK，CAS 更新；只存摘要、计数器和稳定引用 |
 | `opspilot.agent_endpoint` | `remote_agent_id`, `instance_id`, `endpoint_state`, `reason_code`, `retryable`, `card_digest`, `last_successful_probe_at`, `updated_at` | Agent Directory 权威端点状态；不与 Task/Incident 状态复用 |
 | `opspilot.a2a_task_binding` | `run_id`, `step_id`, `attempt`, `attempt_status`, `remote_agent_id`, `agent_card_digest`, `message_id`, `context_id`, `a2a_task_id`, `agent_session_id`, `a2a_state`, `result_artifact_id`, `last_event_at` | Supervisor step attempt、远端 A2A Task 与专业 AgentScope 会话的映射；`message_id` 和 `(remote_agent_id,a2a_task_id)` 唯一 |
 | `opspilot.state_transition` | `transition_id`, `run_id`, `step_id`, `a2a_task_id`, `state_scope`, `from_status`, `to_status`, `reason_code`, `actor`, `state_version`, `created_at` | 追加写状态历史；区分 Incident/step/Task 映射状态 |
-| `opspilot.evidence` | `evidence_id`, `run_id`, `type`, `source`, `service`, `start_time`, `end_time`, `summary`, `attributes`, `artifact_id`, `relevance`, `reliability` | Evidence 真源；完整内容放 Artifact |
-| `opspilot.root_cause_hypothesis` | `hypothesis_id`, `run_id`, `title`, `description`, `component`, `confidence`, `supporting_ids`, `conflicting_ids`, `verification_json`, `status` | 多假设及验证状态 |
+| `opspilot.target_system` | `system_id`, `name`, `environment`, `owner_ref`, `status`, `config_version`, `created_at`, `updated_at` | 被诊断分布式系统稳定身份；不绑定语言或部署平台 |
+| `opspilot.target_resource` | `resource_id`, `system_id`, `resource_type`, `service_name`, `environment`, `scope_json`, `attributes`, `valid_from`, `valid_to` | Service/Instance/Pod/Node/DataStore/Queue 等统一 Resource；短暂实例不覆盖逻辑服务身份 |
+| `opspilot.resource_relation` | `relation_id`, `system_id`, `from_resource_id`, `to_resource_id`, `relation_type`, `source_id`, `valid_from`, `valid_to`, `attributes` | 版本化分布式拓扑边；来源可追溯 |
+| `opspilot.observability_source` | `source_id`, `source_kind`, `adapter_id`, `adapter_version`, `connection_ref`, `environment`, `scope_json`, `capabilities`, `priority`, `state`, `config_version`, `updated_at` | Source Registry；只保存 Secret 引用，不保存 URL 凭证 |
+| `opspilot.code_source` | `source_id`, `source_kind`, `adapter_id`, `adapter_version`, `connection_ref`, `scope_json`, `capabilities`, `state`, `config_version`, `updated_at` | GitHub/GitLab 等代码源 Registry；只保存 Secret 引用和受控作用域 |
+| `opspilot.code_repository` | `repository_id`, `source_id`, `external_repository_ref`, `allowed_ref_policy`, `state`, `config_version`, `updated_at` | 内部稳定仓库身份到受信代码源仓库的映射；模型不可提交外部 URL |
+| `opspilot.resource_code_binding` | `binding_id`, `resource_id`, `image_digest`, `repository_id`, `commit_sha`, `source_revision`, `valid_from`, `valid_to` | 将线上部署资源/镜像精确映射到仓库完整 commit；`main` 不作为版本身份 |
+| `opspilot.code_snapshot` | `snapshot_id`, `run_id`, `step_id`, `source_id`, `repository_id`, `commit_sha`, `adapter_id`, `adapter_version`, `manifest_artifact_id`, `manifest_sha256`, `status`, `retrieved_at` | 单次代码源 Adapter 的统一不可变结果；源码 workspace 临时只读，不存数据库大正文 |
+| `opspilot.observation_batch` | `batch_id`, `run_id`, `step_id`, `source_id`, `query_template_id`, `parameter_hash`, `window_start`, `window_end`, `collected_at`, `upstream_request_id`, `record_count`, `status`, `schema_version`, `artifact_id` | 一次 Adapter 调用和单一来源的审计单元；联邦入口仍是一条 Source |
+| `opspilot.observation_record` | `observation_id`, `batch_id`, `signal_type`, `resource_id`, `origin_source_id`, `observed_at`, `summary`, `attributes`, `quality_json`, `artifact_id` | 规范化 Observation 元数据；原始日志/时序/Span 图放 Artifact |
+| `opspilot.evidence` | `evidence_id`, `run_id`, `fact_origin`, `signal_type`, `resource_id`, `start_time`, `end_time`, `summary`, `attributes`, `artifact_id`, `relevance`, `reliability` | 系统唯一事实真源；运行、代码和可引用知识断言统一进入此表，Hypothesis/RCA 只引用 `evidence_id` |
+| `opspilot.evidence_provenance_ref` | `evidence_id`, `provenance_kind`, `batch_id`, `observation_id`, `code_snapshot_id`, `finding_artifact_id`, `finding_set_id`, `finding_id`, `knowledge_result_artifact_id`, `reference_id`, `source_id`, `source_revision`, `created_at` | Evidence 到 Observation、CodeFinding 或知识引用的不可变追溯；代码来源通过 `code_snapshot_id` 回溯 Code Source/Repository/commit，CHECK 保证每种 kind 只填写对应字段 |
+| `opspilot.root_cause_hypothesis` | `hypothesis_id`, `run_id`, `title`, `description`, `component`, `confidence`, `status`, `created_at`, `updated_at` | 结构化多假设及收敛状态；不保存隐藏思考 |
+| `opspilot.hypothesis_evidence` | `hypothesis_id`, `evidence_id`, `relation`, `created_at` | 假设与 `SUPPORTING/CONFLICTING` Evidence 的关系；联合主键防重复 |
+| `opspilot.hypothesis_verification` | `verification_id`, `hypothesis_id`, `step_id`, `tool_call_id`, `a2a_task_id`, `status`, `result_summary`, `artifact_id`, `started_at`, `ended_at` | 可查询的验证动作与结果；大正文写 Artifact |
+| `opspilot.rca_report` | `rca_id`, `run_id`, `run_version`, `outcome`, `root_cause_code`, `confidence`, `evidence_count`, `hypothesis_count`, `schema_version`, `json_artifact_id`, `markdown_artifact_id`, `generated_at` | 封账后从当前 Run 全量结构化数据生成；`run_id` 唯一，双格式来自同一 RCA 对象 |
 | `opspilot.tool_call` | `tool_call_id`, `run_id`, `step_id`, `agent_name`, `tool_name`, `idempotency_key`, `attempt`, `input_summary`, `output_summary`, `permission`, `approval_status`, `status`, `error_code`, `started_at`, `ended_at` | 工具审计；幂等键唯一；敏感输入不落库 |
 | `opspilot.chain_failure` | `failure_id`, `run_id`, `step_id`, `a2a_task_id`, `invocation_id`, `tool_call_id`, `request_id`, `trace_id`, `error_code`, `category`, `failed_component`, `operation`, `retryable`, `attempts`, `upstream_status`, `upstream_request_id`, `checkpoint`, `cause_summary`, `log_artifact_id`, `created_at` | 技术链路失败真源；错误体、SSE、A2A status 和日志共享关联 ID；仅保存脱敏摘要 |
 | `opspilot.approval` | `approval_id`, `run_id`, `requested_action`, `risk_level`, `status`, `requested_by`, `decided_by`, `decided_at` | 审批记录，MVP 不放开任意高风险命令 |
@@ -255,6 +269,8 @@ SET LOCAL ivfflat.probes = <P>;
 | `opspilot.evaluation_result` | `evaluation_id`, `run_id`, `metrics_json`, `report_artifact_id`, `created_at` | 8 类评测指标与报告引用 |
 
 A2A Server 的协议状态和 AgentScope 框架状态不与上表混写：`opspilot_a2a.task`、`message`、`artifact`、`task_event` 以 `server_agent_id` 分区/授权；`opspilot_a2a.agent_runtime_state(server_agent_id, user_id, session_id, schema_version, state_json, version, updated_at)` 实现 AgentScope `AgentStateStore`，唯一键为 `(server_agent_id, user_id, session_id)`。专业 Agent 角色只能维护自己的 A2A Task Store、AgentScope 会话和受控 Artifact，不能写 `opspilot.agent_state`、`root_cause_hypothesis` 或最终 RCA。Supervisor 收到并校验 A2A Artifact 后，才在单一领域事务中更新上述业务表。
+
+CodeAnalysisAgent 不直接读取 Incident、Run 或 Resource 领域表。数据库提供最小只读视图 `opspilot.code_analysis_scope(run_id, resource_id, repository_id, commit_sha, source_id, source_kind, adapter_id, adapter_version, external_repository_ref, connection_ref)`：由 Server/Supervisor 在委派前根据当前 Run 的目标资源和有效 `resource_code_binding` 解析，Code Agent 数据库角色只能按 A2A 请求中的 `runId + repositoryId` 查询该视图，且无底表权限；`connection_ref` 只是 Secret 引用，不含凭证。零行返回 `CODE_REVISION_UNRESOLVED`；同一 repository 返回多个未消歧 commit 同样拒绝，不能选择最新值或 `main`。Code Agent 产生 Snapshot Manifest/CodeFinding Artifact，Supervisor 校验后才写 `opspilot.code_snapshot`、Evidence 和 provenance。
 
 ### 10.2 模拟业务表
 
@@ -298,8 +314,24 @@ erDiagram
     INCIDENT ||--o{ INCIDENT_RUN : has
     INCIDENT_RUN ||--|| AGENT_STATE : checkpoints
     INCIDENT_RUN ||--o{ STATE_TRANSITION : records
+    INCIDENT_RUN ||--o{ OBSERVATION_BATCH : collects
+    OBSERVABILITY_SOURCE ||--o{ OBSERVATION_BATCH : produces
+    CODE_SOURCE ||--o{ CODE_REPOSITORY : hosts
+    CODE_REPOSITORY ||--o{ CODE_SNAPSHOT : materializes
+    TARGET_RESOURCE ||--o{ RESOURCE_CODE_BINDING : deploys
+    CODE_REPOSITORY ||--o{ RESOURCE_CODE_BINDING : maps
+    OBSERVATION_BATCH ||--o{ OBSERVATION_RECORD : contains
+    TARGET_SYSTEM ||--o{ TARGET_RESOURCE : owns
+    TARGET_RESOURCE ||--o{ RESOURCE_RELATION : connects
     INCIDENT_RUN ||--o{ EVIDENCE : collects
+    EVIDENCE ||--o{ EVIDENCE_PROVENANCE_REF : cites
+    OBSERVATION_RECORD ||--o{ EVIDENCE_PROVENANCE_REF : supports
+    CODE_SNAPSHOT ||--o{ EVIDENCE_PROVENANCE_REF : supports
     INCIDENT_RUN ||--o{ ROOT_CAUSE_HYPOTHESIS : generates
+    ROOT_CAUSE_HYPOTHESIS ||--o{ HYPOTHESIS_EVIDENCE : evaluates
+    EVIDENCE ||--o{ HYPOTHESIS_EVIDENCE : supports
+    ROOT_CAUSE_HYPOTHESIS ||--o{ HYPOTHESIS_VERIFICATION : verifies
+    INCIDENT_RUN ||--o| RCA_REPORT : reports
     INCIDENT_RUN ||--o{ TOOL_CALL : audits
     INCIDENT_RUN ||--o{ MODEL_INVOCATION : consumes
     INCIDENT_RUN ||--o{ INCIDENT_EVENT : publishes
@@ -315,11 +347,17 @@ erDiagram
 
 ### 10.7 关系索引与约束
 
-- `incident(status, created_at desc)`、`incident_run(incident_id, started_at desc)`；
+- `incident(status, created_at desc)`、`incident(target_system_id, created_at desc)`、`incident_run(incident_id, started_at desc)`；
 - `UNIQUE(a2a_task_binding.message_id)`、`UNIQUE(a2a_task_binding.remote_agent_id, a2a_task_id)`、`UNIQUE(a2a_task_binding.run_id, step_id, attempt)`，并以部分唯一索引保证同一 step 最多一个活动 attempt；
 - `task(status, available_at, priority desc) WHERE status IN ('PENDING','RETRY_WAIT')` 支撑领取，`UNIQUE(task.idempotency_key)` 防重复；
 - `api_idempotency(expires_at)` 支撑受控清理；
-- `evidence(run_id, type, start_time)`、`evidence(run_id, service, start_time)`；
+- `target_resource(system_id, resource_type, valid_to)`、`resource_relation(system_id, from_resource_id, relation_type, valid_to)`；
+- `observability_source(environment, source_kind, state)`，`UNIQUE(source_id, config_version)` 保留配置身份；
+- `code_source(source_kind, state)`、`UNIQUE(code_source.source_id, config_version)`、`UNIQUE(code_repository.source_id, external_repository_ref, config_version)`；`resource_code_binding(resource_id, valid_to)` 和 `resource_code_binding(image_digest)` 支撑线上 revision 解析；
+- `UNIQUE(code_snapshot.run_id, code_snapshot.step_id, code_snapshot.source_id, code_snapshot.repository_id, code_snapshot.commit_sha)` 防止同一 step 重复物化；`commit_sha` 只接受完整哈希；
+- `observation_batch(run_id, step_id, collected_at)`、`observation_batch(source_id, collected_at)`、`observation_record(batch_id, signal_type, observed_at)`、`observation_record(resource_id, observed_at)`；
+- `evidence(run_id, fact_origin, signal_type, start_time)`、`evidence(run_id, resource_id, start_time)`；运行来源使用 `UNIQUE(evidence_id, provenance_kind, source_id, source_revision)`，代码来源使用 `UNIQUE(evidence_id, code_snapshot_id, finding_set_id, finding_id) WHERE provenance_kind = 'CODE_FINDING'`，其他 provenance kind 分别建立精确 partial unique index；
+- `UNIQUE(hypothesis_evidence.hypothesis_id, hypothesis_evidence.evidence_id, hypothesis_evidence.relation)`、`hypothesis_verification(hypothesis_id, started_at)`、`UNIQUE(rca_report.run_id)`；Repository 在 `analysis_sealed_at` 非空后拒绝该 Run 的 Evidence/Hypothesis/关系/验证写入；
 - `tool_call(run_id, started_at)`、`UNIQUE(tool_call.idempotency_key)`、`model_invocation(run_id, agent_name, started_at)`；
 - `incident_event(run_id, event_id)` 支撑 SSE 续传；
 - `knowledge_document(document_type, service, fault_type, language) WHERE deleted_at IS NULL`；
@@ -333,7 +371,7 @@ erDiagram
 ```sql
 CREATE UNIQUE INDEX uq_incident_one_active_run
 ON opspilot.incident_run (incident_id)
-WHERE status IN ('RUNNING', 'WAITING_APPROVAL');
+WHERE status NOT IN ('COMPLETED', 'FAILED', 'CANCELLED');
 
 CREATE UNIQUE INDEX uq_document_one_active_version
 ON opspilot.knowledge_document_version (document_id)
@@ -344,6 +382,8 @@ ON opspilot.tool_call (idempotency_key);
 ```
 
 JSONB 只存扩展字段、快照和结构化结果，不替代可查询的核心列。所有外键按生命周期选择 `RESTRICT` 或 `CASCADE`，审计和模型调用记录不随 Incident 误删。
+
+`incident_run.status` 必须有数据库 `CHECK` 约束，只允许第 6.3 节定义的状态。活动 Run 定义为“状态不属于 `COMPLETED/FAILED/CANCELLED` 的 Run”，唯一索引、领域方法、API 冲突判断和并发测试必须复用该定义，禁止各层维护不同的活动状态枚举。两个并发 `POST /api/incidents/{incidentId}/run` 只有一个可以提交；失败请求返回 `409 INCIDENT_ACTIVE_RUN_EXISTS`，并携带现有 `runId`。
 
 ### 10.8 Flyway 迁移顺序
 

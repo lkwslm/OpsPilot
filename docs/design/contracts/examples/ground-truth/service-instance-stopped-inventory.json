@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "scenarioId": "service-instance-stopped-inventory",
+  "scenarioVersion": "1.0.0",
+  "rootCauseCode": "service.instance.stopped.inventory",
+  "faultService": "inventory-service",
+  "faultComponent": "service instance",
+  "requiredEvidence": [
+    {"evidenceCode": "health.inventory.unreachable", "sourceType": "HEALTH", "service": "inventory-service", "predicate": {"field": "readiness", "operator": "NE", "value": "UP"}},
+    {"evidenceCode": "log.order.inventory_connection_failed", "sourceType": "LOG", "service": "order-service", "predicate": {"field": "error.code", "operator": "EQ", "value": "INVENTORY_CONNECTION_FAILED"}}
+  ],
+  "oneOfEvidenceGroups": [["metric.prometheus.inventory_target_down", "trace.order.inventory_span_error"]],
+  "requiredToolNames": ["HealthQueryTool", "LogQueryTool"],
+  "optionalToolNames": ["MetricQueryTool", "TraceQueryTool", "TopologyQueryTool", "CodeSearchTool", "KnowledgeSearchTool"],
+  "forbiddenToolNames": ["SandboxTestTool"],
+  "forbiddenRootCauseCodes": ["dependency.latency.inventory", "database.pool.exhausted.order"],
+  "expectedActionCodes": ["restore.inventory.instance", "verify.health.probes", "add.instance.availability.alert"],
+  "datasetValidityPredicates": [{"field": "injection.inventory_unreachable_seconds", "operator": "GTE", "value": 30}],
+  "recoveryPredicates": [{"field": "recovery.inventory_readiness", "operator": "EQ", "value": "UP"}]
+}

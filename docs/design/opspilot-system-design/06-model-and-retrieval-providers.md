@@ -21,7 +21,7 @@ public record ChatRequest(
 ) {}
 ```
 
-`OpenAI-Compatible` 只代表 Chat HTTP 请求/响应协议，不代表端点必然支持 Embedding、Rerank、工具调用、JSON Schema、流式输出或一致的 Token Usage。Provider Registry 的能力键至少包含 `capability + protocol + baseUrl + model + modelRevision`。
+`OpenAI-Compatible` 只代表 Chat HTTP 请求/响应协议，不代表端点必然支持 Embedding、Rerank、工具调用、JSON Schema、流式输出或一致的 Token Usage。v3 分别使用 `ChatModelProviderRegistry`、`EmbeddingProviderRegistry` 和 `RerankProviderRegistry`，不使用可注册任意对象的万能 Registry。能力键至少包含 `capability + stableProviderId + protocol + model + modelRevision`；base URL 只进入脱敏配置摘要，不作为业务身份。
 
 `OpenAICompatibleChatModelProvider` 使用通用 HTTP 客户端和 Jackson，不使用 DeepSeek 或其他厂商 SDK。`base_url` 是 API 根地址，资源相对路径配置化，Adapter 不能无条件重复拼接 `/v1`。
 
@@ -52,7 +52,7 @@ models:
 启动校验分两层：
 
 1. **静态校验：**实际启用 Agent 的有效配置缺 provider/base URL/model/API Key、上限非法或 Agent 能力冲突时，Spring 进程非零退出。错误包含配置路径和应注入的变量名，不回显密钥。
-2. **真实探针：**按去重后的有效模型配置发送最小真实请求；需要工具调用、结构化输出或流式的 Agent 分别验证相应能力。探针结果存 capability registry，并写脱敏审计。
+2. **真实探针：**按去重后的有效模型配置发送最小真实请求；需要工具调用、结构化输出或流式的 Agent 分别验证相应能力。探针结果存对应专用 Registry，并写脱敏审计。
 
 典型错误码：`MODEL_CONFIG_MISSING_API_KEY`、`MODEL_CONFIG_MISSING_MODEL`、`MODEL_CONFIG_INVALID_BASE_URL`、`MODEL_CAPABILITY_UNVERIFIED`、`MODEL_CAPABILITY_UNSUPPORTED`、`MODEL_PROVIDER_UNAVAILABLE`。
 
@@ -69,6 +69,16 @@ models:
 ### 11.5 真实 Provider 切换
 
 生产可为不同 Agent 配置不同 OpenAI-Compatible 端点或模型。切换前必须通过相同 Provider contract 与能力探针。默认不启用自动 failover；如未来配置真实备用 Provider，必须显式列出顺序、能力等价条件、数据出境策略和预算，并在结果中记录实际 Provider，绝不静默切到虚假实现。
+
+### 11.6 Provider 的受控扩展语义
+
+Provider 是第 28 章定义的多实现扩展点，但不是动态插件：
+
+- 由 `opspilot-server` 在启动时显式装配，探针成功后冻结 Registry；MVP 不扫描 classpath、不热加载；
+- 同一稳定 ID 重复注册或默认 `AgentProfile` 引用缺失时启动失败，不按 Bean 顺序覆盖；
+- Agent 只能引用 Profile 中允许的 Provider ID，不能自行选择 URL、实现类或未授权 Provider；
+- Provider 只实现传输和响应规范化，预算、重试上限、数据出境、安全审计和失败分类仍由应用核心控制；
+- 新增厂商实现不得修改 `opspilot-core`、Agent Profile Schema 或 RCA/Evidence 合同。
 
 ## 12. Embedding Provider 设计
 
@@ -96,7 +106,7 @@ public record EmbeddingBatchResult(
 
 测试环境使用统一的本地 Infinity `retrieval-inference` 服务，通过 OpenAI-aligned `/embeddings` 调用专用 Embedding 模型。候选从 `BAAI/bge-m3` 开始；仍需在目标开发机验证 Infinity 镜像、准确模型 revision、中文/代码混合检索、实际维度、CPU/内存或显存、冷启动、p95 延迟和 License 后，才写入测试环境清单。
 
-因此基础配置保留空模型，不能猜测或注册伪 Provider；部署前必须显式填写并通过真实探针，否则应用启动失败：
+因此基础配置保留空模型，不能猜测或注册伪 Provider；部署前必须显式填写并通过真实探针。配置缺失、模型身份/revision/维度或 required capability 不兼容时应用非零退出；配置合法但端点暂时不可达时应用保持 liveness UP、readiness DOWN，恢复后重新探针：
 
 ```yaml
 models:
