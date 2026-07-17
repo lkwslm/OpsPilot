@@ -93,7 +93,7 @@ core <- tools-default / agent-runtime / a2a / adapters / evaluation <- server
 
 #### 28.4.2 Source Adapter
 
-`ObservabilitySourceAdapter` 负责把具体产品响应转换为 `ObservationBatch`。新增 Loki、Tempo、Kubernetes 或 Cloud 只增加 Adapter 和 Source Registry 配置，不增加 Agent Tool，也不修改 Evidence/RCA。
+Source 扩展分成两个窄接口族：`ObservabilitySourceAdapter` 把具体可观测产品响应转换为 `ObservationBatch`；`CodeSourceAdapter` 把 GitHub、GitLab 等受信代码托管平台的指定 commit 转换为统一不可变 `CodeSnapshot` 和受限只读 workspace。新增可观测产品或代码托管平台只增加对应 Adapter/专用 Registry 配置，不增加 Agent Tool，也不修改 Evidence/RCA；两类 Source 不能共用一个万能 DTO 或 Registry。
 
 #### 28.4.3 Agent Tool
 
@@ -101,7 +101,7 @@ core <- tools-default / agent-runtime / a2a / adapters / evaluation <- server
 
 #### 28.4.4 Code Analyzer
 
-`CodeAnalysisPort` 返回语言无关 `CodeFinding`，其合同为 `contracts/schemas/code-findings.schema.json`。它是分析器边界的可追溯中间产物，不是第二套事实模型。CodeAnalysisAgent 必须调用 `opspilot-core` 的 `EvidenceNormalizer.normalizeCode`，把每个可接受 Finding 转换为带 repository/revision/文件哈希来源的 `Evidence(signalType=CODE)`；A2A 结果同时返回 CodeFinding 审计 Artifact 和 EvidenceBundle，Diagnosis 只接收后者的 Evidence ID。首期 Java 实现在 Adapter 内使用 Maven/Java 语义，后续 Go、Python 等实现不改变 Evidence/Hypothesis 合同。
+`CodeAnalysisPort` 只接收已经由 `CodeSourceAdapter` 物化并校验的 `CodeSnapshot`/只读 workspace handle，返回语言无关 `CodeFinding`，其合同为 `contracts/schemas/code-findings.schema.json`。它不访问 GitHub/GitLab API、不解析凭证、不选择 branch，也不读取 Agent 宿主机任意路径。CodeFinding 是分析器边界的可追溯中间产物，不是第二套事实模型。CodeAnalysisAgent 必须调用 `opspilot-core` 的 `EvidenceNormalizer.normalizeCode`，把每个可接受 Finding 转换为带 source/repository/commit/snapshot/文件哈希来源的 `Evidence(signalType=CODE)`；A2A 结果同时返回 CodeFinding 审计 Artifact 和 EvidenceBundle，Diagnosis 只接收后者的 Evidence ID。首期 Java 实现在 Adapter 内使用 Maven/Java 语义，后续 Go、Python 等实现不改变 Evidence/Hypothesis 合同。
 
 #### 28.4.5 Sandbox Runner
 
@@ -131,7 +131,7 @@ Evidence 使用统一 `provenanceRefs` 保留来源，因而“事实只有一�
 
 ### 28.5 专用 Registry，而非万能 Extension Host
 
-系统只为五类扩展边界保留专用 Registry；其中模型按合同进一步分为 `ChatModelProviderRegistry`、`EmbeddingProviderRegistry`、`RerankProviderRegistry`，其余为 `ToolRegistry`、`SourceAdapterRegistry`、`CodeAnalyzerRegistry` 和 `SandboxRunnerRegistry`。它们共享以下简单规则，但不抽象成可以注册任意对象的通用注册表：
+系统只为前述扩展边界保留专用 Registry；其中模型按合同进一步分为 `ChatModelProviderRegistry`、`EmbeddingProviderRegistry`、`RerankProviderRegistry`，Source 分为可观测数据的 `SourceAdapterRegistry` 与代码托管平台的 `CodeSourceAdapterRegistry`，其余为 `ToolRegistry`、`CodeAnalyzerRegistry` 和 `SandboxRunnerRegistry`。它们共享以下简单规则，但不抽象成可以注册任意对象的通用注册表：
 
 1. 启动阶段完成注册和真实能力探针，之后冻结为只读快照；MVP 不支持热加载。
 2. 实现使用配置中的稳定 ID 选择，不允许模型根据自然语言、URL 或类名选择实现。
@@ -269,8 +269,8 @@ Validate Schema
 2. Adapter 之间没有实现依赖，所有调用经过 core Port；
 3. Agent、Tool 和 Adapter 无权直接写 Incident 权威表；
 4. Registry 冲突和缺失 required 实现确定性失败；
-5. 替换 LLM Provider、Source Adapter、Code Analyzer 或 Sandbox Runner 时 core diff 为零；
-6. 新增 Source Adapter 不新增 Agent Tool，新增长语言 Adapter 不修改 CodeAnalysisAgent；
+5. 替换 LLM Provider、Observability/Code Source Adapter、Code Analyzer 或 Sandbox Runner 时 core diff 为零；
+6. 新增 Observability/Code Source Adapter 不新增 Agent Tool；新增代码托管平台不修改 Code Analyzer，新增长语言 Adapter 不修改 CodeAnalysisAgent 或 Code Source；
 7. 关键中间件顺序固定且异常 fail closed；
 8. Domain Event 只在事务提交后可见，重复消费不重复投影；
 9. 禁用所有非默认 Adapter 后，使用测试实现仍能完成核心状态机和恢复测试；

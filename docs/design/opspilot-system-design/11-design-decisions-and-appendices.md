@@ -101,7 +101,7 @@ public record AgentStepResult<T>(
 ```java
 public interface A2ATaskBindingRepository {
     A2ATaskBinding createPending(A2ADelegation delegation);
-    Optional<A2ATaskBinding> findByRunAndStep(String runId, String stepId);
+    Optional<A2ATaskBinding> findByRunAndStep(String runId, UUID stepId);
     A2ATaskBinding bindRemoteTask(String messageId, String contextId, String a2aTaskId);
     A2ATaskBinding recordArtifact(String a2aTaskId, String artifactId, String sha256);
 }

@@ -73,7 +73,7 @@ core ← tools-default / agent-runtime / a2a / adapters / evaluation ← server
 
 模块间默认使用显式类型 Port 直接调用；只有 Agent 逻辑边界使用 A2A，只有事务提交后的多消费者通知使用 Domain Event + outbox。禁止循环依赖、全局 Bean 查找和以 Event Bus 隐藏同步业务依赖。专业 Agent 不得依赖 Supervisor 的状态 Repository，也不得直接写 Supervisor 所有的 Incident、Hypothesis 或 RCA 表。
 
-Provider、Source、Tool、代码分析和沙箱是受控多实现扩展点；状态机、Supervisor、A2A、安全 Policy、Agent 角色发现和 Repository 所有权不是扩展点。完整选择依据和交互规则见第 28 章。
+Provider、可观测 Source、代码 Source、Tool、代码分析和沙箱是受控多实现扩展点；状态机、Supervisor、A2A、安全 Policy、Agent 角色发现和 Repository 所有权不是扩展点。完整选择依据和交互规则见第 28 章。
 
 ### 4.3 首期参考被测系统
 
@@ -143,13 +143,13 @@ public interface AgentTool<I, O> {
 | `HealthQueryTool` | 通过 Actuator/HTTP/容器健康 Adapter 查询 | READ_ONLY |
 | `TopologyQueryTool` | 首期查询静态 Compose 拓扑；返回统一 Resource/Relationship | READ_ONLY |
 | `ConfigReadTool` | 只返回脱敏配置，禁止密码/Token/Key/完整凭证 | READ_ONLY |
-| `CodeSearchTool` | 首期 `JavaCodeSearchAdapter` 搜索受限根目录；生成语言无关 CodeFinding，再规范化为 `Evidence(signalType=CODE)` | READ_ONLY |
+| `CodeSearchTool` | 先经 GitHub/GitLab `CodeSourceAdapter` 将指定完整 commit 物化为统一只读 `CodeSnapshot`，再由 `JavaCodeSearchAdapter` 分析；生成语言无关 CodeFinding，最后规范化为 `Evidence(signalType=CODE)` | READ_ONLY |
 | `KnowledgeSearchTool` | PostgreSQL + pgvector 召回并调用统一 RerankProvider | READ_ONLY |
 | `SandboxTestTool` | 首期 `MavenTestAdapter` 仅执行配置白名单测试 | CONTROLLED_EXECUTION |
 
-`HIGH_RISK`（改代码、改配置、Git、任意 Shell、改数据库、生产操作）在 MVP 禁止执行；审批记录不等于自动放开任意命令。
+`HIGH_RISK`（改代码、改配置、Git 写入/分支切换/任意 Git 命令、任意 Shell、改数据库、生产操作）在 MVP 禁止执行；审批记录不等于自动放开任意命令。由平台固定实现、只读获取 allowlist 仓库精确 commit 的 `CodeSourceAdapter` 属于 `READ_ONLY` 代码 Source 能力，不授权 Agent 执行 Git 命令。
 
-可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`CodeSearchTool` 可额外返回 CodeFinding Artifact 供审计，但下游只消费规范化后的 Evidence ID。`KnowledgeSearchTool` 不属于外部可观测 Source；检索引用若要参与诊断也必须先规范化为 Evidence。代码和沙箱使用独立语言 Adapter。新增 Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
+可观测 Tool 必须返回符合第 27 章的 `observationBatchIds/evidenceBundleId`，不能返回厂商 DTO。`CodeSearchTool` 不直接读取 Agent 所在机器的任意目录：代码托管平台差异由 `CodeSourceAdapter` 收敛为 `CodeSnapshot`，语言差异再由 `CodeAnalysisPort` 收敛为 CodeFinding；下游只消费规范化后的 Evidence ID。`KnowledgeSearchTool` 不属于外部可观测 Source；检索引用若要参与诊断也必须先规范化为 Evidence。新增 GitHub/GitLab 实例、Loki、Tempo、Kubernetes、Cloud 或其他语言 Adapter 时，不新增 Agent Tool 名称，除非出现无法由现有能力表达的新安全边界。
 
 `ToolRegistry` 在启动时由 `opspilot-server` 显式注册并冻结。同名 Tool、Schema major 不兼容或默认 `AgentProfile` 依赖的 Tool 缺失时启动失败；不允许 classpath 扫描后“最后一个实现覆盖”。权限、审批、预算和审计中间件由核心按固定顺序包裹 Tool，Tool/Adapter 无权跳过或重排。
 

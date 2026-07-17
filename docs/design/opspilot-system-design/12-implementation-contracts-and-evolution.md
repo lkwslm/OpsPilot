@@ -30,6 +30,8 @@
 | Hypothesis | `hypothesisId` | Diagnosis 结果接收事务 | 在 Run 内唯一 |
 | Root Cause | `rootCauseCode` | 场景/领域目录 | 跨 RCA 与 Ground Truth 的规范化稳定代码 |
 
+`stepId` 在 API/A2A/Artifact 中序列化为带 `format: uuid` 的字符串，Java 领域模型使用 `java.util.UUID`，PostgreSQL 使用原生 `uuid`；禁止使用可变步骤标题、数组序号或数据库自增键充当 step 身份。
+
 `rootCauseCode` 使用小写点分命名，例如 `dependency.latency.inventory`、`database.pool.exhausted.order`、`service.instance.stopped.inventory`。展示标题、自然语言描述和模型输出不能替代该代码。未知或无法收敛时为 `null`，不得生成临时代码。
 
 ### 23.3 北向 API 合同
@@ -61,7 +63,7 @@ API 的兼容演进只允许：新增可选请求字段、新增响应字段、�
 | `generate-and-verify-hypotheses` | `application/vnd.opspilot.diagnosis-request+json;v=1` | `application/vnd.opspilot.diagnosis-assessment+json;v=1` |
 | `propose-remediation` | `application/vnd.opspilot.remediation-request+json;v=1` | `application/vnd.opspilot.remediation-plan+json;v=1` |
 
-请求和结果的机器 Schema 位于 `docs/design/contracts/schemas/a2a-skill-contracts.schema.json`。Source Adapter 输出使用 `application/vnd.opspilot.observation-batch+json;v=1`，代码分析中间产物使用 `code-findings.schema.json`；二者都必须规范化为 EvidenceBundle 后才能进入后续分析。`generate-and-verify-hypotheses` 请求只接受 Evidence ID。任何接收端必须按以下顺序验证：媒体类型 → major schema version → JSON Schema → Source/Resource/Task/Run 归属 → Artifact 哈希 → 引用权限 → 领域不变量。验证失败不得部分写入领域表。
+请求和结果的机器 Schema 位于 `docs/design/contracts/schemas/a2a-skill-contracts.schema.json`。Source Adapter 输出使用 `application/vnd.opspilot.observation-batch+json;v=1`，代码分析中间产物使用 `code-findings.schema.json`；二者都必须规范化为 EvidenceBundle 后才能进入后续分析。代码请求中的 `repositoryId` 不是 URL；CodeAnalysisAgent 根据当前 Run/Evidence 的受控 Resource 归属，经 `resource_code_binding` 解析唯一 `CodeSnapshot`，正式 CodeFinding 的 `repository.revision` 必须是线上完整 commit SHA，`rootArtifactId` 必须指向对应 Snapshot Manifest Artifact，不能使用短 SHA、`main` 或本地目录。`generate-and-verify-hypotheses` 请求只接受 Evidence ID。任何接收端必须按以下顺序验证：媒体类型 → major schema version → JSON Schema → Source/Resource/Task/Run 归属 → Artifact 哈希 → 引用权限 → 领域不变量。验证失败不得部分写入领域表。
 
 新增可选字段保持 v1；改变 required 字段、枚举含义或引用语义必须发布 v2 媒体类型。Client 在 Agent Card 中只选择自己明确支持的 major version，禁止忽略未知 major 后继续执行。
 

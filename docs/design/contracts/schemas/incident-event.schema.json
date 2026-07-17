@@ -12,7 +12,7 @@
     "requestId": {"type": "string", "format": "uuid"},
     "incidentId": {"type": "string", "format": "uuid"},
     "runId": {"type": "string", "format": "uuid"},
-    "stepId": {"type": ["string", "null"]},
+    "stepId": {"oneOf": [{"type": "string", "format": "uuid"}, {"type": "null"}]},
     "a2aTaskId": {"type": ["string", "null"]},
     "occurredAt": {"type": "string", "format": "date-time"},
     "payload": {"type": "object", "additionalProperties": true}

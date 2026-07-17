@@ -70,7 +70,7 @@ x-agent-common: &agent-common
   restart: unless-stopped
   depends_on:
     db-migrate: {condition: service_completed_successfully}
-    retrieval-model-probe: {condition: service_completed_successfully}
+    retrieval-inference: {condition: service_started}
   volumes:
     - agent-input:/datasets/input:ro
 
@@ -179,7 +179,7 @@ Compose 的 shell `grep` 只能判断 HTTP 形状，不能作为最终 readiness
 - Rerank 对固定正/负样本返回所有原始 index、有限分数、正样本排名高于负样本；
 - 并发请求不会串模型；
 - 结果带镜像 digest、模型 revision、探针版本和时间；
-- 任何断言失败都使一次性容器非零退出，Server/Agent 不启动。
+- 任何断言失败都使一次性容器非零退出并阻止 Phase 0/部署资格门禁通过。该容器不作为 Server/Agent 的 `service_completed_successfully` 启动依赖；Server/Agent 自身执行等价探针：可达后确认的模型身份、revision、维度、协议或 required capability 不兼容时非零退出，配置合法但端点暂时不可达时保持 liveness UP、readiness DOWN，恢复后重新探针。
 
 ### 24.8 Phase 0 完成定义
 

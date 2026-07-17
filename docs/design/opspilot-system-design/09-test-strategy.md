@@ -19,6 +19,7 @@
 - A2A Agent Card 校验、状态映射、Message/Artifact Schema、messageId 幂等、终态不可续写和取消传播；
 - 证据门禁、`rootCause=null` 的 `INCONCLUSIVE`、补证指纹、无进展检测和所有硬预算停机条件。
 - `ObservationBatch` 单 Source 不变式、CodeFinding repository/revision/内容哈希、联邦 `originSource`、统一 `provenanceRefs`、三类输入到 Evidence 的规范化和跨源重复证据识别；直接把 CodeFinding/KnowledgeResult 传给 Diagnosis 必须被 Schema 拒绝。
+- `GENERATING_REPORT` 封账前置条件、封账后分析事实写入拒绝、按 runId 全量读取 Evidence/Hypothesis/关系/验证结果、报告失败同数据重试和模型调用期间无数据库事务。
 - 各专用 Registry 的稳定 ID、重复注册、required 缺失、版本不兼容、冻结后不可修改和 `AgentProfile` 的模型/Tool/A2A/沙箱/安全能力闭包；权限取交集且冲突必须确定性失败，不能依赖 Bean 顺序。
 - 固定中间件链 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit` 的顺序、短路和 fail-closed 行为。
 
@@ -38,6 +39,8 @@
 10. 验证文档更新/删除、旁路重向量化、100% 覆盖后原子切换和回滚。
 11. 验证 `opspilot_app_role` 无法访问 `opspilot_eval`。
 12. 验证 SSE `Last-Event-ID` 只重放目标 Incident/Run 的后续事件。
+13. 验证 Code Source/Repository/Resource Binding/CodeSnapshot 外键、完整 commit、同 step 幂等和 CodeFinding provenance 能回溯到唯一 Source/Repository/commit。
+14. 验证 Hypothesis-Evidence/Verification 关系约束、一个 Run 唯一 RCA、`analysis_sealed_at` 后写保护和报告查询全量性。
 
 ### 20.3 Provider 合同测试
 
@@ -50,6 +53,8 @@
 HTTP 协议单测可以使用本地 HTTP fixture，但这不替代真实模型集成测试，也不能作为运行 Provider 注册。
 
 可观测 Source Adapter 使用独立共享 contract suite：所有 Adapter 必须覆盖真实成功、合法空结果、分页/限流、超时、鉴权失败、无效 Schema、部分结果、取消、脱敏、Artifact 哈希和来源追溯。新增数据源只增加 Adapter/配置/测试，不得修改 Agent loop、RCA 或数据库核心身份。
+
+Code Source Adapter 使用另一套共享 contract suite：GitHub/GitLab 必须把同一 repository/commit 映射成同一 CodeSnapshot 领域语义，覆盖分页、限流、鉴权、超时、commit 不存在、Manifest/Artifact 哈希、归档大小、路径穿越、符号链接、子模块/LFS 和 workspace 销毁；禁止回退 `main`、任意 URL 或 Agent 本地目录。新增托管平台不得修改 Code Analyzer、Agent Tool、Evidence 或 RCA。
 
 Code Analyzer 与 Sandbox Runner 也各自提供共享 contract suite。新增语言/构建工具实现必须证明只增加 Adapter；`opspilot-core`、Agent 业务逻辑和 A2A Artifact Schema 无需修改。
 
@@ -130,6 +135,7 @@ Rerank 模型在本地资源占用、接口兼容性和中文重排效果测试�
 - Prompt injection 试图更改工具权限、读取密钥或执行 Shell；
 - API 幂等冲突、跨 Incident `runId`、伪造 `Last-Event-ID`；
 - HIGH_RISK/未审批动作、PromQL/代码路径/模型 URL allowlist 绕过；
+- Code Source host/repository allowlist 绕过、模型注入 URL/branch/Token/本地路径、短 SHA/错误部署映射、归档炸弹、路径穿越、符号链接逃逸和 workspace 残留；
 - 数据库/模型/Prometheus/Jaeger/Toxiproxy 不可用、超时和恢复；
 - Source Registry 越权、伪造 `sourceId/sourceKind`、`connectionRef` 泄密、联邦结果缺 `originSource`、跨 Source Observation 冒充独立 Evidence；
 - 日志、Trace、SSE、Actuator 中无明文密钥和 Ground Truth。

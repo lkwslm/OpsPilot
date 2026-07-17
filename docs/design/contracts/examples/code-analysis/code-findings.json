@@ -3,11 +3,11 @@
   "findingSetId": "30000000-0000-4000-8000-000000000001",
   "incidentId": "20000000-0000-4000-8000-000000000002",
   "runId": "20000000-0000-4000-8000-000000000003",
-  "stepId": "analyze-code-1",
+  "stepId": "20000000-0000-4000-8000-000000000004",
   "repository": {
     "repositoryId": "sample-commerce",
-    "revision": "8f2a947",
-    "rootArtifactId": null
+    "revision": "8f2a947000000000000000000000000000000000",
+    "rootArtifactId": "30000000-0000-4000-8000-000000000005"
   },
   "query": {
     "evidenceIds": ["20000000-0000-4000-8000-000000000004"],

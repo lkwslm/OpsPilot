@@ -11,7 +11,7 @@
     "findingSetId": {"$ref": "#/$defs/uuid"},
     "incidentId": {"$ref": "#/$defs/uuid"},
     "runId": {"$ref": "#/$defs/uuid"},
-    "stepId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "stepId": {"$ref": "#/$defs/uuid"},
     "repository": {"$ref": "#/$defs/repository"},
     "query": {"$ref": "#/$defs/query"},
     "analyzer": {"$ref": "#/$defs/analyzer"},

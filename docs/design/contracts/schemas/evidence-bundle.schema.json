@@ -11,7 +11,7 @@
     "bundleId": {"$ref": "#/$defs/uuid"},
     "incidentId": {"$ref": "#/$defs/uuid"},
     "runId": {"$ref": "#/$defs/uuid"},
-    "stepId": {"type": "string", "minLength": 1, "maxLength": 128},
+    "stepId": {"$ref": "#/$defs/uuid"},
     "generatedAt": {"type": "string", "format": "date-time"},
     "observationBatchIds": {"type": "array", "maxItems": 500, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},
     "codeFindingArtifactIds": {"type": "array", "maxItems": 100, "uniqueItems": true, "items": {"$ref": "#/$defs/uuid"}},

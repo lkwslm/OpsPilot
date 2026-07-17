@@ -119,7 +119,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: test
       DB_URL: jdbc:postgresql://postgres:5432/opspilot
-      DB_USERNAME: opspilot_app
+      DB_USERNAME: opspilot_app_role
       DB_PASSWORD: ${OPSPILOT_APP_PASSWORD:?required}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEFAULT_LLM_MODEL: ${DEFAULT_LLM_MODEL:-}
@@ -137,8 +137,8 @@ services:
     depends_on:
       db-migrate:
         condition: service_completed_successfully
-      retrieval-model-probe:
-        condition: service_completed_successfully
+      retrieval-inference:
+        condition: service_started
     ports:
       - "127.0.0.1:8080:8080"
     networks: [opspilot-backend]
@@ -196,7 +196,7 @@ services:
     build: ../sample-system/order-service
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
-      DB_USERNAME: sample_app
+      DB_USERNAME: sample_app_role
       DB_PASSWORD: ${SAMPLE_APP_PASSWORD:?required}
       INVENTORY_BASE_URL: http://toxiproxy:8666
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -215,7 +215,7 @@ services:
     build: ../sample-system/inventory-service
     environment:
       DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
-      DB_USERNAME: sample_app
+      DB_USERNAME: sample_app_role
       DB_PASSWORD: ${SAMPLE_APP_PASSWORD:?required}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     depends_on:
@@ -283,7 +283,7 @@ volumes:
 ### 14.3 服务依赖与资源
 
 - PostgreSQL 健康后由一次性 `db-migrate` 运行 Flyway；Server 只持有 DML 账户，并检查 `vector` 扩展和 schema 版本。
-- Infinity `/health` 或 `/models` 只证明进程和模型注册；`retrieval-model-probe` 必须分别调用真实 `/embeddings` 与 `/rerank` 并验证结构、维度、有限分数和索引，否则应用不启动。
+- Infinity `/health` 或 `/models` 只证明进程和模型注册；`retrieval-model-probe` 必须分别调用真实 `/embeddings` 与 `/rerank` 并验证结构、维度、有限分数和索引。一次性 `retrieval-model-probe` 是部署前/Phase 0 资格门禁，不作为 Server/Agent 的 `service_completed_successfully` 启动依赖；Server/Agent 自身执行等价的运行时探针。模型身份、revision、维度或响应合同等确定性不兼容属于启动失败并非零退出；配置合法但端点暂时不可达时进程保持 liveness UP、readiness DOWN，并在恢复后重新探针，不接收新任务。
 - `InfinityEmbeddingProvider` 将 OpenAI-aligned Embedding 响应映射为统一领域结果；`InfinityRerankProvider` 将 Cohere-aligned `results[index,relevance_score]` 映射为第 13 章结果。
 - Embedding 和 Rerank 共享服务进程、端口和缓存卷，但使用两个锁定模型 revision、独立模型别名、批量限制和调用指标。压测必须验证并发资源竞争；资源不足时调低并发或扩大该服务资源，不能删除 Rerank 或改走其他链路。
 - Infinity 整体不可用、任一模型未加载或任一能力探针失败时，统一检索推理 capability 为 DOWN；在途任务有限重试后显式失败。

@@ -223,7 +223,7 @@ public record IncidentAgentState(
     InvestigationOutcome outcome,          // 仅终态设置；执行中为 null
     String planArtifactId,
     int planVersion,
-    String currentStepId,
+    UUID currentStepId,
     List<AgentStepReference> steps,
     List<String> evidenceIds,
     List<String> hypothesisIds,
@@ -243,7 +243,7 @@ public record IncidentAgentState(
 ) {}
 
 public record AgentStepReference(
-    String stepId,
+    UUID stepId,
     StepStatus status,
     List<StepAttemptReference> attempts
 ) {}
@@ -415,6 +415,10 @@ FAILED/REJECTED → RETRY_SCHEDULED → 新 attempt 的 PENDING
 
 `WAITING_INPUT` 恢复后一律回到 `PLANNING`，由 Supervisor 根据已完成 step 和新输入生成新 plan version；不直接跳回中断前状态，从而避免把过期步骤上下文作为当前事实。`RUNNING_SANDBOX_TEST` 中的测试断言失败是业务观察结果，不自动等于系统技术失败；沙箱不可启动、越权或结果合同损坏才进入 `FAILED`。
 
+进入 `GENERATING_REPORT` 是分析封账点。状态迁移事务必须先确认当前 Run 的计划内 step/attempt 已进入终态、所有已接收 Artifact 均完成校验和领域事务写入、未得到的输入已明确记录为 `missingEvidence`，然后递增 `runVersion` 并设置 `analysisSealedAt`。封账后 Repository 拒绝为该 Run 新增或修改 Evidence、Hypothesis、Hypothesis-Evidence 关系和验证结果；报告失败重试继续使用同一封账数据。若确需补充新证据，必须创建新的 Incident Run，不能修改已封账 Run。
+
+RCA 生成不复制第二份输入快照表。`RcaReportService` 在短只读 `REPEATABLE READ` 事务中按 `runId` 直接读取该 Run 的全部 Evidence、Hypothesis、支持/冲突关系、验证结果和 `missingEvidence`，校验其归属及封账 `runVersion` 后构造有界结构化输入；事务结束后才调用模型。模型输出必须再次校验引用和 `rootCauseCode`，随后保存一条与 `runId + runVersion` 绑定的 RCA 元数据和同源 JSON/Markdown Artifact。报告生成期间禁止保持数据库事务或锁。
+
 ```mermaid
 stateDiagram-v2
     [*] --> CREATED
@@ -565,7 +569,7 @@ Supervisor 随后继续执行，不把空列表交给模型自由补全：
   "retriesExhausted": true,
   "incidentId": "inc-001",
   "runId": "run-001",
-  "stepId": "knowledge-01",
+  "stepId": "20000000-0000-4000-8000-000000000004",
   "a2aTaskId": "task-001",
   "invocationId": "inv-001",
   "requestId": "req-001",

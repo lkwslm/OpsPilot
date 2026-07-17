@@ -106,7 +106,7 @@ public record EmbeddingBatchResult(
 
 测试环境使用统一的本地 Infinity `retrieval-inference` 服务，通过 OpenAI-aligned `/embeddings` 调用专用 Embedding 模型。候选从 `BAAI/bge-m3` 开始；仍需在目标开发机验证 Infinity 镜像、准确模型 revision、中文/代码混合检索、实际维度、CPU/内存或显存、冷启动、p95 延迟和 License 后，才写入测试环境清单。
 
-因此基础配置保留空模型，不能猜测或注册伪 Provider；部署前必须显式填写并通过真实探针，否则应用启动失败：
+因此基础配置保留空模型，不能猜测或注册伪 Provider；部署前必须显式填写并通过真实探针。配置缺失、模型身份/revision/维度或 required capability 不兼容时应用非零退出；配置合法但端点暂时不可达时应用保持 liveness UP、readiness DOWN，恢复后重新探针：
 
 ```yaml
 models:

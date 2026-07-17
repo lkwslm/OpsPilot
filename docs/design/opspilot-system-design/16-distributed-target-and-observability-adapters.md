@@ -88,6 +88,34 @@ Source Registry 是第 28 章的专用 Registry：Adapter 由 composition root �
 
 同一 Resource/Signal 配置多个 Source 时，必须声明 `PRIMARY`、`CORROBORATING` 或 `FALLBACK_DISABLED`。首版禁止在技术失败时静默切换数据源；只有场景明确要求多源交叉验证时才能并行查询，并分别保留来源和失败结果。
 
+#### 27.5.1 多代码源 Adapter 与统一 CodeSnapshot
+
+代码分析同样是多源接入问题，但与可观测 Source 使用不同的专用合同和 Registry。MVP 将“代码已托管在已配置且可只读访问的 GitHub 或 GitLab 仓库”作为启用代码分析能力的产品前提；这不是所有 RCA 的前提，未启用代码分析时仍可完成不依赖代码的调查。不能假设线上版本等于当前 `main`：每个可分析部署必须由 Release Manifest、镜像 label/digest 或部署元数据解析出 `resourceId → imageDigest → repositoryId + 完整 commit SHA`，并确认该 commit 在受信仓库中可访问。
+
+```java
+public interface CodeSourceAdapter {
+    CodeSourceDescriptor descriptor();
+    CodeSnapshot materialize(CodeSnapshotRequest request, CodeSourceExecutionContext context);
+}
+
+public record CodeSnapshot(
+    UUID snapshotId,
+    String sourceId,
+    CodeSourceKind sourceKind,
+    String adapterId,
+    String adapterVersion,
+    String repositoryId,
+    String commitSha,
+    UUID manifestArtifactId,
+    String manifestSha256,
+    Instant retrievedAt
+) {}
+```
+
+`GitHubCodeSourceAdapter` 与 `GitLabCodeSourceAdapter` 负责各自 API、分页、鉴权和错误映射，只能返回上述统一元数据以及一个不暴露给模型的受限只读 workspace handle。一个 Adapter 调用只物化一个 `sourceId + repositoryId + commitSha`；一个服务映射多个仓库或一次调查涉及多个仓库时分别生成多个 CodeSnapshot，Code Analyzer 逐个产生 CodeFinding，最终只在 `EvidenceNormalizer` 中聚合，同时保留 `sourceId/repositoryId/commitSha/snapshotId/文件哈希` provenance。禁止把多个仓库拼成无法追溯来源的单一根目录。
+
+代码源选择由 `CodeSourceAdapterRegistry` 根据受控 `repositoryId`、Source 状态和作用域确定，模型不能提交任意 URL、branch、Token 或宿主机路径。A2A 代码请求沿用 `runId + repositoryId + evidenceIds`：Code Agent 通过仅对其开放的 `code_analysis_scope` 只读视图解析唯一完整 commit，不读取 Supervisor 领域表，也不让模型选择 revision。`connectionRef` 只由 Secret Resolver 解析；必须限制 host/repository allowlist、完整 commit SHA、归档大小、文件数、单文件大小、路径穿越、符号链接逃逸、子模块/LFS 和文件类型。默认不执行 Git hook、构建脚本或仓库内命令；workspace 按 attempt 隔离、只读并在完成后销毁，数据库只保存 Source/Snapshot/Manifest/Artifact 元数据，不保存源码大正文。无法解析部署 revision 返回 `CODE_REVISION_UNRESOLVED`，仓库未登记返回 `CODE_SOURCE_NOT_CONFIGURED`，鉴权/超时返回关联 `ChainFailure`，不得退回分析 `main` 或 Agent 本地目录。
+
 ### 27.6 ObservationBatch 与来源追溯
 
 机器合同为 `contracts/schemas/observation-batch.schema.json`。一个普通 `ObservationBatch` 只能代表**一次 Adapter 调用和一个确定的信息源**，Batch 级 `source` 必须包含：
@@ -116,7 +144,7 @@ Observation 是“运行信息源实际返回了什么”，CodeFinding 是“�
 5. freshness、completeness、sampling、truncation 和查询覆盖率判断；
 6. 生成不可变 Evidence 和 `provenanceRefs(kind=RUNTIME_OBSERVATION)`；无法形成事实的 Observation 仍可审计保存，但不能进入根因引用。
 
-代码输入还必须校验 repository/revision、文件内容哈希、位置范围、Analyzer 版本和输入 Evidence 归属，再生成 `Evidence(factOrigin=CODE, signalType=CODE)` 以及 `provenanceRefs(kind=CODE_FINDING)`。CodeFinding 中的 `observation` 只有完成这一步后才成为事实；`incidentRelevance` 是规范化提示，不能直接成为根因结论。知识断言若参与判断，同样必须保留文档/内容哈希并生成 `Evidence(factOrigin=KNOWLEDGE)`；未规范化的 KnowledgeResult 只能用于审计或查询规划。
+代码输入还必须校验 CodeSnapshot 的 source/repository/完整 commit SHA/Manifest 哈希、文件内容哈希、位置范围、Analyzer 版本和输入 Evidence 归属，再生成 `Evidence(factOrigin=CODE, signalType=CODE)` 以及 `provenanceRefs(kind=CODE_FINDING)`。CodeFinding 中的 `observation` 只有完成这一步后才成为事实；`incidentRelevance` 是规范化提示，不能直接成为根因结论。知识断言若参与判断，同样必须保留文档/内容哈希并生成 `Evidence(factOrigin=KNOWLEDGE)`；未规范化的 KnowledgeResult 只能用于审计或查询规划。
 
 `EvidenceBundle` 合同为 `contracts/schemas/evidence-bundle.schema.json`。每条 Evidence 通过统一 `provenanceRefs` 回溯到 Observation、CodeFinding 或知识引用；跨来源事实可使用 `factOrigin=CORRELATED` 并包含多个引用。最终 RCA 因而能在一个事实模型中区分运行证据、代码证据、背景知识及其交叉验证，而不需要识别三套结果结构。
 
@@ -137,6 +165,8 @@ Agent 可见 Tool 名使用能力名称，Adapter 才使用产品名称：
 
 `KnowledgeSearchTool` 属于 OpsPilot 内部知识能力，不通过 Observability Adapter。Tool 的通用结果包含 `observationBatchIds`、`evidenceBundleId`、Artifact/Evidence 引用和状态；Agent 不读取 Adapter 原始响应。后续分析调用的输入合同中不允许出现 ObservationBatch、CodeFinding 或 KnowledgeResult ID。
 
+`CodeSearchTool` 表中的实现是语言 Analyzer，不是代码托管平台客户端；GitHub/GitLab 差异由 27.5.1 的 CodeSourceAdapter 处理。两层 Adapter 必须独立：新增代码托管平台不修改 Analyzer，新增语言 Analyzer 不修改 Code Source，也都不改变 Agent Tool、Evidence、Hypothesis 或 RCA 合同。
+
 ### 27.9 失败语义
 
 - Source 未配置：返回 `SOURCE_NOT_CONFIGURED`，按能力矩阵判断 `missingEvidence` 或失败；
@@ -146,6 +176,9 @@ Agent 可见 Tool 名使用能力名称，Adapter 才使用产品名称：
 - 单条 Record 无效：默认拒绝整个 Batch；若某 Adapter 合同明确允许部分结果，必须记录 rejected count/原因并使 `complete=false`；
 - 联邦结果缺少 `originSource`：拒绝对应 Record，不能把联邦入口冒充实际来源；
 - Source 技术失败时禁止自动改用另一个产品；显式多源查询的每个 Source 独立记录结果。
+- Code Source 未登记返回 `CODE_SOURCE_NOT_CONFIGURED`；Run/Repository 无唯一完整 commit 映射返回 `CODE_REVISION_UNRESOLVED`，两者均不得伪装成代码搜索空结果；
+- GitHub/GitLab 鉴权、限流、超时、归档或 Manifest 校验失败生成关联 `ChainFailure`；不得改查 `main`、其他仓库或 Agent 本地目录；
+- 精确 commit 获取成功但 Analyzer 无匹配时才返回代码搜索 `EMPTY`，并保留对应 CodeSnapshot/Manifest 和查询审计。
 
 ### 27.10 首期验收与扩展门禁
 
@@ -158,6 +191,7 @@ Agent 可见 Tool 名使用能力名称，Adapter 才使用产品名称：
 5. 多源交叉证据不会因 OTel 派生链重复计数；
 6. Agent、RCA、Evaluation 代码中不存在 Prometheus/Jaeger/Spring DTO 或客户端类型；
 7. 禁用 Java 代码/Maven Adapter 后，语言无关诊断仍能输出受限报告，且不生成代码级结论；
-8. 新增 Loki 或 Tempo 测试 Adapter 时，只新增 Adapter、配置和合同测试，不修改 `opspilot-core`、Agent 状态机、Evidence/RCA 表结构或 A2A skill major version。
+8. GitHub/GitLab 对同一 repository/commit 生成相同领域语义的 CodeSnapshot；多仓库分别保留 Source/Repository/commit provenance，短 SHA、错误部署映射、`main` 回退和本地路径均被拒绝；
+9. 新增 Loki 或 Tempo 测试 Adapter 时，只新增 Adapter、配置和合同测试，不修改 `opspilot-core`、Agent 状态机、Evidence/RCA 表结构或 A2A skill major version。
 
-新增 `sourceKind` 是 ObservationBatch minor 版本兼容扩展；改变现有来源语义、Resource 身份或 Evidence 引用规则必须升级 major 并通过 ADR。新增语言/数据源 Adapter 必须通过共享 contract suite、安全审查、空结果/失败区分、分页/限流、来源追溯和脱敏测试。
+新增 `sourceKind` 是 ObservationBatch minor 版本兼容扩展；改变现有来源语义、Resource 身份或 Evidence 引用规则必须升级 major 并通过 ADR。新增语言、可观测数据源或代码托管平台 Adapter 必须通过各自共享 contract suite、安全审查、空结果/失败区分、分页/限流、来源追溯和脱敏测试。

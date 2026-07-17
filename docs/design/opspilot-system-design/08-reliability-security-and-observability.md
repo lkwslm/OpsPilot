@@ -90,7 +90,7 @@ Incident 总 deadline
 - Tool 的固定调用链为 `Schema → Authorize → Approval → Budget/Deadline → Execute → Normalize/Redact → Audit`；安全步骤由核心装配，Tool 或 Adapter 不能覆盖、跳过或重排。
 - `READ_ONLY` 默认允许，但仍做输入 Schema、资源范围、超时和返回量检查。
 - `CONTROLLED_EXECUTION` 只允许配置白名单中的 Maven 测试/测试容器动作，按策略审批。
-- `HIGH_RISK` 在 MVP 禁止；即使模型请求或用户审批，也不能执行任意 Shell、代码/配置写入、Git、生产或任意数据库修改。
+- `HIGH_RISK` 在 MVP 禁止；即使模型请求或用户审批，也不能执行任意 Shell、代码/配置写入、Git 写入/分支切换/任意 Git 命令、生产或任意数据库修改。平台固定的 `CodeSourceAdapter` 只能以只读凭证从 allowlist 仓库获取精确 commit，不把 Git 能力暴露给 Agent。
 - Docker socket 仅给 Fault Lab 场景编排器；Agent Server 和 Sandbox Tool 不持有宿主 Docker 控制权。
 - 每个调用记录主体、权限、输入/输出摘要、审批、时间、结果和错误；审计记录不可由 Agent 修改。
 

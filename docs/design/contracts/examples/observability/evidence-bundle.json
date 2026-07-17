@@ -3,7 +3,7 @@
   "bundleId": "20000000-0000-4000-8000-000000000001",
   "incidentId": "20000000-0000-4000-8000-000000000002",
   "runId": "20000000-0000-4000-8000-000000000003",
-  "stepId": "normalize-evidence-1",
+  "stepId": "20000000-0000-4000-8000-000000000004",
   "generatedAt": "2026-07-15T01:10:06Z",
   "observationBatchIds": [
     "10000000-0000-4000-8000-000000000001"
@@ -52,7 +52,7 @@
         "systemId": "sample-commerce",
         "serviceName": "order-service"
       },
-      "claim": "InventoryClient.reserve configures a 3000 ms timeout and no retry policy in repository revision 8f2a947.",
+      "claim": "InventoryClient.reserve configures a 3000 ms timeout and no retry policy in repository revision 8f2a947000000000000000000000000000000000.",
       "timeWindow": null,
       "artifactIds": [
         "30000000-0000-4000-8000-000000000003"
@@ -64,7 +64,7 @@
           "findingSetId": "30000000-0000-4000-8000-000000000001",
           "findingId": "30000000-0000-4000-8000-000000000002",
           "repositoryId": "sample-commerce",
-          "revision": "8f2a947"
+          "revision": "8f2a947000000000000000000000000000000000"
         }
       ]
     }
