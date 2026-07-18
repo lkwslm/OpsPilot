@@ -1,0 +1,103 @@
+{
+  "status": "PASS",
+  "entryPoint": "scripts/contracts/validate_negative_fixture.py",
+  "entryPointSha256": "ca72b585ebc2ddad6a65f6386162880b2574e7693a88fd28330dff98384bacda",
+  "fixtureCount": 7,
+  "expectedNonzeroExitCount": 7,
+  "results": [
+    {
+      "fixtureId": "illegal-enum",
+      "fixture": "negative-fixtures/illegal-enum.yaml",
+      "fixtureSha256": "0084f3332b48a6f290ef1370b4bde821fa884cb3001c1444e362b5e18d2d9994",
+      "exitCode": 1,
+      "expectedReasons": [
+        "is not one of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"illegal-enum\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$.severity: 'SEVERE' is not one of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "invalid-hash",
+      "fixture": "negative-fixtures/invalid-hash.yaml",
+      "fixtureSha256": "38cce10fa9c6e30310b47bb6928679486aa24166395c14549b32dd3bf2d71aed",
+      "exitCode": 1,
+      "expectedReasons": [
+        "does not match '^sha256:[a-f0-9]{64}$'"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"invalid-hash\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$.query.parameterHash: 'sha256:not-a-valid-hash' does not match '^sha256:[a-f0-9]{64}$'\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "invalid-uuid",
+      "fixture": "negative-fixtures/invalid-uuid.yaml",
+      "fixtureSha256": "5406925ec46c56130c8e9dde587e84af428b964c9bfa4b820e24e767737827c4",
+      "exitCode": 1,
+      "expectedReasons": [
+        "is not a 'uuid'"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"invalid-uuid\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$.incidentId: 'not-a-uuid' is not a 'uuid'\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "missing-required",
+      "fixture": "negative-fixtures/missing-required.yaml",
+      "fixtureSha256": "e61310e209bdabdcf590f54c737bcbdeca59c6895555614eb12dd8ba9bfd33f2",
+      "exitCode": 1,
+      "expectedReasons": [
+        "'summary' is a required property"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"missing-required\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$: 'summary' is a required property\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "schema-protocol-version-mixup",
+      "fixture": "negative-fixtures/schema-protocol-version-mixup.yaml",
+      "fixtureSha256": "55d076c5c6afd3bac3701ac49efd6f28e07f6cbcb4d36becd29612b3fde87231",
+      "exitCode": 1,
+      "expectedReasons": [
+        "'schemaVersion' is a required property",
+        "protocolVersion"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"schema-protocol-version-mixup\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$: Additional properties are not allowed ('protocolVersion' was unexpected)\",\n    \"$: 'schemaVersion' is a required property\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "unknown-security-sensitive-field",
+      "fixture": "negative-fixtures/unknown-security-sensitive-field.yaml",
+      "fixtureSha256": "2e566c5995560aa1d7d6deee9c44ed8409ea2777d8ec6ca9cc0fd76d48b18b7e",
+      "exitCode": 1,
+      "expectedReasons": [
+        "Additional properties are not allowed",
+        "privilegedAccessToken"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"unknown-security-sensitive-field\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$: Additional properties are not allowed ('privilegedAccessToken' was unexpected)\"\n  ]\n}",
+      "validatorStderr": ""
+    },
+    {
+      "fixtureId": "wrong-schema-version",
+      "fixture": "negative-fixtures/wrong-schema-version.yaml",
+      "fixtureSha256": "a81bf448701b3a5a4d677683039b7632feb88f39ae3c2faa2795b1fd4e373ad6",
+      "exitCode": 1,
+      "expectedReasons": [
+        "'1.0.0' was expected"
+      ],
+      "expectedReasonsMatched": true,
+      "status": "PASS",
+      "validatorOutput": "{\n  \"fixtureId\": \"wrong-schema-version\",\n  \"status\": \"REJECTED\",\n  \"errors\": [\n    \"$.schemaVersion: '1.0.0' was expected\"\n  ]\n}",
+      "validatorStderr": ""
+    }
+  ],
+  "failures": []
+}

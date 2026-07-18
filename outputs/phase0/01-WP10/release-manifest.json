@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "1.0.0",
+  "releaseId": "opspilot-0.1.0-rc.1",
+  "version": "0.1.0-rc.1",
+  "deliveryStatus": "READY_FOR_MANUAL_DEPLOYMENT",
+  "source": {
+    "repository": "local/opspilot",
+    "commitSha": "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+    "ref": "refs/tags/v0.1.0-rc.1"
+  },
+  "build": {
+    "workflowRunId": 1,
+    "workflowUrl": "https://github.com/local/opspilot/actions/runs/1",
+    "builtAt": "2026-07-18T11:45:22.954545Z",
+    "jdk": "21.0.11+10",
+    "versionsLockDigest": "sha256:2d6bc705ca57b37a29788c58fb75ac0564ac20a8e59bd70406a98195283090b1"
+  },
+  "artifacts": [
+    {
+      "name": "opspilot-server",
+      "type": "JAR",
+      "uri": "file:///E:/Code/OpsPilot/opspilot-server/target/opspilot-server-0.1.0-SNAPSHOT.jar",
+      "digest": "sha256:57d5f44b361f7611c91b9e2b121d9ec776146497bbe4437cd0e73dd72ae0bb16"
+    },
+    {
+      "name": "opspilot-phase0-runtime",
+      "type": "OCI_IMAGE",
+      "uri": "docker://opspilot-phase0:0.1.0@sha256:d3fc175ec01dbbde19e201b934630177b4025e3d583123c1d538f3209333484f",
+      "digest": "sha256:d3fc175ec01dbbde19e201b934630177b4025e3d583123c1d538f3209333484f"
+    },
+    {
+      "name": "opspilot-contracts",
+      "type": "CONTRACT_BUNDLE",
+      "uri": "workspace://docs/design/contracts",
+      "digest": "sha256:6a2b9f7c406cdf5116f3a6283e7848c9dc2ef3a51ef3bcc1fe46d0254ed43c5c"
+    },
+    {
+      "name": "opspilot-migrations",
+      "type": "MIGRATION_BUNDLE",
+      "uri": "workspace://opspilot-adapters/persistence-postgres/src/main/resources/db",
+      "digest": "sha256:1bc67d1afd9132346f29c780e7b9dd6a6b86277da3e5d4e9fa22877016798d6c"
+    },
+    {
+      "name": "opspilot-sbom",
+      "type": "SBOM",
+      "uri": "file:///E:/Code/OpsPilot/outputs/phase0/01-WP01/01-WP01.T05/maven-sbom.json",
+      "digest": "sha256:7c4c5993061dbcf5e29c94cbcfccc3d2a3ea6f5165ee78fca969af877e569cf4"
+    },
+    {
+      "name": "phase0-test-evidence",
+      "type": "TEST_EVIDENCE",
+      "uri": "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/01-WP10.T01-T03-output-validation.json",
+      "digest": "sha256:94d80aa40ed8d69c5f68b9a2214933a09742e96a0a4ebb499c5eba10e4779c3f"
+    },
+    {
+      "name": "manual-deployment-runbook",
+      "type": "RUNBOOK",
+      "uri": "file:///E:/Code/OpsPilot/deployment/MANUAL_DEPLOYMENT.md",
+      "digest": "sha256:02a4f6d83a71170a7c03989760bfc6223e3c493474788412b9b6d32b0c5e582c"
+    },
+    {
+      "name": "phase0-build-provenance",
+      "type": "PROVENANCE",
+      "uri": "file:///E:/Code/OpsPilot/deployment/versions.lock.yaml",
+      "digest": "sha256:2d6bc705ca57b37a29788c58fb75ac0564ac20a8e59bd70406a98195283090b1"
+    }
+  ],
+  "models": [
+    {
+      "capability": "CHAT",
+      "modelId": "deepseek-v4-flash",
+      "immutableRevision": "deepseek-v4-flash"
+    },
+    {
+      "capability": "EMBEDDING",
+      "modelId": "BAAI/bge-small-zh-v1.5",
+      "immutableRevision": "7999e1d3359715c523056ef9478215996d62a620"
+    },
+    {
+      "capability": "RERANK",
+      "modelId": "BAAI/bge-reranker-v2-m3",
+      "immutableRevision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+    }
+  ],
+  "qualityGates": [
+    {
+      "name": "CONTRACTS",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP02/01-WP02.T05-contracts-summary.json"
+    },
+    {
+      "name": "BUILD_TEST",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP10/01-WP10.T05-clean-build-report.json"
+    },
+    {
+      "name": "POSTGRES_INTEGRATION",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP07/01-WP07.T04-upgrade-and-role-isolation-evidence.md"
+    },
+    {
+      "name": "COMPOSE_SMOKE",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP09/compose-validation-report.json"
+    },
+    {
+      "name": "SECURITY",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP10/01-WP10.T05-security-report.json"
+    },
+    {
+      "name": "MODEL_INTEGRATION",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP04/01-WP04.T04-chat-profile-gate-report.json"
+    },
+    {
+      "name": "A2A_INTEROPERABILITY",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP05/01-WP05.T06-a2a-interoperability-report.json"
+    },
+    {
+      "name": "EVALUATION",
+      "status": "PASSED",
+      "evidenceArtifact": "workspace://outputs/phase0/01-WP10/01-WP10.T01-T03-output-validation.json"
+    }
+  ],
+  "database": {
+    "baselineVersion": "0",
+    "targetVersion": "4",
+    "migrationDigest": "sha256:1e58e1a51e913370d18f3e2b1c3fa5ae81191040152abf4531059ab1f9619f9e",
+    "backwardCompatible": true,
+    "destructiveChanges": false
+  },
+  "evaluation": {
+    "profileId": "phase0-vertical-slice-v1",
+    "scenarioVersions": [
+      "dependency-latency-inventory/1.0.0",
+      "database-pool-exhausted-order/1.0.0",
+      "service-instance-stopped-inventory/1.0.0"
+    ],
+    "runsPerScenario": 1,
+    "evidenceArtifact": "workspace://outputs/phase0/01-WP10/01-WP10.T01-T03-output-validation.json"
+  },
+  "deployment": {
+    "automaticDeployment": false,
+    "deploymentPerformed": false,
+    "runbookArtifact": "workspace://deployment/MANUAL_DEPLOYMENT.md"
+  }
+}

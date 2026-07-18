@@ -1,0 +1,51 @@
+{
+  "status": "PASS",
+  "store": "PostgresAgentStateStore",
+  "isolationKey": [
+    "serverAgentId",
+    "userId",
+    "sessionId"
+  ],
+  "persistence": {
+    "database": "PostgreSQL 16.14 with pgvector 0.8.4",
+    "table": "opspilot_agent_state",
+    "stateColumn": "JSONB",
+    "localFallback": false
+  },
+  "restartProbe": {
+    "processes": 2,
+    "saveProcessExited": true,
+    "restoreProcessStartedAfterSaveExit": true,
+    "sessions": {
+      "session-a": "checkpoint-a",
+      "session-b": "checkpoint-b"
+    },
+    "crossSessionState": false,
+    "crossServerAgentState": false
+  },
+  "container": {
+    "image": "pgvector/pgvector:pg16",
+    "immutableRef": "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2",
+    "localImageId": "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d",
+    "reusedLocalImage": true,
+    "pulledByTest": false,
+    "ryukDisabled": true
+  },
+  "dependencies": [
+    {
+      "coordinate": "org.postgresql:postgresql:42.7.13",
+      "license": "BSD-2-Clause"
+    },
+    {
+      "coordinate": "org.testcontainers:testcontainers-postgresql:2.0.5",
+      "license": "MIT"
+    }
+  ],
+  "tests": {
+    "testClass": "PostgresAgentStateStoreTest",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

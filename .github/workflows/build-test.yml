@@ -1,0 +1,44 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MAVEN_OPTS: -Dmaven.repo.local=${{ github.workspace }}/.tmp/maven-repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+      - name: Pull locked PostgreSQL image
+        run: |
+          docker pull pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2
+          docker tag pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2 pgvector/pgvector:pg16
+          test "$(docker image inspect pgvector/pgvector:pg16 --format '{{.Id}}')" = "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d"
+      - name: Build and run tests
+        run: ./mvnw -B -ntp verify
+      - name: Validate immutable versions
+        run: |
+          python -m pip install --disable-pip-version-check -r scripts/contracts/requirements.lock.txt
+          python scripts/versions/validate_versions_lock.py --lock deployment/versions.lock.yaml --schema deployment/schemas/versions-lock.schema.json --report outputs/phase0/01-WP10/ci-versions-lock.json
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase0-build-test
+          path: outputs/phase0
+          if-no-files-found: error
+          retention-days: 14

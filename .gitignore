@@ -10,6 +10,7 @@ Thumbs.db
 .idea/
 
 # Temporary files
+.tmp/
 *.tmp
 *.log
-
+**/target/

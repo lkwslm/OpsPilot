@@ -1,0 +1,96 @@
+package io.github.opspilot.a2a;
+
+import io.github.opspilot.a2a.client.Phase0A2aClient;
+import io.github.opspilot.a2a.contract.A2aSendRequest;
+import io.github.opspilot.a2a.contract.A2aTask;
+import io.github.opspilot.a2a.contract.A2aTaskEvent;
+import io.github.opspilot.a2a.contract.A2aTaskState;
+import io.github.opspilot.a2a.server.Phase0A2aServer;
+import io.github.opspilot.a2a.server.PostgresA2aTaskStore;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+final class A2aRestartRecoveryTest {
+
+    private static final String IMAGE = "pgvector/pgvector:pg16";
+    private static final String EXPECTED_IMAGE_ID =
+            "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d";
+
+    @Test
+    void replaysStreamAndArtifactAfterDisconnectAndServerClientRestart() throws Exception {
+        assertEquals(EXPECTED_IMAGE_ID, inspectLocalImageId());
+        try (PostgreSQLContainer postgres = postgres()) {
+            postgres.start();
+            String taskId;
+
+            try (PostgresA2aTaskStore store = store(postgres);
+                 Phase0A2aServer server = new Phase0A2aServer(store, 0)) {
+                server.start();
+                try (Phase0A2aClient client = client(server)) {
+                    List<A2aTaskEvent> disconnected = client.stream(
+                            new A2aSendRequest("message-restart", "context-restart", "recovered", false),
+                            1);
+                    assertEquals(1, disconnected.size());
+                    assertEquals(A2aTaskState.SUBMITTED, disconnected.getFirst().task().state());
+                    taskId = disconnected.getFirst().task().taskId();
+                }
+            }
+
+            try (PostgresA2aTaskStore restartedStore = store(postgres);
+                 Phase0A2aServer restartedServer = new Phase0A2aServer(restartedStore, 0)) {
+                restartedServer.start();
+                try (Phase0A2aClient restartedClient = client(restartedServer)) {
+                    A2aTask recovered = restartedClient.get(taskId);
+                    assertEquals(A2aTaskState.COMPLETED, recovered.state());
+                    assertNotNull(recovered.artifact());
+                    assertEquals("application/json", recovered.artifact().mediaType());
+                    assertEquals("{\"result\":\"recovered\"}", recovered.artifact().payload());
+
+                    List<A2aTaskEvent> replay = restartedClient.subscribe(taskId, 1);
+                    assertEquals(List.of(A2aTaskState.WORKING, A2aTaskState.COMPLETED),
+                            replay.stream().map(event -> event.task().state()).toList());
+                    assertNotNull(replay.getLast().task().artifact());
+
+                    A2aTask deferred = restartedClient.send(new A2aSendRequest(
+                            "message-cancel", "context-cancel", "wait", true));
+                    assertEquals(A2aTaskState.SUBMITTED, deferred.state());
+                    assertEquals(A2aTaskState.CANCELED, restartedClient.cancel(deferred.taskId()).state());
+                }
+            }
+        }
+    }
+
+    private static PostgreSQLContainer postgres() {
+        return new PostgreSQLContainer(IMAGE)
+                .withDatabaseName("opspilot")
+                .withUsername("opspilot")
+                .withPassword("phase0-test-only");
+    }
+
+    private static PostgresA2aTaskStore store(PostgreSQLContainer postgres) {
+        return new PostgresA2aTaskStore(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+    }
+
+    private static Phase0A2aClient client(Phase0A2aServer server) {
+        return new Phase0A2aClient(URI.create("http://127.0.0.1:" + server.port() + "/"));
+    }
+
+    private static String inspectLocalImageId() throws IOException, InterruptedException {
+        Process process = new ProcessBuilder(
+                "docker", "image", "inspect", IMAGE, "--format", "{{.Id}}")
+                .redirectErrorStream(true)
+                .start();
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+        assertEquals(0, process.waitFor(), output);
+        return output;
+    }
+}

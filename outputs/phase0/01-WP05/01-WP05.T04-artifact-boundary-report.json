@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "validationBeforeConnection": true,
+  "negativeReasons": [
+    "ARTIFACT_MEDIA_TYPE_UNSUPPORTED",
+    "ARTIFACT_SCHEMA_MAJOR_UNSUPPORTED",
+    "ARTIFACT_SHA256_MISMATCH",
+    "ARTIFACT_TASK_ID_MISMATCH",
+    "ARTIFACT_CALLER_IDENTITY_MISMATCH",
+    "ARTIFACT_ACCESS_DENIED"
+  ],
+  "domainWrites": {
+    "validWrites": 1,
+    "invalidWrites": 0
+  },
+  "databaseRoleBoundary": {
+    "applicationRoleCanInsert": true,
+    "specialistAgentRoleCanInsert": false,
+    "postgresSqlState": "42501"
+  },
+  "verification": {
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "result": "BUILD SUCCESS"
+  },
+  "sha256": {
+    "A2aArtifactValidator.java": "d04783d48151c582dd7ae53cf464f2a610a2cc2bc4f7f1f18c186ecd988ea2fb",
+    "PostgresDomainArtifactWriter.java": "86c926c84b60084767a7ff179b1ae3b19b102010e0de027b412c2702256ad91d",
+    "A2aArtifactBoundaryTest.java": "d769959a890103264398cf474c6533270d39644e28ac7decf91163ad5f4997e0"
+  }
+}

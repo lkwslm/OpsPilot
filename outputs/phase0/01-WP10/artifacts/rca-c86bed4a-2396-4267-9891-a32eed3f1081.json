@@ -1,0 +1,38 @@
+{
+  "schemaVersion" : "1.0.0",
+  "incidentId" : "cf7ae39d-4635-4725-a34f-15747309f90e",
+  "runId" : "9fbc8f00-1077-4f58-be7b-92f3d6c8aa2a",
+  "summary" : "Database connection pool exhaustion detected from a single log entry; insufficient data to determine root cause.",
+  "severity" : "HIGH",
+  "outcome" : "INCONCLUSIVE",
+  "rootCause" : null,
+  "evidenceAssessment" : {
+    "coverage" : 0.1,
+    "missingEvidenceCodes" : [ "log.database.connections", "metric.cpu", "metric.memory" ],
+    "unavailableCapabilities" : [ "APM", "distributed tracing" ]
+  },
+  "hypotheses" : [ {
+    "hypothesisId" : "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title" : "Database connection pool exhaustion due to traffic spike",
+    "status" : "UNVERIFIED",
+    "confidence" : 0.3,
+    "supportingEvidenceIds" : [ "e951190e-b8f3-42d0-9844-c50e088c7024" ],
+    "conflictingEvidenceIds" : [ ]
+  } ],
+  "actions" : {
+    "immediate" : [ ],
+    "longTerm" : [ ],
+    "monitoring" : [ ],
+    "tests" : [ ],
+    "humanNextSteps" : [ ],
+    "rollback" : [ ]
+  },
+  "citations" : [ {
+    "claimId" : "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
+    "evidenceId" : "e951190e-b8f3-42d0-9844-c50e088c7024",
+    "evidenceCode" : "log.database.pool_exhausted",
+    "artifactId" : "c8a26746-96e5-4e75-afce-734ac5f8b0a2"
+  } ],
+  "limitations" : "Only one log entry available; root cause cannot be determined uniquely.",
+  "generatedAt" : "2025-04-07T12:00:00Z"
+}

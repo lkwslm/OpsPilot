@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "lockSha256": "54f37163c3e243f8005a3f91f9499dd6927d2e9d8712990c890b2831f837eca7",
+  "schemaSha256": "bbb8140377b7886ee410eab1c3fcdc4f04682f5b3f5c3abe1985d0bd03e0d6f9",
+  "toolVersions": {
+    "python": "3.9.13",
+    "PyYAML": "6.0.3",
+    "jsonschema": "4.25.1"
+  },
+  "positiveEntry": "scripts\\versions\\validate_versions_lock.py",
+  "negativeCases": [
+    {
+      "case": "empty-value",
+      "expectedReason": "empty value is forbidden",
+      "exitCode": 2,
+      "passed": true
+    },
+    {
+      "case": "placeholder",
+      "expectedReason": "placeholder",
+      "exitCode": 2,
+      "passed": true
+    },
+    {
+      "case": "latest",
+      "expectedReason": "latest",
+      "exitCode": 2,
+      "passed": true
+    },
+    {
+      "case": "floating-minor",
+      "expectedReason": "floating minor/range is forbidden",
+      "exitCode": 2,
+      "passed": true
+    },
+    {
+      "case": "image-without-digest",
+      "expectedReason": "must include an immutable sha256 digest",
+      "exitCode": 2,
+      "passed": true
+    }
+  ]
+}

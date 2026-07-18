@@ -1,0 +1,38 @@
+{
+  "status": "PASS",
+  "eventOrder": [
+    "CANCEL_SIGNAL",
+    "ROUND_STARTED",
+    "MODEL_COMPLETED",
+    "ACTION_SELECTED",
+    "TOOL_STARTED",
+    "TOOL_COMPLETED",
+    "CHECKPOINT",
+    "ROUND_STARTED",
+    "MODEL_COMPLETED",
+    "CHECKPOINT"
+  ],
+  "capturedFields": [
+    "sequence",
+    "round",
+    "actionFingerprint",
+    "inputTokens",
+    "outputTokens",
+    "checkpointId",
+    "cancelled"
+  ],
+  "actionFingerprintAlgorithm": "SHA-256",
+  "checkpointFormat": "sha256:<64 lowercase hex>",
+  "sensitiveValuePolicy": "REDACT",
+  "sensitiveReplacement": "[REDACTED]",
+  "hiddenReasoningPolicy": "DROP_FIELD",
+  "rawMessagesPersisted": false,
+  "hiddenReasoningPersisted": false,
+  "tests": {
+    "auditTests": 2,
+    "runtimeModuleTests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

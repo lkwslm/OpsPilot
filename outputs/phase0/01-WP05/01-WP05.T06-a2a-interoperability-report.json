@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "protocolRelease": "v1.0.1",
+  "wireProtocolVersion": "1.0",
+  "crossProcess": {
+    "parentAndServerPidsDiffer": true,
+    "transport": "HTTP+JSON",
+    "capturedRequests": [
+      {"method": "POST", "path": "/a2a/messages:send", "contentType": "application/json"},
+      {"method": "GET", "pathPrefix": "/a2a/tasks/", "contentType": "application/json"}
+    ],
+    "auditLog": "01-WP05.T06-http-audit.log"
+  },
+  "networkDisabled": {
+    "serverProcessStopped": true,
+    "clientResult": "A2A_NETWORK_FAILURE",
+    "fallback": false
+  },
+  "architecture": {
+    "clientDependsOnServerPackage": false,
+    "clientDependsOnSpring": false,
+    "runtimeDirectFallback": false
+  },
+  "wp05Summary": {
+    "tests": 9,
+    "failures": 0,
+    "errors": 0,
+    "result": "BUILD SUCCESS"
+  },
+  "secretScan": "PASS",
+  "sha256": {
+    "Phase0A2aServer.java": "2bd8c111649896948e164c8e6479e92de449923ba3b5a67d24a5096eddc8f39a",
+    "A2aServerProcessProbe.java": "a0232a84c7d46dd4729e1ffaccf88568b646ee0d2a662b57faefeba683bed031",
+    "A2aCrossProcessHttpTest.java": "f761d9b9a5a4016b6cb5d2529a8929e640837c47a1d3f39b63cad7954666ea91",
+    "A2aArchitectureTest.java": "a1d29ffd1626067fb423a2ae4f0b04d5882279301a726d5f29e0648d0aec2d00",
+    "01-WP05.T06-http-audit.log": "4e603708ca5cd81d5c563a9fabac201065984794fd176c05eb8815b77387ddc5"
+  }
+}

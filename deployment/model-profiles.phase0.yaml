@@ -1,0 +1,63 @@
+schemaVersion: "1.0.0"
+configVersion: "phase0-2026-07-18"
+
+defaults:
+  provider: "deepseek"
+  protocol: "openai-chat-completions"
+  baseUrl: "https://api.deepseek.com"
+  modelId: "deepseek-v4-flash"
+  secretRef: "env:DEEPSEEK_API_KEY"
+  contextWindowTokens: 1000000
+  capabilities:
+    structuredOutput: true
+    toolCalling: true
+    streaming: false
+  quota:
+    maxConcurrency: 4
+    maxInputTokensPerCall: 12000
+    maxOutputTokensPerCall: 2048
+    maxTaskTokens: 30000
+    maxCalls: 12
+
+roles:
+  supervisor:
+    capabilities:
+      streaming: true
+    quota:
+      maxConcurrency: 1
+  evidence_collector:
+    quota:
+      maxConcurrency: 2
+      maxInputTokensPerCall: 6000
+      maxOutputTokensPerCall: 1024
+      maxTaskTokens: 12000
+      maxCalls: 8
+  code_analysis:
+    quota:
+      maxInputTokensPerCall: 10000
+      maxOutputTokensPerCall: 1536
+      maxTaskTokens: 18000
+      maxCalls: 8
+  knowledge:
+    capabilities:
+      toolCalling: false
+    quota:
+      maxInputTokensPerCall: 5000
+      maxOutputTokensPerCall: 768
+      maxTaskTokens: 8000
+      maxCalls: 6
+  diagnosis:
+    capabilities:
+      toolCalling: false
+    quota:
+      maxInputTokensPerCall: 16000
+      maxOutputTokensPerCall: 3072
+      maxTaskTokens: 40000
+      maxCalls: 10
+  remediation:
+    capabilities:
+      toolCalling: false
+    quota:
+      maxOutputTokensPerCall: 3072
+      maxTaskTokens: 24000
+      maxCalls: 6

@@ -1,0 +1,72 @@
+{
+  "status": "PASS",
+  "contractsRoot": "E:\\Code\\OpsPilot\\docs\\design\\contracts",
+  "validatorVersions": {
+    "openapi-spec-validator": "0.7.2",
+    "jsonschema": "4.25.1",
+    "referencing": "0.36.2",
+    "PyYAML": "6.0.3"
+  },
+  "draft": "2020-12",
+  "schemaCount": 12,
+  "openapiCount": 1,
+  "inputFileCount": 13,
+  "resolvedRefCount": 235,
+  "inputSha256": "ce6016119629eb3f7f42d89989ee75e844b8fd9ad0d0f1f7991e96004f358ed5",
+  "files": [
+    {
+      "path": "schemas/a2a-skill-contracts.schema.json",
+      "sha256": "1175adfe9aa420533b2ba4f8082b296cb322f115dc9b579657cf227ec9096b3c"
+    },
+    {
+      "path": "schemas/agent-profile.schema.json",
+      "sha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80"
+    },
+    {
+      "path": "schemas/code-findings.schema.json",
+      "sha256": "244504b8ea9e3082aa73d222ac0711ca02f7be353b6453102e85c1e03b603152"
+    },
+    {
+      "path": "schemas/evaluation-profile.schema.json",
+      "sha256": "0bf0845135dc962c26fd3a035f567b29bbc5f1da37d6f64add139f4596382f9a"
+    },
+    {
+      "path": "schemas/evidence-bundle.schema.json",
+      "sha256": "cdcbe514d93b27c6a8f3fa3cc51c65d0414f7222bac79102e2b28af44cb9e353"
+    },
+    {
+      "path": "schemas/ground-truth.schema.json",
+      "sha256": "e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3"
+    },
+    {
+      "path": "schemas/incident-event.schema.json",
+      "sha256": "f6c61029262b35a332860b6a12343836560ce55865e64ba3040fc88a2c7f1a8c"
+    },
+    {
+      "path": "schemas/observation-batch.schema.json",
+      "sha256": "a54a0073057ef8f0f9b65fc62802ea9a921c83d5882a247d5d8301699b57c9b8"
+    },
+    {
+      "path": "schemas/rca.schema.json",
+      "sha256": "afae75897d7b78567384eac03ac95163f207444a299236468815ddc171479b35"
+    },
+    {
+      "path": "schemas/release-manifest.schema.json",
+      "sha256": "c72f4725b5ca6b65c946588699779657586a5c3093837103dc641963d8221594"
+    },
+    {
+      "path": "schemas/scenario.schema.json",
+      "sha256": "d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5"
+    },
+    {
+      "path": "schemas/tool-contracts.schema.json",
+      "sha256": "b5a719bf2b481eacc7870956a7b8b311508325518e68db96f69ffca34025a2f4"
+    },
+    {
+      "path": "openapi/opspilot-v1.yaml",
+      "sha256": "973007c68f2716b0801c752576736f26957d6210dfcf5019d9360073422d358e"
+    }
+  ],
+  "errorCount": 0,
+  "errors": []
+}

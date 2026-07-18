@@ -1,0 +1,10 @@
+id: unknown-security-sensitive-field
+base: examples/rca/inconclusive.json
+schema: schemas/rca.schema.json
+mutations:
+  - op: set
+    path: /privilegedAccessToken
+    value: must-never-be-accepted
+expectedReasons:
+  - "Additional properties are not allowed"
+  - "privilegedAccessToken"

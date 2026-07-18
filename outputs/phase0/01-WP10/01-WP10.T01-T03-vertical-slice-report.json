@@ -1,0 +1,22 @@
+{
+  "schemaVersion" : "1.0.0",
+  "status" : "PASSED",
+  "incidentId" : "566aa6ec-36fd-4e3b-afc6-95f3b5a05d0f",
+  "runId" : "b4f408b6-ca1a-412a-a7b4-c289affff764",
+  "evidenceId" : "89fe7868-0bf6-49f3-9dee-94f1ca9b063e",
+  "rcaArtifactId" : "1c4e3151-5c40-4f06-8ee9-a9a8b5734112",
+  "evaluationId" : "8fc593e1-b1f4-4b48-8362-a6f77e3fd45e",
+  "evaluationArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/evaluation-161d7d79-9a66-4d6c-b74f-3d54ba5df19c.json",
+  "evaluationArtifactSha256" : "d4a4f40f5f6e29f0b0cae38ec058eff1ff4c8382cce38f1696d47bce0699637d",
+  "a2aTaskId" : "44b12519-df44-49ec-9445-1e4817b62339",
+  "traceId" : "23812648-b22b-457c-b769-a6702c235107",
+  "sourceId" : "phase0-jsonl",
+  "sourceAdapter" : "jsonl-log:1.0.0",
+  "commit" : "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+  "configurationSha256" : "12490fd7928bbf526f736b160a0721ae72a936332e6466d38cbe90b5f037b074",
+  "modelId" : "deepseek-v4-flash",
+  "modelPromptStored" : false,
+  "modelRawResponseStored" : false,
+  "groundTruthAccessed" : false,
+  "completedAt" : "2026-07-18T11:31:35.333904400Z"
+}

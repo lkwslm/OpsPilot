@@ -1,0 +1,38 @@
+{
+  "schemaVersion" : "1.0.0",
+  "incidentId" : "566aa6ec-36fd-4e3b-afc6-95f3b5a05d0f",
+  "runId" : "b4f408b6-ca1a-412a-a7b4-c289affff764",
+  "summary" : "Database connection pool exhausted",
+  "severity" : "HIGH",
+  "outcome" : "INCONCLUSIVE",
+  "rootCause" : null,
+  "evidenceAssessment" : {
+    "coverage" : 1.0,
+    "missingEvidenceCodes" : [ ],
+    "unavailableCapabilities" : [ ]
+  },
+  "hypotheses" : [ {
+    "hypothesisId" : "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title" : "Pool exhaustion due to insufficient max connections",
+    "status" : "UNVERIFIED",
+    "confidence" : 0.3,
+    "supportingEvidenceIds" : [ "89fe7868-0bf6-49f3-9dee-94f1ca9b063e" ],
+    "conflictingEvidenceIds" : [ ]
+  } ],
+  "actions" : {
+    "immediate" : [ ],
+    "longTerm" : [ ],
+    "monitoring" : [ ],
+    "tests" : [ ],
+    "humanNextSteps" : [ ],
+    "rollback" : [ ]
+  },
+  "citations" : [ {
+    "claimId" : "f0e1d2c3-b4a5-6789-0123-456789abcdef",
+    "evidenceId" : "89fe7868-0bf6-49f3-9dee-94f1ca9b063e",
+    "evidenceCode" : "log.database.pool_exhausted",
+    "artifactId" : "78400744-1302-4916-8cc8-4758764abcc0"
+  } ],
+  "limitations" : [ "Only a single log evidence was available, which is insufficient for a unique root cause determination." ],
+  "generatedAt" : "2025-03-29T12:00:00Z"
+}

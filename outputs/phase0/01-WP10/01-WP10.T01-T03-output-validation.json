@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "rcaSchema": "https://opspilot.local/schemas/rca/1.0.0",
+  "rcaOutcome": "INCONCLUSIVE",
+  "rootCauseNull": true,
+  "artifactHashes": {
+    "evaluation": "d4a4f40f5f6e29f0b0cae38ec058eff1ff4c8382cce38f1696d47bce0699637d",
+    "observation": "c7b340aee2d098e2abc8250fcb893b51b9dfad84aad875215da8b8c9bd62506a",
+    "rca": "f48fc8bed8033b82911e12dfb6846cfa84cf567ea5e3c52717d46263f0e5839d",
+    "audit": "2dca309d08330aa471cc079689cd615000f8efb6c9d5b28d1d79378bffdc543f",
+    "rawSource": "795c18462d49fc8843bdd6b02e6c47d1e0ffb7c6d62d1a7aae95273becea5202"
+  },
+  "secretLeakCount": 0,
+  "groundTruthAccessed": false,
+  "errorCount": 0,
+  "errors": []
+}

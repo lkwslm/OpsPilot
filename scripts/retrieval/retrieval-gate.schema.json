@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/schemas/phase0-retrieval-gate-1.0.0.json",
+  "title": "OpsPilot Phase 0 Retrieval Gate Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "probeVersion", "generatedAtUtc", "status",
+    "infrastructure", "models", "machine", "resource", "embedding",
+    "rerank", "quality", "latency", "sourceReports", "failures"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "probeVersion": {"const": "phase0-retrieval-gate-v1"},
+    "generatedAtUtc": {"type": "string", "format": "date-time"},
+    "status": {"enum": ["PASS", "FAIL"]},
+    "infrastructure": {
+      "type": "object",
+      "required": ["imageDigest", "imageId", "infinityVersion"],
+      "properties": {
+        "imageDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "imageId": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "infinityVersion": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "models": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["modelId", "revision", "servedName", "license"],
+        "properties": {
+          "modelId": {"type": "string"},
+          "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+          "servedName": {"type": "string"},
+          "license": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "machine": {"type": "object", "minProperties": 6},
+    "resource": {"type": "object", "required": ["startup", "maximumLengths", "concurrency", "containerStatsAfter"]},
+    "embedding": {"type": "object", "required": ["dimension", "normalizationConvention", "cosineNonZeroNorm", "inputSetSha256"]},
+    "rerank": {"type": "object", "required": ["responseModel", "returnedIndices", "caseSha256"]},
+    "quality": {"type": "object", "required": ["datasetSha256", "queryCount", "aggregate"]},
+    "latency": {"type": "object", "required": ["inputSha256", "sampleCount", "aggregation", "latencyMs"]},
+    "sourceReports": {
+      "type": "object", "minProperties": 6,
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "failures": {"type": "array", "items": {"type": "string"}}
+  }
+}

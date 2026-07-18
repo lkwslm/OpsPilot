@@ -129,17 +129,18 @@ services:
 
 ```yaml
 jdk: "21"
-maven: "<verified>"
-spring_boot: "<verified>"
-agentscope_java: "<verified exact version>"
-a2a_java_sdk: "<verified exact version>"
-postgresql_image_digest: "sha256:<verified>"
-pgvector_version: "<verified>"
-infinity_image_digest: "sha256:<verified>"
-embedding_model: "<id>"
-embedding_revision: "<immutable revision>"
-rerank_model: "<id>"
-rerank_revision: "<immutable revision>"
+maven: "3.9.11"
+spring_boot: "org.springframework.boot:spring-boot-dependencies:4.1.0"
+agentscope_java: "io.agentscope:agentscope-core:2.0.0"
+a2a_protocol: "v1.0.1@3303592588e388e62e0f69f701af531d2f4e3991"
+a2a_java_sdk: "org.a2aproject.sdk:a2a-java-sdk-spec:1.1.0.Final"
+postgresql_image: "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2"
+pgvector_version: "0.8.4"
+infinity_image: "michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"
+embedding_model: "BAAI/bge-small-zh-v1.5"
+embedding_revision: "7999e1d3359715c523056ef9478215996d62a620"
+rerank_model: "BAAI/bge-reranker-v2-m3"
+rerank_revision: "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
 ```
 
 不得使用 `latest`、浮动 minor、空 revision 或仅 tag 不含 digest 的基础设施镜像进入验收环境。

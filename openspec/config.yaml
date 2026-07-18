@@ -1,0 +1,19 @@
+schema: spec-driven
+
+context: |
+  项目：OpsPilot，本地可运行、可验证、可复现的智能运维演示系统。
+  当前变更只覆盖 docs/implementation-plan/01-phase-0-spikes-and-gates.md 定义的 Phase 0。
+  事实源优先级：docs/design/contracts/ 中的 OpenAPI 与 JSON Schema，其次为设计中的状态矩阵、不变量和模块边界，再其次为阶段计划。
+  不得用 Mock、Fake、固定结果或静默降级替代真实 Provider、Source、A2A、PostgreSQL/pgvector 或检索链路。
+  文档、需求、场景、设计决策和任务说明统一使用中文；协议字段名、代码标识符、路径、命令及标准术语保留原文。
+
+rules:
+  proposal:
+    - 明确 Phase 0 的范围、非目标、外部门禁和可验证结果。
+  specs:
+    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的冻结阈值和失败语义。
+  design:
+    - 记录工作包依赖、事实源边界、真实能力探针、证据产物和阻塞条件，不虚构尚待 Spike 确认的版本或模型结论。
+  tasks:
+    - 保留 01-WPxx.Txx 编号，任务必须能追溯到实施落点、验证命令或证据。
+    - 使用未勾选复选框，不把规划工作误标为已完成。

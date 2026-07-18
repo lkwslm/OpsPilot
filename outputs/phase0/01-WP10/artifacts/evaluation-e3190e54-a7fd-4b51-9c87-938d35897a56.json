@@ -1,0 +1,22 @@
+{
+  "schemaVersion" : "1.0.0",
+  "evaluationId" : "6c3ca768-9025-401d-b780-9e672c68d7a9",
+  "incidentId" : "dcff9e23-f27d-4288-87aa-826c12eddaf2",
+  "runId" : "fb468737-c9de-4aa9-99cf-16ebb470010f",
+  "deterministic" : true,
+  "status" : "PASSED",
+  "evidenceReferenceValid" : true,
+  "links" : {
+    "evidenceId" : "7d2b93f5-af13-437a-8b2b-80ec7cb7ee66",
+    "rawArtifactId" : "02a95290-b3c2-4b1a-8388-a4a201da5519",
+    "rawArtifactSha256" : "sha256:795c18462d49fc8843bdd6b02e6c47d1e0ffb7c6d62d1a7aae95273becea5202",
+    "observationArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/observation-fbdfe855-360c-405b-b7fc-d39efe17dc96.json",
+    "observationArtifactSha256" : "ddd38d0bf225d95f0e4d22c0351d5ae09dc52f0e1ca8ef4d05ef61da19c7cfb9",
+    "rcaArtifactId" : "5b525ac7-77c9-464c-ac1d-25c8d44f55a1",
+    "rcaArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/rca-5b525ac7-77c9-464c-ac1d-25c8d44f55a1.json",
+    "rcaArtifactSha256" : "7e5bea22d74fb3ecda14c06e16703c8a9bb652f1465df771296c29c999be7383",
+    "auditArtifactId" : "017585ee-e2c0-4604-bada-72f7125f73c8",
+    "auditArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/call-audit-017585ee-e2c0-4604-bada-72f7125f73c8.json",
+    "auditArtifactSha256" : "0cc14cdeb6c9beeeb0ab3f2dc415b16f3a73950a09d6c7a157e548db9fe5e051"
+  }
+}

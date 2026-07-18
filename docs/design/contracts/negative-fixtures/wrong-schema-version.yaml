@@ -1,0 +1,9 @@
+id: wrong-schema-version
+base: examples/rca/inconclusive.json
+schema: schemas/rca.schema.json
+mutations:
+  - op: set
+    path: /schemaVersion
+    value: 2.0.0
+expectedReasons:
+  - "'1.0.0' was expected"

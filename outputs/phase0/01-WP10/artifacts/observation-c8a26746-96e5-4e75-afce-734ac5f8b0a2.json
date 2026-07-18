@@ -1,0 +1,8 @@
+{
+  "schemaVersion" : "1.0.0",
+  "observationId" : "c8a26746-96e5-4e75-afce-734ac5f8b0a2",
+  "batchId" : "b0b8e61f-88b3-431c-a723-ef0bd50cf771",
+  "sourceId" : "phase0-jsonl",
+  "sourceAdapter" : "jsonl-log:1.0.0",
+  "claim" : "checkout database pool exhausted active=20 max=20 password=[REDACTED]"
+}

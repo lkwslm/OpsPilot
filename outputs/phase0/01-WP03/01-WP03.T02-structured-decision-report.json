@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "schemas": {
+    "draft": "2020-12",
+    "count": 2,
+    "decisionSha256": "7ba9a765b642075d66cd5b7eeb9a44e509f396aa6e656191efd351b7ab539f7c",
+    "resultSha256": "5d3a0d9cdf9427289c9487964b5317275bc94a72291deedf7c3cc6328182b730"
+  },
+  "toolCallingApi": [
+    "Toolkit.registerAgentTool(AgentTool)",
+    "Toolkit.callTool(ToolCallParam)",
+    "AgentTool.callAsync(ToolCallParam)"
+  ],
+  "repairPolicy": {
+    "maximumRepairAttempts": 1,
+    "failureReasonCode": "STRUCTURED_OUTPUT_INVALID"
+  },
+  "requiredPaths": [
+    {"name": "valid-first-result", "repairAttempts": 0, "status": "PASS"},
+    {"name": "single-repair-success", "repairAttempts": 1, "status": "PASS"},
+    {"name": "invalid-after-repair", "repairAttempts": 1, "status": "PASS"}
+  ],
+  "persistenceProjection": [
+    "action",
+    "toolName",
+    "outcome",
+    "summary",
+    "evidenceIds"
+  ],
+  "rawModelResponsePersisted": false,
+  "hiddenReasoningPersisted": false,
+  "tests": {"run": 3, "failures": 0, "errors": 0, "skipped": 0}
+}

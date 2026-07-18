@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "1.0.0",
+  "probeVersion": "phase0-concurrency-v1",
+  "generatedAtUtc": "2026-07-18T10:18:37.295466+00:00",
+  "status": "PASS",
+  "machine": {
+    "os": "Windows-10-10.0.26200-SP0",
+    "cpu": "AMD Ryzen 7 5800H with Radeon Graphics",
+    "logicalCpu": 16,
+    "hostMemoryBytes": 17024741376,
+    "dockerCpu": 16,
+    "dockerMemoryBytes": 8247738368,
+    "gpu": "NVIDIA GeForce RTX 3060 Laptop GPU, 6144 MiB, 591.74",
+    "gpuAssignedToContainer": false,
+    "inferenceDevice": "cpu"
+  },
+  "startup": {
+    "coldPreloadMs": 639700.0,
+    "coldPreloadIncludesDownloadAndDefaultWarmup": true,
+    "warmCacheStartupMs": 109325.0,
+    "warmCacheStartupConfiguration": "batch=4,no-model-warmup"
+  },
+  "maximumLengths": {
+    "embedding": {
+      "modelMaxPositionEmbeddings": 512,
+      "tokenizerMaxLength": 512
+    },
+    "rerank": {
+      "modelMaxPositionEmbeddings": 8194,
+      "tokenizerMaxLength": 8192
+    }
+  },
+  "serial": [
+    {
+      "kind": "embedding",
+      "expectedModel": "embedding-bge-small-zh-v1.5",
+      "actualModel": "embedding-bge-small-zh-v1.5",
+      "elapsedMs": 220.968,
+      "items": 3,
+      "itemsPerSecond": 13.577,
+      "identityAndShapeValid": true
+    },
+    {
+      "kind": "rerank",
+      "expectedModel": "reranker-bge-v2-m3",
+      "actualModel": "reranker-bge-v2-m3",
+      "elapsedMs": 1784.928,
+      "items": 4,
+      "itemsPerSecond": 2.241,
+      "identityAndShapeValid": true
+    },
+    {
+      "kind": "embedding",
+      "expectedModel": "embedding-bge-small-zh-v1.5",
+      "actualModel": "embedding-bge-small-zh-v1.5",
+      "elapsedMs": 121.822,
+      "items": 3,
+      "itemsPerSecond": 24.626,
+      "identityAndShapeValid": true
+    },
+    {
+      "kind": "rerank",
+      "expectedModel": "reranker-bge-v2-m3",
+      "actualModel": "reranker-bge-v2-m3",
+      "elapsedMs": 1331.894,
+      "items": 4,
+      "itemsPerSecond": 3.003,
+      "identityAndShapeValid": true
+    }
+  ],
+  "concurrent": {
+    "wallMs": 2464.797,
+    "results": [
+      {
+        "kind": "embedding",
+        "expectedModel": "embedding-bge-small-zh-v1.5",
+        "actualModel": "embedding-bge-small-zh-v1.5",
+        "elapsedMs": 134.816,
+        "items": 3,
+        "itemsPerSecond": 22.252,
+        "identityAndShapeValid": true
+      },
+      {
+        "kind": "rerank",
+        "expectedModel": "reranker-bge-v2-m3",
+        "actualModel": "reranker-bge-v2-m3",
+        "elapsedMs": 1234.876,
+        "items": 4,
+        "itemsPerSecond": 3.239,
+        "identityAndShapeValid": true
+      },
+      {
+        "kind": "embedding",
+        "expectedModel": "embedding-bge-small-zh-v1.5",
+        "actualModel": "embedding-bge-small-zh-v1.5",
+        "elapsedMs": 253.827,
+        "items": 3,
+        "itemsPerSecond": 11.819,
+        "identityAndShapeValid": true
+      },
+      {
+        "kind": "rerank",
+        "expectedModel": "reranker-bge-v2-m3",
+        "actualModel": "reranker-bge-v2-m3",
+        "elapsedMs": 2415.563,
+        "items": 4,
+        "itemsPerSecond": 1.656,
+        "identityAndShapeValid": true
+      }
+    ],
+    "medianInterferenceRatioVsSerial": {
+      "embedding": 1.134,
+      "rerank": 1.171
+    }
+  },
+  "containerStatsAfter": {
+    "BlockIO": "33.1MB / 68.1MB",
+    "CPUPerc": "0.79%",
+    "Container": "opspilot-infinity-phase0",
+    "ID": "14b8d21dc66d",
+    "MemPerc": "17.76%",
+    "MemUsage": "1.364GiB / 7.681GiB",
+    "Name": "opspilot-infinity-phase0",
+    "NetIO": "347kB / 283kB",
+    "PIDs": "102"
+  },
+  "failures": []
+}

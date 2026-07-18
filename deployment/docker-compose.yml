@@ -1,0 +1,178 @@
+name: opspilot-phase0
+
+x-runtime-environment: &runtime-environment
+  A2A_PROTOCOL: "1.0"
+  CHAT_MODEL_ID: deepseek-v4-flash
+  EMBEDDING_MODEL_ID: embedding-bge-small-zh-v1.5
+  RERANK_MODEL_ID: reranker-bge-v2-m3
+  SOURCE_COMMIT: 60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b
+
+x-process-common: &process-common
+  image: opspilot-phase0:0.1.0
+  build:
+    context: ..
+    dockerfile: deployment/Dockerfile.phase0
+  restart: unless-stopped
+  tmpfs:
+    - /tmp:size=16m,noexec,nosuid
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - opspilot-backend
+  depends_on:
+    db-migrate:
+      condition: service_completed_successfully
+  volumes:
+    - type: bind
+      source: ./agent-input
+      target: /datasets/input
+      read_only: true
+  healthcheck:
+    test: ["CMD-SHELL", "java -XX:-UsePerfData -cp '/app/opspilot-server.jar:/app/lib/*' io.github.opspilot.server.Phase0Process probe http://127.0.0.1:$${SERVER_PORT}/actuator/health/readiness"]
+    interval: 2s
+    timeout: 2s
+    retries: 20
+    start_period: 2s
+
+services:
+  db-migrate:
+    image: opspilot-phase0:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+    command: ["migrate"]
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - opspilot-backend
+
+  retrieval-model-probe:
+    image: opspilot-phase0:0.1.0
+    profiles: ["phase0-gate"]
+    command: ["retrieval-gate"]
+    restart: "no"
+    environment:
+      <<: *runtime-environment
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks:
+      - opspilot-backend
+
+  opspilot-server:
+    <<: *process-common
+    networks:
+      - opspilot-backend
+      - opspilot-frontend
+    ports:
+      - "127.0.0.1:8080:8080"
+    expose: ["8080"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: supervisor
+      AGENT_SKILL: supervise-incident
+      SERVER_PORT: "8080"
+      DB_ROLE: opspilot_app_role
+      A2A_BASE_URL: http://opspilot-server:8080
+      SERVICE_TOKEN_FILE: /run/secrets/supervisor-service-token
+      EVIDENCE_AGENT_TOKEN_FILE: /run/secrets/evidence-agent-token
+      READINESS_URLS: http://evidence-agent:8081/.well-known/agent-card.json,http://code-agent:8082/.well-known/agent-card.json,http://knowledge-agent:8083/.well-known/agent-card.json,http://diagnosis-agent:8084/.well-known/agent-card.json,http://remediation-agent:8085/.well-known/agent-card.json
+    secrets:
+      - supervisor-service-token
+      - evidence-agent-token
+    volumes:
+      - type: bind
+        source: ./agent-input
+        target: /datasets/input
+        read_only: true
+      - type: bind
+        source: ./agents/agent-directory.yaml
+        target: /app/config/agent-directory.yaml
+        read_only: true
+
+  evidence-agent:
+    <<: *process-common
+    expose: ["8081"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: evidence-collector
+      AGENT_SKILL: collect-observability-evidence
+      SERVER_PORT: "8081"
+      DB_ROLE: evidence_agent_role
+      A2A_BASE_URL: http://evidence-agent:8081
+      SERVICE_TOKEN_FILE: /run/secrets/evidence-agent-token
+      SOURCE_PATH: /datasets/input/observability.jsonl
+    secrets: [evidence-agent-token]
+
+  code-agent:
+    <<: *process-common
+    expose: ["8082"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: code-analysis
+      AGENT_SKILL: analyze-code-location
+      SERVER_PORT: "8082"
+      DB_ROLE: code_agent_role
+      A2A_BASE_URL: http://code-agent:8082
+      SERVICE_TOKEN_FILE: /run/secrets/code-agent-token
+    secrets: [code-agent-token]
+
+  knowledge-agent:
+    <<: *process-common
+    expose: ["8083"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: knowledge
+      AGENT_SKILL: retrieve-incident-knowledge
+      SERVER_PORT: "8083"
+      DB_ROLE: knowledge_agent_role
+      A2A_BASE_URL: http://knowledge-agent:8083
+      SERVICE_TOKEN_FILE: /run/secrets/knowledge-agent-token
+    secrets: [knowledge-agent-token]
+
+  diagnosis-agent:
+    <<: *process-common
+    expose: ["8084"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: diagnosis
+      AGENT_SKILL: generate-and-verify-hypotheses
+      SERVER_PORT: "8084"
+      DB_ROLE: diagnosis_agent_role
+      A2A_BASE_URL: http://diagnosis-agent:8084
+      SERVICE_TOKEN_FILE: /run/secrets/diagnosis-agent-token
+    secrets: [diagnosis-agent-token]
+
+  remediation-agent:
+    <<: *process-common
+    expose: ["8085"]
+    environment:
+      <<: *runtime-environment
+      AGENT_ID: remediation
+      AGENT_SKILL: propose-remediation
+      SERVER_PORT: "8085"
+      DB_ROLE: remediation_agent_role
+      A2A_BASE_URL: http://remediation-agent:8085
+      SERVICE_TOKEN_FILE: /run/secrets/remediation-agent-token
+    secrets: [remediation-agent-token]
+
+networks:
+  opspilot-backend:
+    internal: true
+  opspilot-frontend:
+
+secrets:
+  supervisor-service-token:
+    file: ../.tmp/secrets/supervisor-service-token.txt
+  evidence-agent-token:
+    file: ../.tmp/secrets/evidence-agent-token.txt
+  code-agent-token:
+    file: ../.tmp/secrets/code-agent-token.txt
+  knowledge-agent-token:
+    file: ../.tmp/secrets/knowledge-agent-token.txt
+  diagnosis-agent-token:
+    file: ../.tmp/secrets/diagnosis-agent-token.txt
+  remediation-agent-token:
+    file: ../.tmp/secrets/remediation-agent-token.txt

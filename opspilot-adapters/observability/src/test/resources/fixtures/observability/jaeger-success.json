@@ -1,0 +1,19 @@
+{
+  "data": [
+    {
+      "traceID": "4f2a9d5c0b8e7a11",
+      "spans": [
+        {
+          "spanID": "a1",
+          "operationName": "GET /checkout authorization=Bearer-secret-value",
+          "startTime": 1784361600000000,
+          "duration": 27000
+        }
+      ],
+      "processes": {}
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}

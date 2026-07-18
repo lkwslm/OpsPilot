@@ -1,0 +1,53 @@
+schemaVersion: "1.0.0"
+requiredCategories:
+  - SCENARIO
+  - GROUND_TRUTH
+  - AGENT_PROFILE
+  - OBSERVATION
+  - EVIDENCE
+  - RCA
+  - EVALUATION
+  - RELEASE_MANIFEST
+instances:
+  - path: examples/scenarios/database-pool-exhausted-order.yaml
+    schema: schemas/scenario.schema.json
+    category: SCENARIO
+  - path: examples/scenarios/dependency-latency-inventory.yaml
+    schema: schemas/scenario.schema.json
+    category: SCENARIO
+  - path: examples/scenarios/service-instance-stopped-inventory.yaml
+    schema: schemas/scenario.schema.json
+    category: SCENARIO
+  - path: examples/ground-truth/database-pool-exhausted-order.json
+    schema: schemas/ground-truth.schema.json
+    category: GROUND_TRUTH
+  - path: examples/ground-truth/dependency-latency-inventory.json
+    schema: schemas/ground-truth.schema.json
+    category: GROUND_TRUTH
+  - path: examples/ground-truth/service-instance-stopped-inventory.json
+    schema: schemas/ground-truth.schema.json
+    category: GROUND_TRUTH
+  - path: examples/agent-profiles/diagnosis.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
+  - path: examples/observability/prometheus-observation-batch.json
+    schema: schemas/observation-batch.schema.json
+    category: OBSERVATION
+  - path: examples/observability/evidence-bundle.json
+    schema: schemas/evidence-bundle.schema.json
+    category: EVIDENCE
+  - path: examples/rca/inconclusive.json
+    schema: schemas/rca.schema.json
+    category: RCA
+  - path: profiles/mvp-v1.yaml
+    schema: schemas/evaluation-profile.schema.json
+    category: EVALUATION
+  - path: examples/release-manifest/opspilot-0.1.0-rc.1.json
+    schema: schemas/release-manifest.schema.json
+    category: RELEASE_MANIFEST
+  - path: examples/code-analysis/code-findings.json
+    schema: schemas/code-findings.schema.json
+    category: CODE_FINDINGS
+  - path: examples/tools/metric-query.json
+    schema: schemas/tool-contracts.schema.json
+    category: TOOL_CONTRACT

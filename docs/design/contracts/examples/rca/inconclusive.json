@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "incidentId": "40000000-0000-4000-8000-000000000001",
+  "runId": "40000000-0000-4000-8000-000000000002",
+  "summary": "Available evidence is insufficient to identify a single root cause.",
+  "severity": "HIGH",
+  "outcome": "INCONCLUSIVE",
+  "rootCause": null,
+  "evidenceAssessment": {
+    "coverage": 0.5,
+    "missingEvidenceCodes": ["trace.inventory.dependency_span"],
+    "unavailableCapabilities": ["TRACE_QUERY"]
+  },
+  "hypotheses": [
+    {
+      "hypothesisId": "40000000-0000-4000-8000-000000000003",
+      "title": "Inventory dependency latency increased",
+      "status": "UNVERIFIED",
+      "confidence": 0.5,
+      "supportingEvidenceIds": ["20000000-0000-4000-8000-000000000004"],
+      "conflictingEvidenceIds": []
+    }
+  ],
+  "actions": {
+    "immediate": [],
+    "longTerm": [],
+    "monitoring": [],
+    "tests": [],
+    "humanNextSteps": [
+      {
+        "actionCode": "collect_dependency_trace",
+        "description": "Collect an inventory dependency trace before drawing a conclusion.",
+        "approvalRequired": false
+      }
+    ],
+    "rollback": []
+  },
+  "citations": [],
+  "limitations": ["The trace source was unavailable during this run."],
+  "generatedAt": "2026-07-18T07:30:00Z"
+}

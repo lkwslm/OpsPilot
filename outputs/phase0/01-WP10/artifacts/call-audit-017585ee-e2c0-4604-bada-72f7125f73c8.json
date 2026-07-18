@@ -1,0 +1,15 @@
+{
+  "schemaVersion" : "1.0.0",
+  "a2aTaskId" : "fd9773c5-ea8d-4cdf-91bc-44a03475fab5",
+  "traceId" : "66ff413f-0124-48de-b1da-0269cfa22038",
+  "sourceAdapter" : "jsonl-log:1.0.0",
+  "modelId" : "deepseek-v4-flash",
+  "providerRequestId" : "1ecdba17-fd43-420d-afc7-6cc6e971dfc5",
+  "promptTokens" : 456,
+  "completionTokens" : 1402,
+  "promptStored" : false,
+  "rawProviderResponseStored" : false,
+  "groundTruthAccessed" : false,
+  "commit" : "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+  "configurationSha256" : "12490fd7928bbf526f736b160a0721ae72a936332e6466d38cbe90b5f037b074"
+}

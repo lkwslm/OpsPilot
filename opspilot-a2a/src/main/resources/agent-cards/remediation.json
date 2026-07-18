@@ -1,0 +1,16 @@
+{
+  "name": "Remediation",
+  "description": "OpsPilot remediation Agent",
+  "provider": {"organization": "OpsPilot", "url": "https://github.com/opspilot"},
+  "version": "1.0.0",
+  "documentationUrl": "https://opspilot.local/docs/agents/remediation",
+  "capabilities": {"streaming": true, "pushNotifications": true, "extendedAgentCard": false, "extensions": []},
+  "defaultInputModes": ["application/vnd.opspilot.remediation-request+json;v=1"],
+  "defaultOutputModes": ["application/vnd.opspilot.remediation-plan+json;v=1"],
+  "skills": [{"id": "propose-remediation", "name": "Remediation", "description": "OpsPilot Phase 0 propose-remediation", "tags": ["opspilot", "phase0"], "examples": [], "inputModes": ["application/vnd.opspilot.remediation-request+json;v=1"], "outputModes": ["application/vnd.opspilot.remediation-plan+json;v=1"], "securityRequirements": []}],
+  "securitySchemes": {},
+  "securityRequirements": [],
+  "supportedInterfaces": [{"protocolBinding": "HTTP+JSON", "url": "http://remediation-agent:8085/a2a", "tenant": null, "protocolVersion": "1.0"}],
+  "signatures": [],
+  "additionalInterfaces": []
+}

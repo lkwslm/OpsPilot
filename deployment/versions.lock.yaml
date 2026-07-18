@@ -1,0 +1,159 @@
+schemaVersion: "1.0.0"
+sourceCommit: "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b"
+policy:
+  versionRangesAllowed: false
+  mutableContainerTagsAllowed: false
+  mutableModelRevisionsAllowed: false
+
+toolchain:
+  javaRelease: 21
+  jdk:
+    distribution: "Eclipse Temurin"
+    version: "21.0.11+10"
+    downloadSha256: "d3625e7cadf23787ea540229544b6e2ab494b3b54da1801879e583e1dfee0a64"
+  maven:
+    version: "3.9.11"
+    wrapperVersion: "3.3.4"
+    wrapperJarSha256: "4e2fbf6554bc8a4702cdfdd3bef464f423393d784ddbb037216320ce55d5e4e1"
+
+dependencies:
+  - id: spring-boot-bom
+    coordinate: "org.springframework.boot:spring-boot-dependencies"
+    version: "4.1.0"
+    license: "Apache-2.0"
+  - id: agentscope-core
+    coordinate: "io.agentscope:agentscope-core"
+    version: "2.0.0"
+    sourceRevision: "44c304ec84d5fbd8588c1af8bc71b1edb9663380"
+    license: "Apache-2.0"
+  - id: jackson-databind
+    coordinate: "com.fasterxml.jackson.core:jackson-databind"
+    version: "2.21.1"
+    license: "Apache-2.0"
+  - id: postgresql-jdbc
+    coordinate: "org.postgresql:postgresql"
+    version: "42.7.13"
+    license: "BSD-2-Clause"
+  - id: flyway-core
+    coordinate: "org.flywaydb:flyway-core"
+    version: "12.11.0"
+    license: "Apache-2.0"
+  - id: flyway-database-postgresql
+    coordinate: "org.flywaydb:flyway-database-postgresql"
+    version: "12.11.0"
+    license: "Apache-2.0"
+  - id: testcontainers-postgresql
+    coordinate: "org.testcontainers:testcontainers-postgresql"
+    version: "2.0.5"
+    license: "MIT"
+  - id: a2a-java-sdk-spec
+    coordinate: "org.a2aproject.sdk:a2a-java-sdk-spec"
+    version: "1.1.0.Final"
+    sourceRevision: "6f65898ea6ed1495460ace5a176a48d3c7d00879"
+    license: "Apache-2.0"
+  - id: a2a-java-sdk-client
+    coordinate: "org.a2aproject.sdk:a2a-java-sdk-client"
+    version: "1.1.0.Final"
+    sourceRevision: "6f65898ea6ed1495460ace5a176a48d3c7d00879"
+    license: "Apache-2.0"
+  - id: a2a-java-sdk-client-rest
+    coordinate: "org.a2aproject.sdk:a2a-java-sdk-client-transport-rest"
+    version: "1.1.0.Final"
+    sourceRevision: "6f65898ea6ed1495460ace5a176a48d3c7d00879"
+    license: "Apache-2.0"
+  - id: a2a-java-sdk-reference-rest
+    coordinate: "org.a2aproject.sdk:a2a-java-sdk-reference-rest"
+    version: "1.1.0.Final"
+    sourceRevision: "6f65898ea6ed1495460ace5a176a48d3c7d00879"
+    license: "Apache-2.0"
+  - id: archunit
+    coordinate: "com.tngtech.archunit:archunit"
+    version: "1.4.2"
+    license: "Apache-2.0"
+  - id: junit-jupiter
+    coordinate: "org.junit.jupiter:junit-jupiter"
+    version: "6.0.3"
+    license: "EPL-2.0"
+
+mavenPlugins:
+  - coordinate: "org.apache.maven.plugins:maven-clean-plugin"
+    version: "3.5.0"
+  - coordinate: "org.apache.maven.plugins:maven-compiler-plugin"
+    version: "3.14.1"
+  - coordinate: "org.apache.maven.plugins:maven-deploy-plugin"
+    version: "3.1.4"
+  - coordinate: "org.apache.maven.plugins:maven-install-plugin"
+    version: "3.1.4"
+  - coordinate: "org.apache.maven.plugins:maven-jar-plugin"
+    version: "3.4.2"
+  - coordinate: "org.apache.maven.plugins:maven-resources-plugin"
+    version: "3.3.1"
+  - coordinate: "org.apache.maven.plugins:maven-site-plugin"
+    version: "3.21.0"
+  - coordinate: "org.apache.maven.plugins:maven-surefire-plugin"
+    version: "3.5.4"
+  - coordinate: "org.apache.maven.plugins:maven-failsafe-plugin"
+    version: "3.5.4"
+  - coordinate: "org.apache.maven.plugins:maven-enforcer-plugin"
+    version: "3.6.2"
+  - coordinate: "org.apache.maven.plugins:maven-dependency-plugin"
+    version: "3.11.0"
+  - coordinate: "org.codehaus.mojo:license-maven-plugin"
+    version: "2.7.1"
+  - coordinate: "org.cyclonedx:cyclonedx-maven-plugin"
+    version: "2.9.2"
+
+supplyChainTools:
+  dockerSbom: "0.6.0"
+  dockerScout: "1.18.1"
+
+protocols:
+  - id: a2a
+    release: "v1.0.1"
+    sourceRevision: "3303592588e388e62e0f69f701af531d2f4e3991"
+    wireProtocolVersion: "1.0"
+
+containers:
+  - id: java-runtime
+    immutableRef: "eclipse-temurin@sha256:273396ed5998598ed1091e8d72711c2d36980a0e65103859c55a4e977a41ffd3"
+    digest: "sha256:273396ed5998598ed1091e8d72711c2d36980a0e65103859c55a4e977a41ffd3"
+    localImageId: "sha256:45262a7ae83795d5ae65e1480ea0485283f04d162672cc3f1a80440e0ae79adb"
+    components:
+      java: "21.0.11+10"
+  - id: postgres-pgvector
+    immutableRef: "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2"
+    digest: "sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2"
+    localImageId: "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d"
+    components:
+      postgresql: "16.14"
+      pgvector: "0.8.4"
+  - id: infinity
+    immutableRef: "michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"
+    digest: "sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"
+    localImageId: "sha256:64873a491e839963036d1171122695e3eb5780addb931a6b1df01dbf7bee921d"
+    components:
+      infinity: "0.0.77"
+
+chatModel:
+  provider: "deepseek"
+  modelId: "deepseek-v4-flash"
+  revision: "deepseek-v4-flash"
+
+models:
+  - id: embedding
+    modelId: "BAAI/bge-small-zh-v1.5"
+    revision: "7999e1d3359715c523056ef9478215996d62a620"
+    servedName: "embedding-bge-small-zh-v1.5"
+    task: "embedding"
+    license: "MIT"
+  - id: reranker
+    modelId: "BAAI/bge-reranker-v2-m3"
+    revision: "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+    servedName: "reranker-bge-v2-m3"
+    task: "rerank"
+    license: "Apache-2.0"
+
+validator:
+  python: "3.9.13"
+  pyyaml: "6.0.3"
+  jsonschema: "4.25.1"

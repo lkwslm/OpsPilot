@@ -1,0 +1,35 @@
+{
+  "status": "PASS",
+  "coordinate": "io.agentscope:agentscope-core:2.0.0",
+  "sourceRevision": "44c304ec84d5fbd8588c1af8bc71b1edb9663380",
+  "license": "Apache-2.0",
+  "toolchain": {
+    "jdkDistribution": "Eclipse Temurin",
+    "jdkVersion": "21.0.11+10",
+    "jdkDownloadSha256": "d3625e7cadf23787ea540229544b6e2ab494b3b54da1801879e583e1dfee0a64",
+    "mavenVersion": "3.9.11",
+    "projectRoot": "E:\\Code\\OpsPilot"
+  },
+  "projectPorts": [
+    "io.github.opspilot.core.port.agent.ChatPort",
+    "io.github.opspilot.core.port.agent.ToolPort"
+  ],
+  "verifiedApis": [
+    "io.agentscope.core.model.Model.stream(List<Msg>, List<ToolSchema>, GenerateOptions)",
+    "io.agentscope.core.tool.AgentTool.callAsync(ToolCallParam)",
+    "io.agentscope.core.tool.Toolkit.registerAgentTool(AgentTool)",
+    "io.agentscope.core.agent.config.ReactConfig(int, boolean)",
+    "io.agentscope.core.ReActAgent.builder()",
+    "io.agentscope.core.ReActAgent.Builder.model(Model)",
+    "io.agentscope.core.ReActAgent.Builder.toolkit(Toolkit)",
+    "io.agentscope.core.ReActAgent.Builder.maxIters(int)",
+    "io.agentscope.core.ReActAgent.Builder.stopOnReject(boolean)"
+  ],
+  "tests": {
+    "run": 3,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "coreArchitectureTest": "PASS"
+  }
+}

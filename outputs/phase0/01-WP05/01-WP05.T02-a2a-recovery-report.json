@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "transport": "HTTP+JSON",
+  "operations": ["send", "stream", "get", "cancel", "subscribe"],
+  "persistence": {
+    "engine": "PostgreSQL",
+    "driver": "org.postgresql:postgresql:42.7.13",
+    "taskTable": "phase0_a2a_task",
+    "eventTable": "phase0_a2a_task_event"
+  },
+  "container": {
+    "image": "pgvector/pgvector:pg16",
+    "imageId": "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d",
+    "reusedLocalImage": true
+  },
+  "assertions": {
+    "disconnectAfterEvents": 1,
+    "firstState": "SUBMITTED",
+    "replayedStates": ["WORKING", "COMPLETED"],
+    "artifactRecoveredAfterRestart": true,
+    "cancelOperation": "CANCELED",
+    "serverRestarted": true,
+    "clientRestarted": true
+  },
+  "verification": {
+    "command": "mvn -pl opspilot-a2a -am test -Dtest=Phase0AgentCardsTest,A2aRestartRecoveryTest -Dsurefire.failIfNoSpecifiedTests=false",
+    "tests": 2,
+    "failures": 0,
+    "errors": 0,
+    "result": "BUILD SUCCESS"
+  },
+  "sha256": {
+    "PostgresA2aTaskStore.java": "6039e3e04436879297e1515c79f3570063f3c0e9d49679570ade6982b9299470",
+    "Phase0A2aServer.java": "b74a819cdee402458e0271a15be721ffb1eb9d5bbdae12a10afa7f9d2af0ee9d",
+    "Phase0A2aClient.java": "d54857011c0c1864694443b84351e959b4044cd4d404688cd243c8c024d8fad2",
+    "A2aRestartRecoveryTest.java": "57d4eb70054e2d428b071a38f4b073ef75711a935305e3e986332841559a2d5d"
+  }
+}

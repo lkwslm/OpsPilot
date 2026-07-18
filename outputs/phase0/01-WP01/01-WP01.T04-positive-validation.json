@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "lockFile": "deployment\\versions.lock.yaml",
+  "schemaFile": "deployment\\schemas\\versions-lock.schema.json",
+  "lockSha256": "54f37163c3e243f8005a3f91f9499dd6927d2e9d8712990c890b2831f837eca7",
+  "errorCount": 0,
+  "errors": []
+}

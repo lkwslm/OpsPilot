@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "openapi": "E:/Code/OpsPilot/docs/design/contracts/openapi/opspilot-v1.yaml",
+  "openapiSha256": "973007c68f2716b0801c752576736f26957d6210dfcf5019d9360073422d358e",
+  "operationCount": 10,
+  "uniqueOperationIdCount": 10,
+  "responseCount": 19,
+  "responseSchemaCount": 20,
+  "referenceCount": 63,
+  "markdownFileCount": 29,
+  "localMarkdownLinkCount": 60,
+  "markdownInputSha256": "8fdc2e2b4e127d44180f3a613d7af1c6892a1ea0cee42c3d52d545f59c26b9e9",
+  "errorCount": 0,
+  "errors": []
+}
