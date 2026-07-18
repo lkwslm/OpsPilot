@@ -1,0 +1,12 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {"__name__": "http_server_requests_seconds_count", "service": "sample-system"},
+        "value": [1784361600, "17"]
+      }
+    ]
+  }
+}

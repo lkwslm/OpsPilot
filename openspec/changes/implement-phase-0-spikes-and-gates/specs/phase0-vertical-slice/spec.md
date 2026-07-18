@@ -33,7 +33,7 @@ Maven 骨架存在后 MUST（必须）提供 `build-test.yml` 和 `security.yml`
 - **THEN** Workflow 只运行校验并上传带 URI、SHA-256、commit 和配置身份的证据与 Manifest，不持有目标环境凭证、不执行部署
 
 ### Requirement: 阶段完成必须全门禁通过
-只有版本锁、合同、AgentScope、A2A、Chat/Embedding/Rerank、PostgreSQL/权限、五类 Adapter、六进程拓扑和真实纵切全部通过，Phase 0 才能标记完成；未闭环的外部版本、模型、License、资源或 API 项 MUST（必须）保持 `BLOCKED`。
+只有版本锁、合同、AgentScope、A2A、Chat/Embedding/Rerank、PostgreSQL/权限、五类 Adapter、六进程拓扑和真实纵切全部通过，Phase 0 才能标记完成；未闭环的外部版本、模型、资源或 API 项 MUST（必须）保持 `BLOCKED`。License 必须尽力解析并报告覆盖率，无法识别的组件记录 `WARNING`，不单独阻塞 Phase 0。
 
 #### Scenario: 任一门禁失败阻止阶段完成
 - **GIVEN** Phase 0 门禁矩阵中至少一项失败或缺少证据

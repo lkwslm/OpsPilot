@@ -1,0 +1,72 @@
+{
+  "status": "PASS",
+  "sourceCommit": "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+  "framework": {
+    "coordinate": "io.agentscope:agentscope-core:2.0.0",
+    "sourceRevision": "44c304ec84d5fbd8588c1af8bc71b1edb9663380",
+    "license": "Apache-2.0"
+  },
+  "stateFailure": {
+    "reasonCode": "STATE_PERSISTENCE_FAILED",
+    "failClosed": true,
+    "modelCallsAfterFailure": 0,
+    "toolCallsAfterFailure": 0,
+    "memoryFallback": false,
+    "fileFallback": false
+  },
+  "section24_5": [
+    {
+      "assertion": 1,
+      "status": "PASS",
+      "evidence": "01-WP01.T05 dependency/license/SBOM report"
+    },
+    {
+      "assertion": 2,
+      "status": "PASS",
+      "tests": "AgentScopeRuntimeAdapterTest"
+    },
+    {
+      "assertion": 3,
+      "status": "PASS",
+      "tests": "StructuredDecisionRunnerTest"
+    },
+    {
+      "assertion": 4,
+      "status": "PASS",
+      "tests": "AgentScopeAuditCollectorTest"
+    },
+    {
+      "assertion": 5,
+      "status": "PASS",
+      "tests": "PostgresAgentStateStoreTest"
+    },
+    {
+      "assertion": 6,
+      "status": "PASS",
+      "tests": "AgentScopeExecutionGuardTest"
+    },
+    {
+      "assertion": 7,
+      "status": "PASS",
+      "tests": "AgentScopeCheckpointWriterTest"
+    }
+  ],
+  "verifiedApis": [
+    "io.agentscope.core.model.Model.stream",
+    "io.agentscope.core.tool.AgentTool.callAsync",
+    "io.agentscope.core.tool.Toolkit.registerAgentTool",
+    "io.agentscope.core.tool.Toolkit.callTool",
+    "io.agentscope.core.agent.config.ReactConfig",
+    "io.agentscope.core.ReActAgent.Builder.maxIters",
+    "io.agentscope.core.state.AgentStateStore.save",
+    "io.agentscope.core.state.AgentStateStore.get"
+  ],
+  "fullRegression": {
+    "runtimeModuleTests": 15,
+    "coreArchitectureTests": 2,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "offlineMaven": true
+  }
+}

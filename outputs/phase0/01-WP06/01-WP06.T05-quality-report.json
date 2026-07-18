@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0.0",
+  "probeVersion": "phase0-chinese-quality-v1",
+  "generatedAtUtc": "2026-07-18T10:21:49.848650+00:00",
+  "status": "PASS",
+  "datasetSha256": "6facc7a8b5fcbe73697e1b9c640da943d019493e16e1881b875b5a2eae515573",
+  "language": "zh-CN",
+  "queryCount": 5,
+  "documentsPerQuery": 10,
+  "models": {
+    "embedding": {
+      "id": "embedding",
+      "modelId": "BAAI/bge-small-zh-v1.5",
+      "revision": "7999e1d3359715c523056ef9478215996d62a620",
+      "servedName": "embedding-bge-small-zh-v1.5",
+      "task": "embedding",
+      "license": "MIT"
+    },
+    "reranker": {
+      "id": "reranker",
+      "modelId": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "servedName": "reranker-bge-v2-m3",
+      "task": "rerank",
+      "license": "Apache-2.0"
+    }
+  },
+  "caseResults": [
+    {
+      "id": "db-pool-exhaustion",
+      "baselineRanking": [
+        3,
+        2,
+        1,
+        0,
+        4,
+        6,
+        7,
+        9,
+        8,
+        5
+      ],
+      "rerankRanking": [
+        3,
+        2,
+        1,
+        0,
+        4,
+        9,
+        6,
+        7,
+        5,
+        8
+      ],
+      "baselineNdcgAt10": 0.547831481922746,
+      "rerankNdcgAt10": 0.547831481922746,
+      "baselineMrr": 0.5,
+      "rerankMrr": 0.5
+    },
+    {
+      "id": "java-oom",
+      "baselineRanking": [
+        1,
+        2,
+        3,
+        0,
+        4,
+        5,
+        8,
+        9,
+        7,
+        6
+      ],
+      "rerankRanking": [
+        3,
+        1,
+        2,
+        0,
+        5,
+        4,
+        8,
+        9,
+        7,
+        6
+      ],
+      "baselineNdcgAt10": 0.7075284535426455,
+      "rerankNdcgAt10": 0.5757102621098147,
+      "baselineMrr": 1.0,
+      "rerankMrr": 0.5
+    },
+    {
+      "id": "gateway-502",
+      "baselineRanking": [
+        3,
+        2,
+        1,
+        0,
+        4,
+        7,
+        6,
+        5,
+        8,
+        9
+      ],
+      "rerankRanking": [
+        0,
+        3,
+        1,
+        2,
+        4,
+        7,
+        9,
+        6,
+        8,
+        5
+      ],
+      "baselineNdcgAt10": 0.547831481922746,
+      "rerankNdcgAt10": 0.9508013338940989,
+      "baselineMrr": 0.5,
+      "rerankMrr": 1.0
+    },
+    {
+      "id": "kafka-lag",
+      "baselineRanking": [
+        0,
+        1,
+        3,
+        4,
+        8,
+        2,
+        7,
+        6,
+        9,
+        5
+      ],
+      "rerankRanking": [
+        0,
+        1,
+        3,
+        2,
+        5,
+        8,
+        9,
+        7,
+        6,
+        4
+      ],
+      "baselineNdcgAt10": 0.984691148826963,
+      "rerankNdcgAt10": 0.992619504174702,
+      "baselineMrr": 1.0,
+      "rerankMrr": 1.0
+    },
+    {
+      "id": "disk-full",
+      "baselineRanking": [
+        3,
+        0,
+        2,
+        1,
+        8,
+        6,
+        4,
+        5,
+        7,
+        9
+      ],
+      "rerankRanking": [
+        3,
+        0,
+        2,
+        1,
+        5,
+        6,
+        9,
+        4,
+        7,
+        8
+      ],
+      "baselineNdcgAt10": 0.6609898057851442,
+      "rerankNdcgAt10": 0.6609898057851442,
+      "baselineMrr": 0.5,
+      "rerankMrr": 0.5
+    }
+  ],
+  "aggregate": {
+    "baselineNdcgAt10": 0.6897744744000489,
+    "rerankNdcgAt10": 0.7455904775773011,
+    "baselineMrr": 0.7,
+    "rerankMrr": 0.7,
+    "ndcgRelativeImprovement": 0.08091920656501501,
+    "mrrRelativeImprovement": 0.0
+  },
+  "failures": []
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/runtime/result/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "outcome", "summary", "evidenceIds"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "outcome": {"enum": ["CONCLUSIVE", "PARTIAL", "INCONCLUSIVE"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "evidenceIds": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {"type": "string", "format": "uuid"}
+    }
+  }
+}

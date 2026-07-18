@@ -1,0 +1,22 @@
+{
+  "schemaVersion" : "1.0.0",
+  "evaluationId" : "fbbcbde4-da91-43ed-9274-0628e21979f9",
+  "incidentId" : "cf7ae39d-4635-4725-a34f-15747309f90e",
+  "runId" : "9fbc8f00-1077-4f58-be7b-92f3d6c8aa2a",
+  "deterministic" : true,
+  "status" : "PASSED",
+  "evidenceReferenceValid" : true,
+  "links" : {
+    "evidenceId" : "e951190e-b8f3-42d0-9844-c50e088c7024",
+    "rawArtifactId" : "72e12716-b8d5-4750-aa88-927e4de02165",
+    "rawArtifactSha256" : "sha256:795c18462d49fc8843bdd6b02e6c47d1e0ffb7c6d62d1a7aae95273becea5202",
+    "observationArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/observation-c8a26746-96e5-4e75-afce-734ac5f8b0a2.json",
+    "observationArtifactSha256" : "729a89d8a71ecb67a84feebdc0a1b8b21aae01bea1ccb1400ca58448b093c040",
+    "rcaArtifactId" : "c86bed4a-2396-4267-9891-a32eed3f1081",
+    "rcaArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/rca-c86bed4a-2396-4267-9891-a32eed3f1081.json",
+    "rcaArtifactSha256" : "9bb27cd91255775a50308a92da90e293c6062811e63f716ffa876d7ebaee465b",
+    "auditArtifactId" : "3126777f-18bd-48b0-b266-cec8c6391242",
+    "auditArtifactUri" : "file:///E:/Code/OpsPilot/outputs/phase0/01-WP10/artifacts/call-audit-3126777f-18bd-48b0-b266-cec8c6391242.json",
+    "auditArtifactSha256" : "8161de7f67438081b23244d017cc78274fe5ff9e2f87da60bc09cd202c952cc8"
+  }
+}

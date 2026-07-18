@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.github.opspilot</groupId>
+        <artifactId>opspilot-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>opspilot-adapters</artifactId>
+    <packaging>pom</packaging>
+    <modules>
+        <module>persistence-postgres</module>
+        <module>model-openai-compatible</module>
+        <module>retrieval-infinity</module>
+        <module>knowledge-pgvector</module>
+        <module>observability</module>
+        <module>code-java</module>
+        <module>sandbox-maven</module>
+    </modules>
+</project>

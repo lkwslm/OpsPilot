@@ -1,0 +1,12 @@
+id: schema-protocol-version-mixup
+base: examples/tools/metric-query.json
+schema: schemas/tool-contracts.schema.json
+mutations:
+  - op: remove
+    path: /schemaVersion
+  - op: set
+    path: /protocolVersion
+    value: 1.0.0
+expectedReasons:
+  - "'schemaVersion' is a required property"
+  - "protocolVersion"

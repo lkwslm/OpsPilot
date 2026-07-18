@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "probeVersion": "phase0-retrieval-identity-v1",
+  "generatedAtUtc": "2026-07-18T10:11:41.911574+00:00",
+  "status": "PASS",
+  "baseUrl": "http://127.0.0.1:7997",
+  "container": {
+    "name": "opspilot-infinity-phase0",
+    "imageDigest": "sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88",
+    "expectedImageId": "sha256:64873a491e839963036d1171122695e3eb5780addb931a6b1df01dbf7bee921d",
+    "actualImageId": "sha256:64873a491e839963036d1171122695e3eb5780addb931a6b1df01dbf7bee921d",
+    "infinityVersion": "0.0.77"
+  },
+  "models": [
+    {
+      "modelId": "BAAI/bge-small-zh-v1.5",
+      "revision": "7999e1d3359715c523056ef9478215996d62a620",
+      "servedName": "embedding-bge-small-zh-v1.5",
+      "expectedCapability": "embed",
+      "actualCapabilities": [
+        "embed"
+      ],
+      "backend": "torch",
+      "batchSize": 4,
+      "status": "PASS"
+    },
+    {
+      "modelId": "BAAI/bge-reranker-v2-m3",
+      "revision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
+      "servedName": "reranker-bge-v2-m3",
+      "expectedCapability": "rerank",
+      "actualCapabilities": [
+        "rerank"
+      ],
+      "backend": "torch",
+      "batchSize": 4,
+      "status": "PASS"
+    }
+  ],
+  "failures": []
+}

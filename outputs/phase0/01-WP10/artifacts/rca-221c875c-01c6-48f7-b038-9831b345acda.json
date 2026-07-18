@@ -1,0 +1,38 @@
+{
+  "schemaVersion" : "1.0.0",
+  "incidentId" : "4f70a0bc-0fd4-4ee4-a91e-afb23608b43f",
+  "runId" : "fd5f08e1-c041-45d2-96f3-638fb58d4d2f",
+  "summary" : "Database connection pool exhausted based on single log evidence.",
+  "severity" : "HIGH",
+  "outcome" : "INCONCLUSIVE",
+  "rootCause" : null,
+  "evidenceAssessment" : {
+    "coverage" : "low",
+    "missingEvidenceCodes" : [ ],
+    "unavailableCapabilities" : [ ]
+  },
+  "hypotheses" : [ {
+    "hypothesisId" : "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title" : "Database connection pool exhausted",
+    "status" : "confirmed",
+    "confidence" : "high",
+    "supportingEvidenceIds" : [ "a33cefa0-bf06-4a2a-bd9c-a255f7528e51" ],
+    "conflictingEvidenceIds" : [ ]
+  } ],
+  "actions" : {
+    "immediate" : [ "Investigate current database connection usage and consider increasing pool size temporarily" ],
+    "longTerm" : [ "Review connection pool configuration and application connection management" ],
+    "monitoring" : [ "Set up alerts for pool utilization thresholds" ],
+    "tests" : [ "Conduct load testing to determine appropriate pool size" ],
+    "humanNextSteps" : [ "Check for connection leaks in application code" ],
+    "rollback" : [ "Revert any recent changes to connection pool configuration if applicable" ]
+  },
+  "citations" : [ {
+    "claimId" : "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+    "evidenceId" : "a33cefa0-bf06-4a2a-bd9c-a255f7528e51",
+    "evidenceCode" : "log.database.pool_exhausted",
+    "artifactId" : "5ed0f7ac-5775-4bed-a0d7-897aeb99a64c"
+  } ],
+  "limitations" : [ "Only one log entry was available, which directly indicates pool exhaustion but insufficient to determine the root cause (e.g., connection leak vs. temporary spike).", "No additional evidence from other sources to corroborate or identify the underlying issue." ],
+  "generatedAt" : "2025-03-29T12:00:00Z"
+}

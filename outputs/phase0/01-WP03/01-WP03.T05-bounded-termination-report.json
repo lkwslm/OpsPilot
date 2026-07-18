@@ -1,0 +1,28 @@
+{
+  "status": "PASS",
+  "guard": "AgentScopeExecutionGuard",
+  "integrationStyle": "model/tool call boundary guard around AgentScope built-in loop",
+  "secondLoopImplemented": false,
+  "frozenReasonCodes": {
+    "maxRounds": "MAX_ROUNDS",
+    "deadline": "DEADLINE_EXCEEDED",
+    "externalCancellation": "EXTERNAL_CANCELLED",
+    "duplicateAction": "DUPLICATE_ACTION",
+    "noNewEvidence": "NO_PROGRESS"
+  },
+  "noProgressThresholdRounds": 2,
+  "terminalBehavior": {
+    "singleStopEvent": true,
+    "modelCallsAfterStop": 0,
+    "toolCallsAfterStop": 0,
+    "reasonCodeStableAfterStop": true
+  },
+  "tests": {
+    "testClass": "AgentScopeExecutionGuardTest",
+    "independentPaths": 5,
+    "tests": 5,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

@@ -1,0 +1,9 @@
+id: invalid-hash
+base: examples/observability/prometheus-observation-batch.json
+schema: schemas/observation-batch.schema.json
+mutations:
+  - op: set
+    path: /query/parameterHash
+    value: sha256:not-a-valid-hash
+expectedReasons:
+  - "does not match '^sha256:[a-f0-9]{64}$'"

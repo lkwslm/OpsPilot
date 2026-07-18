@@ -1,0 +1,81 @@
+{
+  "status": "PASS",
+  "configVersion": "phase0-2026-07-18",
+  "sourceSha256": "0ca689f8adcfcd9159a371e09bba561811988da90073980bc71d2a52af5f037f",
+  "secretValueRead": false,
+  "secretValueEmitted": false,
+  "uniqueActualModels": [
+    {
+      "provider": "deepseek",
+      "protocol": "openai-chat-completions",
+      "baseUrl": "https://api.deepseek.com",
+      "modelId": "deepseek-v4-flash"
+    }
+  ],
+  "logicalProfiles": [
+    {
+      "id": "default",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": true,
+      "streaming": false,
+      "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 2048, "maxTaskTokens": 30000, "maxCalls": 12}
+    },
+    {
+      "id": "supervisor",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": true,
+      "streaming": true,
+      "quota": {"maxConcurrency": 1, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 2048, "maxTaskTokens": 30000, "maxCalls": 12}
+    },
+    {
+      "id": "evidence_collector",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": true,
+      "streaming": false,
+      "quota": {"maxConcurrency": 2, "maxInputTokensPerCall": 6000, "maxOutputTokensPerCall": 1024, "maxTaskTokens": 12000, "maxCalls": 8}
+    },
+    {
+      "id": "code_analysis",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": true,
+      "streaming": false,
+      "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 10000, "maxOutputTokensPerCall": 1536, "maxTaskTokens": 18000, "maxCalls": 8}
+    },
+    {
+      "id": "knowledge",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": false,
+      "streaming": false,
+      "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 5000, "maxOutputTokensPerCall": 768, "maxTaskTokens": 8000, "maxCalls": 6}
+    },
+    {
+      "id": "diagnosis",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": false,
+      "streaming": false,
+      "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 16000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 40000, "maxCalls": 10}
+    },
+    {
+      "id": "remediation",
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "contextWindowTokens": 1000000,
+      "structuredOutput": true,
+      "toolCalling": false,
+      "streaming": false,
+      "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 24000, "maxCalls": 6}
+    }
+  ],
+  "tests": {"run": 4, "failures": 0, "errors": 0}
+}

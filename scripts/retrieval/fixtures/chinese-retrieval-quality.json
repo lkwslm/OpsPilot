@@ -1,0 +1,85 @@
+{
+  "queryInstruction": "为这个句子生成表示以用于检索相关文章：",
+  "cases": [
+    {
+      "id": "db-pool-exhaustion",
+      "query": "支付服务数据库连接池耗尽，如何定位和恢复？",
+      "documents": [
+        {"text": "排查未关闭的 JDBC Connection 和长事务，结合连接池 pending 指标定位泄漏调用栈。", "relevance": 3},
+        {"text": "检查连接池 active、idle、pending 与数据库会话上限，确认是否容量不足。", "relevance": 2},
+        {"text": "若最近调整了连接池参数，先回滚配置并观察错误率是否恢复。", "relevance": 1},
+        {"text": "数据库连接池耗尽是告警标题的显示文案，前端颜色需要调整。", "relevance": 0},
+        {"text": "发布新的移动端图标并刷新 CDN 缓存。", "relevance": 0},
+        {"text": "统计本月员工假期和会议室使用情况。", "relevance": 0},
+        {"text": "为静态图片开启浏览器缓存压缩。", "relevance": 0},
+        {"text": "订单导出文件需要增加一个备注列。", "relevance": 0},
+        {"text": "营销短信模板缺少品牌签名。", "relevance": 0},
+        {"text": "修改代码格式化规则并统一缩进。", "relevance": 0}
+      ]
+    },
+    {
+      "id": "java-oom",
+      "query": "Java 服务频繁 Full GC 并最终 OOM，应该怎样查根因？",
+      "documents": [
+        {"text": "采集 heap dump，用支配树和 retained size 找出持续增长且无法回收的对象引用链。", "relevance": 3},
+        {"text": "对比 GC 日志中的老年代占用、晋升速率和 Full GC 后存活量，判断内存泄漏。", "relevance": 2},
+        {"text": "确认容器内存限制与 JVM MaxRAMPercentage，避免堆和非堆超过 cgroup 上限。", "relevance": 1},
+        {"text": "OOM 是季度活动名称，页面需要展示 Full GC 字样。", "relevance": 0},
+        {"text": "升级前端依赖并重新生成 lock 文件。", "relevance": 0},
+        {"text": "数据库索引命名不符合团队规范。", "relevance": 0},
+        {"text": "替换产品首页的宣传图片。", "relevance": 0},
+        {"text": "核对办公网络打印机的墨粉余量。", "relevance": 0},
+        {"text": "给测试账号重置登录密码。", "relevance": 0},
+        {"text": "整理迭代会议纪要并发送邮件。", "relevance": 0}
+      ]
+    },
+    {
+      "id": "gateway-502",
+      "query": "网关大量返回 502，如何判断是否是上游服务故障？",
+      "documents": [
+        {"text": "检查网关 upstream connect/read 错误、上游实例健康和对应时间窗的应用错误日志。", "relevance": 3},
+        {"text": "从网关容器请求上游健康端点，核对 DNS、TLS 握手和连接超时。", "relevance": 2},
+        {"text": "若错误紧随上游发布出现，回滚该版本并观察 502 比例。", "relevance": 1},
+        {"text": "502 是新工单编号，网关页面仅需增加跳转链接。", "relevance": 0},
+        {"text": "调整网页字体大小和行间距。", "relevance": 0},
+        {"text": "清理历史构建产物以节省制品库空间。", "relevance": 0},
+        {"text": "为新员工创建代码仓库权限。", "relevance": 0},
+        {"text": "更新项目 README 中的截图。", "relevance": 0},
+        {"text": "统计市场活动的访问来源。", "relevance": 0},
+        {"text": "采购新的会议室摄像头。", "relevance": 0}
+      ]
+    },
+    {
+      "id": "kafka-lag",
+      "query": "Kafka 消费积压持续增长，如何区分生产突增和消费者变慢？",
+      "documents": [
+        {"text": "对比各分区生产速率、消费速率和 lag 增长斜率，定位热点分区或消费吞吐下降。", "relevance": 3},
+        {"text": "检查消费者处理耗时、失败重试、rebalance 和下游依赖延迟。", "relevance": 2},
+        {"text": "核对 consumer group 实例数、分区分配和 max.poll.interval 配置。", "relevance": 1},
+        {"text": "Kafka lag 是监控大盘名称，设计稿要求更换背景色。", "relevance": 0},
+        {"text": "将静态资源迁移到新的 CDN 域名。", "relevance": 0},
+        {"text": "修复登录页验证码显示模糊问题。", "relevance": 0},
+        {"text": "删除不再使用的测试分支。", "relevance": 0},
+        {"text": "整理供应商合同归档目录。", "relevance": 0},
+        {"text": "给报表增加 Excel 导出按钮。", "relevance": 0},
+        {"text": "发布周会时间调整通知。", "relevance": 0}
+      ]
+    },
+    {
+      "id": "disk-full",
+      "query": "节点磁盘写满导致服务异常，怎样快速找到可安全清理的空间？",
+      "documents": [
+        {"text": "用文件系统和 inode 使用率定位挂载点，再按目录增量查找暴涨日志、临时文件和容器层。", "relevance": 3},
+        {"text": "确认日志保留策略与打开但已删除文件，先轮转压缩再由负责方批准清理。", "relevance": 2},
+        {"text": "清理前检查数据库和消息队列数据目录，禁止直接删除持久化文件。", "relevance": 1},
+        {"text": "磁盘写满是演练脚本标题，不应在生产节点执行清理。", "relevance": 0},
+        {"text": "调整用户头像上传尺寸限制。", "relevance": 0},
+        {"text": "重新安排团队值班表。", "relevance": 0},
+        {"text": "给接口文档增加请求示例。", "relevance": 0},
+        {"text": "替换过期的 TLS 测试证书。", "relevance": 0},
+        {"text": "修复邮件模板中的错别字。", "relevance": 0},
+        {"text": "优化首页首屏图片加载。", "relevance": 0}
+      ]
+    }
+  ]
+}

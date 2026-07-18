@@ -1,0 +1,103 @@
+{
+  "status": "PASS",
+  "validatorVersions": {
+    "python": "3.9.13",
+    "openapi-spec-validator": "0.7.2",
+    "jsonschema": "4.25.1",
+    "referencing": "0.36.2",
+    "PyYAML": "6.0.3"
+  },
+  "inputFileCount": 63,
+  "inputSha256": "703cc669155a1a94547c8d5c583c90087bc788acba51ed07cb61991562c84b4f",
+  "stepCount": 5,
+  "successCount": 5,
+  "failureCount": 0,
+  "results": [
+    {
+      "name": "contract-compilation",
+      "status": "PASS",
+      "exitCode": 0,
+      "command": [
+        "E:\\Code\\OpsPilot\\.tmp\\venvs\\contracts-py39\\Scripts\\python.exe",
+        "E:\\Code\\OpsPilot\\scripts\\contracts\\validate_contracts.py",
+        "--contracts",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts",
+        "--report",
+        "E:\\Code\\OpsPilot\\outputs\\phase0\\01-WP02\\local-gate\\contract-compilation.json"
+      ],
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"contractsRoot\": \"E:\\\\Code\\\\OpsPilot\\\\docs\\\\design\\\\contracts\",\n  \"validatorVersions\": {\n    \"openapi-spec-validator\": \"0.7.2\",\n    \"jsonschema\": \"4.25.1\",\n    \"referencing\": \"0.36.2\",\n    \"PyYAML\": \"6.0.3\"\n  },\n  \"draft\": \"2020-12\",\n  \"schemaCount\": 12,\n  \"openapiCount\": 1,\n  \"inputFileCount\": 13,\n  \"resolvedRefCount\": 235,\n  \"inputSha256\": \"ce6016119629eb3f7f42d89989ee75e844b8fd9ad0d0f1f7991e96004f358ed5\",\n  \"files\": [\n    {\n      \"path\": \"schemas/a2a-skill-contracts.schema.json\",\n      \"sha256\": \"1175adfe9aa420533b2ba4f8082b296cb322f115dc9b579657cf227ec9096b3c\"\n    },\n    {\n      \"path\": \"schemas/agent-profile.schema.json\",\n      \"sha256\": \"ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80\"\n    },\n    {\n      \"path\": \"schemas/code-findings.schema.json\",\n      \"sha256\": \"244504b8ea9e3082aa73d222ac0711ca02f7be353b6453102e85c1e03b603152\"\n    },\n    {\n      \"path\": \"schemas/evaluation-profile.schema.json\",\n      \"sha256\": \"0bf0845135dc962c26fd3a035f567b29bbc5f1da37d6f64add139f4596382f9a\"\n    },\n    {\n      \"path\": \"schemas/evidence-bundle.schema.json\",\n      \"sha256\": \"cdcbe514d93b27c6a8f3fa3cc51c65d0414f7222bac79102e2b28af44cb9e353\"\n    },\n    {\n      \"path\": \"schemas/ground-truth.schema.json\",\n      \"sha256\": \"e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3\"\n    },\n    {\n      \"path\": \"schemas/incident-event.schema.json\",\n      \"sha256\": \"f6c61029262b35a332860b6a12343836560ce55865e64ba3040fc88a2c7f1a8c\"\n    },\n    {\n      \"path\": \"schemas/observation-batch.schema.json\",\n      \"sha256\": \"a54a0073057ef8f0f9b65fc62802ea9a921c83d5882a247d5d8301699b57c9b8\"\n    },\n    {\n      \"path\": \"schemas/rca.schema.json\",\n      \"sha256\": \"afae75897d7b78567384eac03ac95163f207444a299236468815ddc171479b35\"\n    },\n    {\n      \"path\": \"schemas/release-manifest.schema.json\",\n      \"sha256\": \"c72f4725b5ca6b65c946588699779657586a5c3093837103dc641963d8221594\"\n    },\n    {\n      \"path\": \"schemas/scenario.schema.json\",\n      \"sha256\": \"d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5\"\n    },\n    {\n      \"path\": \"schemas/tool-contracts.schema.json\",\n      \"sha256\": \"b5a719bf2b481eacc7870956a7b8b311508325518e68db96f69ffca34025a2f4\"\n    },\n    {\n      \"path\": \"openapi/opspilot-v1.yaml\",\n      \"sha256\": \"973007c68f2716b0801c752576736f26957d6210dfcf5019d9360073422d358e\"\n    }\n  ],\n  \"errorCount\": 0,\n  \"errors\": []\n}",
+      "stderr": ""
+    },
+    {
+      "name": "formal-instance-validation",
+      "status": "PASS",
+      "exitCode": 0,
+      "command": [
+        "E:\\Code\\OpsPilot\\.tmp\\venvs\\contracts-py39\\Scripts\\python.exe",
+        "E:\\Code\\OpsPilot\\scripts\\contracts\\validate_instances.py",
+        "--contracts",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts",
+        "--mapping",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts\\instance-map.yaml",
+        "--report",
+        "E:\\Code\\OpsPilot\\outputs\\phase0\\01-WP02\\local-gate\\instance-validation.json"
+      ],
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"mapping\": \"instance-map.yaml\",\n  \"mappingSha256\": \"3c6aa9bf38b38e13ef848ad861673395a37d6e357366aad3a531d4a1ef6139f1\",\n  \"formalInstanceCount\": 14,\n  \"mappedInstanceCount\": 14,\n  \"unmappedInstanceCount\": 0,\n  \"requiredCategories\": [\n    \"AGENT_PROFILE\",\n    \"EVALUATION\",\n    \"EVIDENCE\",\n    \"GROUND_TRUTH\",\n    \"OBSERVATION\",\n    \"RCA\",\n    \"RELEASE_MANIFEST\",\n    \"SCENARIO\"\n  ],\n  \"coveredCategories\": [\n    \"AGENT_PROFILE\",\n    \"CODE_FINDINGS\",\n    \"EVALUATION\",\n    \"EVIDENCE\",\n    \"GROUND_TRUTH\",\n    \"OBSERVATION\",\n    \"RCA\",\n    \"RELEASE_MANIFEST\",\n    \"SCENARIO\",\n    \"TOOL_CONTRACT\"\n  ],\n  \"results\": [\n    {\n      \"path\": \"examples/scenarios/database-pool-exhausted-order.yaml\",\n      \"schema\": \"schemas/scenario.schema.json\",\n      \"category\": \"SCENARIO\",\n      \"instanceSha256\": \"a7f32aa5c61ad70e81c857f80cfb89e72efe6f7a96aaa8343d48408072396d77\",\n      \"schemaSha256\": \"d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/scenarios/dependency-latency-inventory.yaml\",\n      \"schema\": \"schemas/scenario.schema.json\",\n      \"category\": \"SCENARIO\",\n      \"instanceSha256\": \"bcc6ddf4f59943a24d884499c4b2d06e8d716a923cb3ed30035fee73667d36c2\",\n      \"schemaSha256\": \"d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/scenarios/service-instance-stopped-inventory.yaml\",\n      \"schema\": \"schemas/scenario.schema.json\",\n      \"category\": \"SCENARIO\",\n      \"instanceSha256\": \"e4a0e5f8a77705318f891089a02d2607230eca4797b61af8648e4ea61de52cfa\",\n      \"schemaSha256\": \"d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/ground-truth/database-pool-exhausted-order.json\",\n      \"schema\": \"schemas/ground-truth.schema.json\",\n      \"category\": \"GROUND_TRUTH\",\n      \"instanceSha256\": \"a20a9094493eba5e6d965cd8301cacf6d6b0c49f7e31c6291e75e1c1e1e255c5\",\n      \"schemaSha256\": \"e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/ground-truth/dependency-latency-inventory.json\",\n      \"schema\": \"schemas/ground-truth.schema.json\",\n      \"category\": \"GROUND_TRUTH\",\n      \"instanceSha256\": \"98fc1eb5222d8cce9f63391bb072bcdea6a94cebb93ecff3f67da6d0f37c9c4f\",\n      \"schemaSha256\": \"e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/ground-truth/service-instance-stopped-inventory.json\",\n      \"schema\": \"schemas/ground-truth.schema.json\",\n      \"category\": \"GROUND_TRUTH\",\n      \"instanceSha256\": \"6232a850b47348aa61ad655b554d95f419aa6f2e8d3109ccd9889c17f80f6c41\",\n      \"schemaSha256\": \"e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/agent-profiles/diagnosis.json\",\n      \"schema\": \"schemas/agent-profile.schema.json\",\n      \"category\": \"AGENT_PROFILE\",\n      \"instanceSha256\": \"f113d81934e0af9ebe39c2a3708ca8df3b758caccf9bb5c0b8c2b8f3fcdc75ac\",\n      \"schemaSha256\": \"ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/observability/prometheus-observation-batch.json\",\n      \"schema\": \"schemas/observation-batch.schema.json\",\n      \"category\": \"OBSERVATION\",\n      \"instanceSha256\": \"502bad9e90bc9823276ef48045b34b94831fbde0a7e8cf4b9cc81728ccd8f350\",\n      \"schemaSha256\": \"a54a0073057ef8f0f9b65fc62802ea9a921c83d5882a247d5d8301699b57c9b8\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/observability/evidence-bundle.json\",\n      \"schema\": \"schemas/evidence-bundle.schema.json\",\n      \"category\": \"EVIDENCE\",\n      \"instanceSha256\": \"9e50a9b50cb003b862dff133a57e2e1546ca6652a1a4885bd549edb9873a5eb8\",\n      \"schemaSha256\": \"cdcbe514d93b27c6a8f3fa3cc51c65d0414f7222bac79102e2b28af44cb9e353\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/rca/inconclusive.json\",\n      \"schema\": \"schemas/rca.schema.json\",\n      \"category\": \"RCA\",\n      \"instanceSha256\": \"ab9d779702073849dc4651ffc0f40aad9afb713432376cd880b534daa90b6c1e\",\n      \"schemaSha256\": \"afae75897d7b78567384eac03ac95163f207444a299236468815ddc171479b35\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"profiles/mvp-v1.yaml\",\n      \"schema\": \"schemas/evaluation-profile.schema.json\",\n      \"category\": \"EVALUATION\",\n      \"instanceSha256\": \"42ae109d6d60a4077af7305e0e9d2e47a033d1d38c7dfbf3c8382e2094cda55f\",\n      \"schemaSha256\": \"0bf0845135dc962c26fd3a035f567b29bbc5f1da37d6f64add139f4596382f9a\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/release-manifest/opspilot-0.1.0-rc.1.json\",\n      \"schema\": \"schemas/release-manifest.schema.json\",\n      \"category\": \"RELEASE_MANIFEST\",\n      \"instanceSha256\": \"66c1df3b3a626091f0afb31bbc3d92ddd964fd2240de992e4ed4fd1131dd2390\",\n      \"schemaSha256\": \"c72f4725b5ca6b65c946588699779657586a5c3093837103dc641963d8221594\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/code-analysis/code-findings.json\",\n      \"schema\": \"schemas/code-findings.schema.json\",\n      \"category\": \"CODE_FINDINGS\",\n      \"instanceSha256\": \"5e7844287010095b4d8603c19c0bf5cb248bee81227d4464dd88fe6712acfa21\",\n      \"schemaSha256\": \"244504b8ea9e3082aa73d222ac0711ca02f7be353b6453102e85c1e03b603152\",\n      \"status\": \"PASS\"\n    },\n    {\n      \"path\": \"examples/tools/metric-query.json\",\n      \"schema\": \"schemas/tool-contracts.schema.json\",\n      \"category\": \"TOOL_CONTRACT\",\n      \"instanceSha256\": \"8e9c8b5a2f92a426958ef5c68224a4b020d05f85d474e89d9d892510a01c9d0f\",\n      \"schemaSha256\": \"b5a719bf2b481eacc7870956a7b8b311508325518e68db96f69ffca34025a2f4\",\n      \"status\": \"PASS\"\n    }\n  ],\n  \"errorCount\": 0,\n  \"errors\": []\n}",
+      "stderr": ""
+    },
+    {
+      "name": "negative-fixture-proof",
+      "status": "PASS",
+      "exitCode": 0,
+      "command": [
+        "E:\\Code\\OpsPilot\\.tmp\\venvs\\contracts-py39\\Scripts\\python.exe",
+        "E:\\Code\\OpsPilot\\scripts\\contracts\\verify_negative_fixtures.py",
+        "--contracts",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts",
+        "--fixtures",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts\\negative-fixtures",
+        "--report",
+        "E:\\Code\\OpsPilot\\outputs\\phase0\\01-WP02\\local-gate\\negative-fixtures.json"
+      ],
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"entryPoint\": \"scripts/contracts/validate_negative_fixture.py\",\n  \"entryPointSha256\": \"ca72b585ebc2ddad6a65f6386162880b2574e7693a88fd28330dff98384bacda\",\n  \"fixtureCount\": 7,\n  \"expectedNonzeroExitCount\": 7,\n  \"results\": [\n    {\n      \"fixtureId\": \"illegal-enum\",\n      \"fixture\": \"negative-fixtures/illegal-enum.yaml\",\n      \"fixtureSha256\": \"0084f3332b48a6f290ef1370b4bde821fa884cb3001c1444e362b5e18d2d9994\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"is not one of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"illegal-enum\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$.severity: 'SEVERE' is not one of ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"invalid-hash\",\n      \"fixture\": \"negative-fixtures/invalid-hash.yaml\",\n      \"fixtureSha256\": \"38cce10fa9c6e30310b47bb6928679486aa24166395c14549b32dd3bf2d71aed\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"does not match '^sha256:[a-f0-9]{64}$'\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"invalid-hash\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$.query.parameterHash: 'sha256:not-a-valid-hash' does not match '^sha256:[a-f0-9]{64}$'\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"invalid-uuid\",\n      \"fixture\": \"negative-fixtures/invalid-uuid.yaml\",\n      \"fixtureSha256\": \"5406925ec46c56130c8e9dde587e84af428b964c9bfa4b820e24e767737827c4\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"is not a 'uuid'\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"invalid-uuid\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$.incidentId: 'not-a-uuid' is not a 'uuid'\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"missing-required\",\n      \"fixture\": \"negative-fixtures/missing-required.yaml\",\n      \"fixtureSha256\": \"e61310e209bdabdcf590f54c737bcbdeca59c6895555614eb12dd8ba9bfd33f2\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"'summary' is a required property\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"missing-required\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$: 'summary' is a required property\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"schema-protocol-version-mixup\",\n      \"fixture\": \"negative-fixtures/schema-protocol-version-mixup.yaml\",\n      \"fixtureSha256\": \"55d076c5c6afd3bac3701ac49efd6f28e07f6cbcb4d36becd29612b3fde87231\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"'schemaVersion' is a required property\",\n        \"protocolVersion\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"schema-protocol-version-mixup\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$: Additional properties are not allowed ('protocolVersion' was unexpected)\\\",\\n    \\\"$: 'schemaVersion' is a required property\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"unknown-security-sensitive-field\",\n      \"fixture\": \"negative-fixtures/unknown-security-sensitive-field.yaml\",\n      \"fixtureSha256\": \"2e566c5995560aa1d7d6deee9c44ed8409ea2777d8ec6ca9cc0fd76d48b18b7e\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"Additional properties are not allowed\",\n        \"privilegedAccessToken\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"unknown-security-sensitive-field\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$: Additional properties are not allowed ('privilegedAccessToken' was unexpected)\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    },\n    {\n      \"fixtureId\": \"wrong-schema-version\",\n      \"fixture\": \"negative-fixtures/wrong-schema-version.yaml\",\n      \"fixtureSha256\": \"a81bf448701b3a5a4d677683039b7632feb88f39ae3c2faa2795b1fd4e373ad6\",\n      \"exitCode\": 1,\n      \"expectedReasons\": [\n        \"'1.0.0' was expected\"\n      ],\n      \"expectedReasonsMatched\": true,\n      \"status\": \"PASS\",\n      \"validatorOutput\": \"{\\n  \\\"fixtureId\\\": \\\"wrong-schema-version\\\",\\n  \\\"status\\\": \\\"REJECTED\\\",\\n  \\\"errors\\\": [\\n    \\\"$.schemaVersion: '1.0.0' was expected\\\"\\n  ]\\n}\",\n      \"validatorStderr\": \"\"\n    }\n  ],\n  \"failures\": []\n}",
+      "stderr": ""
+    },
+    {
+      "name": "openapi-and-markdown",
+      "status": "PASS",
+      "exitCode": 0,
+      "command": [
+        "E:\\Code\\OpsPilot\\.tmp\\venvs\\contracts-py39\\Scripts\\python.exe",
+        "E:\\Code\\OpsPilot\\scripts\\contracts\\validate_documentation.py",
+        "--openapi",
+        "E:\\Code\\OpsPilot\\docs\\design\\contracts\\openapi\\opspilot-v1.yaml",
+        "--markdown-root",
+        "E:\\Code\\OpsPilot\\docs\\design",
+        "--markdown-root",
+        "E:\\Code\\OpsPilot\\docs\\implementation-plan",
+        "--report",
+        "E:\\Code\\OpsPilot\\outputs\\phase0\\01-WP02\\local-gate\\documentation-validation.json"
+      ],
+      "stdout": "{\n  \"status\": \"PASS\",\n  \"openapi\": \"E:/Code/OpsPilot/docs/design/contracts/openapi/opspilot-v1.yaml\",\n  \"openapiSha256\": \"973007c68f2716b0801c752576736f26957d6210dfcf5019d9360073422d358e\",\n  \"operationCount\": 10,\n  \"uniqueOperationIdCount\": 10,\n  \"responseCount\": 19,\n  \"responseSchemaCount\": 20,\n  \"referenceCount\": 63,\n  \"markdownFileCount\": 29,\n  \"localMarkdownLinkCount\": 60,\n  \"markdownInputSha256\": \"8fdc2e2b4e127d44180f3a613d7af1c6892a1ea0cee42c3d52d545f59c26b9e9\",\n  \"errorCount\": 0,\n  \"errors\": []\n}",
+      "stderr": ""
+    },
+    {
+      "name": "failure-regression-tests",
+      "status": "PASS",
+      "exitCode": 0,
+      "command": [
+        "E:\\Code\\OpsPilot\\.tmp\\venvs\\contracts-py39\\Scripts\\python.exe",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "E:\\Code\\OpsPilot\\scripts\\contracts",
+        "-p",
+        "test_documentation_validation.py",
+        "-v"
+      ],
+      "stdout": "",
+      "stderr": "test_broken_markdown_link_fails (test_documentation_validation.DocumentationValidationTest) ... ok\ntest_broken_openapi_ref_fails (test_documentation_validation.DocumentationValidationTest) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.090s\n\nOK"
+    }
+  ]
+}

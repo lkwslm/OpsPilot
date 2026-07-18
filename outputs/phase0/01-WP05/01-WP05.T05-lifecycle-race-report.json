@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "race": {
+    "competitors": ["cancel", "complete"],
+    "successfulTerminalTransitions": 1,
+    "rejectedTerminalTransitions": 1,
+    "terminalRevision": 3,
+    "persistedEvents": 3
+  },
+  "lateTransitions": {
+    "working": "TASK_TERMINAL",
+    "completed": "TASK_TERMINAL",
+    "canceled": "TASK_TERMINAL"
+  },
+  "recovery": {
+    "duplicateSendPreservedTask": true,
+    "streamDisconnectedAfterFirstEvent": true,
+    "serverClientRestartPreservedTerminalState": true,
+    "duplicateSideEffects": 0
+  },
+  "verification": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "result": "BUILD SUCCESS"
+  },
+  "sha256": {
+    "A2aLifecycleRaceTest.java": "8d9d3cafec03a291e6baf8706d0b49097619d2ffd60a459f3a58bc0a648c706f"
+  }
+}

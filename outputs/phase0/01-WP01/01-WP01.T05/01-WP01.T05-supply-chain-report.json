@@ -1,0 +1,62 @@
+{
+  "status": "PASS_WITH_WARNINGS",
+  "sourceCommit": "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+  "versionLockSha256": "54f37163c3e243f8005a3f91f9499dd6927d2e9d8712990c890b2831f837eca7",
+  "tools": {
+    "maven": "3.9.11",
+    "javaForSupplyChainResolution": "17.0.9",
+    "projectJavaRelease": "21",
+    "mavenDependencyPlugin": "3.11.0",
+    "licenseMavenPlugin": "2.7.1",
+    "cyclonedxMavenPlugin": "2.9.2",
+    "dockerSbom": "0.6.0",
+    "dockerScout": "1.18.1"
+  },
+  "maven": {
+    "repository": "E:\\Code\\OpsPilot\\.tmp\\t05-maven-empty-20260718-v2",
+    "initialEntryCount": 0,
+    "dependencyTreeStatus": "PASS",
+    "componentCount": 168,
+    "missingLicenseCount": 0,
+    "dependencyTreeSha256": "e2e002f7ad6dbaf12084dfd90357bda8c0d4991ceb48617256704615438ca2c1",
+    "licenseReportSha256": "b70b6389e20579f1a02c2269a7e37489b7107fe66bdcbcfa2022a7e12c2dd9c3",
+    "sbomSha256": "49a9cd9d0628480d31bf649bc887d84f3ab3166c0f250b634a0ef9cdd46bebbd"
+  },
+  "containers": [
+    {
+      "id": "postgres-pgvector",
+      "immutableRef": "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2",
+      "localIdentityStatus": "PASS",
+      "remoteManifestStatus": "PASS",
+      "componentCount": 156,
+      "missingLicenseCount": 20,
+      "licenseStatus": "WARNING",
+      "sbomSha256": "357a11c03ccafd560b98300a0edebfd3ba8b4f09ba6f98d9836b786586d220e3"
+    },
+    {
+      "id": "infinity",
+      "immutableRef": "michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88",
+      "localIdentityStatus": "PASS",
+      "remoteManifestStatus": "PASS",
+      "componentCount": 384,
+      "missingLicenseCount": 163,
+      "licenseStatus": "WARNING",
+      "sbomSha256": "b08cc35ec73cdf5048c9d831acc06f24e0dbc492a19fabcabe50609594e220c0"
+    }
+  ],
+  "licensePolicy": {
+    "mode": "BEST_EFFORT",
+    "unknownLicenseBlocks": false,
+    "identityGapsBlock": true
+  },
+  "writePolicy": {
+    "projectRoot": "E:\\Code\\OpsPilot",
+    "taskManagedWritesOutsideProjectRoot": 0,
+    "status": "PASS"
+  },
+  "warnings": [
+    "The pgvector image SBOM has 20 components without scanner-resolved license metadata.",
+    "The Infinity image SBOM has 163 components without scanner-resolved license metadata."
+  ],
+  "blockers": []
+}

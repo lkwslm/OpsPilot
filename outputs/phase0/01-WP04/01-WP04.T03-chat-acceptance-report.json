@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "configVersion": "phase0-2026-07-18",
+  "generatedAtUtc": "2026-07-18T09:20:01.873271Z",
+  "modelIdentity": {
+    "provider": "deepseek",
+    "protocol": "openai-chat-completions",
+    "configuredModelId": "deepseek-v4-flash",
+    "actualModelId": "deepseek-v4-flash"
+  },
+  "secretRef": "env:DEEPSEEK_API_KEY",
+  "contextWindowTokens": 1000000,
+  "usage": {
+    "promptTokens": 339,
+    "completionTokens": 202,
+    "totalTokens": 541,
+    "quotaSufficient": true
+  },
+  "requestRecords": [
+    {"requestType": "identity", "status": "PASS", "httpStatus": 200, "timestampUtc": "2026-07-18T09:19:57.615414Z"},
+    {"requestType": "structured_output", "status": "PASS", "httpStatus": 200, "timestampUtc": "2026-07-18T09:19:58.949068Z"},
+    {"requestType": "tool_calling", "status": "PASS", "httpStatus": 200, "timestampUtc": "2026-07-18T09:20:00.375083Z"},
+    {"requestType": "streaming", "status": "PASS", "httpStatus": 200, "eventChunks": 66, "timestampUtc": "2026-07-18T09:20:01.873271Z"}
+  ],
+  "logicalProfiles": [
+    {"id": "default", "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 2048, "maxTaskTokens": 30000, "maxCalls": 12}},
+    {"id": "supervisor", "quota": {"maxConcurrency": 1, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 2048, "maxTaskTokens": 30000, "maxCalls": 12}},
+    {"id": "evidence_collector", "quota": {"maxConcurrency": 2, "maxInputTokensPerCall": 6000, "maxOutputTokensPerCall": 1024, "maxTaskTokens": 12000, "maxCalls": 8}},
+    {"id": "code_analysis", "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 10000, "maxOutputTokensPerCall": 1536, "maxTaskTokens": 18000, "maxCalls": 8}},
+    {"id": "knowledge", "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 5000, "maxOutputTokensPerCall": 768, "maxTaskTokens": 8000, "maxCalls": 6}},
+    {"id": "diagnosis", "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 16000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 40000, "maxCalls": 10}},
+    {"id": "remediation", "quota": {"maxConcurrency": 4, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 24000, "maxCalls": 6}}
+  ],
+  "errors": [],
+  "sensitiveDataPolicy": {
+    "secretValuePersisted": false,
+    "fullPromptPersisted": false,
+    "fullResponsePersisted": false,
+    "groundTruthPersisted": false
+  }
+}

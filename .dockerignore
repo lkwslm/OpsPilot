@@ -1,0 +1,5 @@
+*
+!deployment/Dockerfile.phase0
+!opspilot-server/target/opspilot-server-0.1.0-SNAPSHOT.jar
+!opspilot-server/target/dependency/*.jar
+!opspilot-adapters/persistence-postgres/src/main/resources/db/migration/*.sql

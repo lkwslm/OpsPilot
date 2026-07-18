@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "configVersion": "phase0-2026-07-18",
+  "logicalProfiles": [
+    {"logicalProfileId": "default", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "supervisor", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "evidence_collector", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "code_analysis", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "knowledge", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "diagnosis", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []},
+    {"logicalProfileId": "remediation", "configuredModelId": "deepseek-v4-flash", "actualModelId": "deepseek-v4-flash", "status": "PASS", "gaps": []}
+  ],
+  "negativeTests": [
+    "MODEL_EMPTY",
+    "SECRET_REF_UNRESOLVED",
+    "CONTEXT_WINDOW_UNKNOWN",
+    "CAPABILITY_UNSUPPORTED",
+    "QUOTA_INSUFFICIENT",
+    "PROFILE_UNVERIFIED"
+  ],
+  "tests": {"modelSuite": 13, "failures": 0, "errors": 0}
+}

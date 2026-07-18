@@ -1,0 +1,18 @@
+schemaVersion: "1.0.0"
+image: "michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"
+containerName: "opspilot-infinity-phase0"
+listen: "127.0.0.1:7997"
+cacheHostPath: ".tmp/huggingface"
+cacheContainerPath: "/model-cache"
+device: "cpu"
+batchSize: 4
+modelWarmup: false
+models:
+  - modelId: "BAAI/bge-small-zh-v1.5"
+    revision: "7999e1d3359715c523056ef9478215996d62a620"
+    servedName: "embedding-bge-small-zh-v1.5"
+    capability: "embed"
+  - modelId: "BAAI/bge-reranker-v2-m3"
+    revision: "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+    servedName: "reranker-bge-v2-m3"
+    capability: "rerank"

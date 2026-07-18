@@ -1,0 +1,32 @@
+schema_version: "1.0"
+agents:
+  - id: evidence-collector
+    card_url: http://evidence-agent:8081/.well-known/agent-card.json
+    expected_skill: collect-observability-evidence
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    token_ref: file:/run/secrets/evidence-agent-token
+  - id: code-analysis
+    card_url: http://code-agent:8082/.well-known/agent-card.json
+    expected_skill: analyze-code-location
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    token_ref: file:/run/secrets/code-agent-token
+  - id: knowledge
+    card_url: http://knowledge-agent:8083/.well-known/agent-card.json
+    expected_skill: retrieve-incident-knowledge
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    token_ref: file:/run/secrets/knowledge-agent-token
+  - id: diagnosis
+    card_url: http://diagnosis-agent:8084/.well-known/agent-card.json
+    expected_skill: generate-and-verify-hypotheses
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    token_ref: file:/run/secrets/diagnosis-agent-token
+  - id: remediation
+    card_url: http://remediation-agent:8085/.well-known/agent-card.json
+    expected_skill: propose-remediation
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    token_ref: file:/run/secrets/remediation-agent-token

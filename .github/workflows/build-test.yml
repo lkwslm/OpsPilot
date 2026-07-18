@@ -1,0 +1,39 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      MAVEN_OPTS: -Dmaven.repo.local=${{ github.workspace }}/.tmp/maven-repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+      - name: Build and run tests
+        run: ./mvnw -B -ntp verify
+      - name: Validate immutable versions
+        run: |
+          python -m pip install --disable-pip-version-check -r scripts/contracts/requirements.lock.txt
+          python scripts/versions/validate_versions_lock.py --lock deployment/versions.lock.yaml --schema deployment/schemas/versions-lock.schema.json --report outputs/phase0/01-WP10/ci-versions-lock.json
+      - name: Upload build evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase0-build-test
+          path: outputs/phase0
+          if-no-files-found: error
+          retention-days: 14

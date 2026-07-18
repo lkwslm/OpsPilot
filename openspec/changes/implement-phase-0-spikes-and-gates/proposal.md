@@ -42,4 +42,4 @@ OpsPilot 在进入完整功能开发前，必须先消除框架、协议、真�
 - 合同与数据：`docs/design/contracts/` 校验入口、最小 Flyway、PostgreSQL/pgvector 和版本化证据 JSON。
 - 运行集成：AgentScope Java、A2A Java SDK、真实 Chat/Embedding/Rerank Provider、Prometheus、Jaeger、JSONL、Actuator 与 Compose Adapter。
 - CI：`.github/workflows/contracts.yml`、`build-test.yml`、`security.yml`；工作流只校验和产出证据，不部署环境。
-- 外部条件：准确框架/SDK 版本与 License、真实 Provider 凭证和配额、不可变模型 revision/镜像 digest、目标开发机资源与基准结果必须由 Spike 闭环，不能在规划文档中猜测。
+- 外部条件：准确框架/SDK 版本、真实 Provider 凭证和配额、不可变模型 revision/镜像 digest、目标开发机资源与基准结果必须由 Spike 闭环，不能在规划文档中猜测。License 尽力解析并保留覆盖率；无法识别时记录警告，不阻塞 Phase 0 应用跑通。

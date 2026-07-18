@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "protocol": {
+    "release": "v1.0.1",
+    "sourceRevision": "3303592588e388e62e0f69f701af531d2f4e3991",
+    "wireProtocolVersion": "1.0"
+  },
+  "sdk": {
+    "coordinate": "org.a2aproject.sdk:a2a-java-sdk-spec:1.1.0.Final",
+    "sourceRevision": "6f65898ea6ed1495460ace5a176a48d3c7d00879",
+    "license": "Apache-2.0"
+  },
+  "contract": {
+    "transport": "HTTP+JSON",
+    "cards": [
+      "supervisor",
+      "evidence-collector",
+      "code-analysis",
+      "knowledge",
+      "diagnosis",
+      "remediation"
+    ],
+    "cardCount": 6,
+    "requiredFields": [
+      "supportedInterfaces.protocolVersion",
+      "supportedInterfaces.transport",
+      "skills",
+      "defaultInputModes",
+      "defaultOutputModes"
+    ]
+  },
+  "verification": {
+    "command": "mvn -pl opspilot-a2a -am test -Dtest=Phase0AgentCardsTest -Dsurefire.failIfNoSpecifiedTests=false",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "result": "BUILD SUCCESS"
+  },
+  "sha256": {
+    "Phase0AgentCards.java": "621298a7bb141bdb17b71bad8a29aa58bfe6bcaf4d1c3a02243427647c63921b",
+    "Phase0AgentCardsTest.java": "b0f3ce15f5837c86ea8f15d34798b27ff7ad4df6305e7c01a72e608f0b75f30e",
+    "supervisor.json": "c1565dea5767b7c96dca31fe41f0cd9a19671ae17b1aed63faa0c9e6533cfb95",
+    "evidence-collector.json": "5f5835f4507d43682aa6e6e3797a9861fd9a7b4989e34eb4af106256399a7dfa",
+    "code-analysis.json": "d9a2404334744b4417100c67faa74b319e3cfed8fde26a5f572f778f5741996c",
+    "knowledge.json": "1d0e2eb28cdfa3912f01d2e054382c193aa10e134457c4979c475de41ca09b6a",
+    "diagnosis.json": "beb29199180d72450de15fac850865508c556565e94fe80e48288343d353adae",
+    "remediation.json": "0263fff2b4e33bde04c041bd23b5887dda5eac004840b52a9fbdd35cbf85ea51"
+  }
+}

@@ -1,0 +1,9 @@
+id: invalid-uuid
+base: examples/rca/inconclusive.json
+schema: schemas/rca.schema.json
+mutations:
+  - op: set
+    path: /incidentId
+    value: not-a-uuid
+expectedReasons:
+  - "is not a 'uuid'"

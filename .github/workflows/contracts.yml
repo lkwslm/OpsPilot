@@ -1,0 +1,42 @@
+name: Contract validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PIP_CACHE_DIR: ${{ github.workspace }}/.tmp/pip-cache
+      PYTHONPYCACHEPREFIX: ${{ github.workspace }}/.tmp/python-cache
+      TMPDIR: ${{ github.workspace }}/.tmp/temp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11.9'
+      - name: Create project-local validation environment
+        run: |
+          mkdir -p .tmp/pip-cache .tmp/python-cache .tmp/temp .tmp/venvs
+          python -m venv .tmp/venvs/contracts-ci
+          .tmp/venvs/contracts-ci/bin/python -m pip install --disable-pip-version-check -r scripts/contracts/requirements.lock.txt
+      - name: Run the same contract gate used locally
+        run: |
+          .tmp/venvs/contracts-ci/bin/python scripts/contracts/run_contracts.py \
+            --project-root . \
+            --report-dir outputs/phase0/01-WP02/ci \
+            --summary outputs/phase0/01-WP02/ci/contracts-summary.json
+      - name: Upload contract reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-validation-reports
+          path: outputs/phase0/01-WP02/ci
+          if-no-files-found: error
+          retention-days: 14

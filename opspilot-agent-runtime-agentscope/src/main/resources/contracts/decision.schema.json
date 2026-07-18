@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opspilot.local/runtime/decision/1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "action", "toolName", "arguments"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "action": {"const": "CALL_TOOL"},
+    "toolName": {"type": "string", "minLength": 1},
+    "arguments": {"type": "object"}
+  }
+}

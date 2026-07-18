@@ -1,0 +1,1 @@
+{"timestamp":"2026-07-18T08:00:00Z","level":"ERROR","message":"checkout database pool exhausted active=20 max=20 password=must-redact","service":"sample-system"}

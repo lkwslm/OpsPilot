@@ -1,0 +1,8 @@
+id: missing-required
+base: examples/rca/inconclusive.json
+schema: schemas/rca.schema.json
+mutations:
+  - op: remove
+    path: /summary
+expectedReasons:
+  - "'summary' is a required property"

@@ -1,0 +1,441 @@
+io.github.opspilot.verification:supply-chain-verifier:jar:1.0.0
++- io.agentscope:agentscope-core:jar:2.0.0:compile
+|  +- io.projectreactor:reactor-core:jar:3.8.6:compile (version managed from 3.8.2)
+|  |  +- org.reactivestreams:reactive-streams:jar:1.0.4:compile (version managed from 1.0.4)
+|  |  \- org.jspecify:jspecify:jar:1.0.0:compile (version managed from 1.0.0; scope not updated to compile)
+|  +- com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile (version managed from 2.21.1)
+|  |  +- (com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile - version managed from 2.21; omitted for duplicate)
+|  |  \- com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile (version managed from 2.21.4)
+|  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile (version managed from 2.21)
+|  +- com.github.victools:jsonschema-generator:jar:4.38.0:compile
+|  |  +- com.fasterxml:classmate:jar:1.7.3:compile (version managed from 1.7.0)
+|  |  +- (com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile - version managed from 2.17.2; omitted for duplicate)
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.16; omitted for duplicate)
+|  +- com.github.victools:jsonschema-module-jackson:jar:4.38.0:compile
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.16; omitted for duplicate)
+|  +- com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.4:compile (version managed from 2.21.1)
+|  |  +- (com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile - version managed from 2.21; omitted for duplicate)
+|  |  +- (com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile - version managed from 2.21.4; omitted for duplicate)
+|  |  \- (com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile - version managed from 2.21.4; omitted for duplicate)
+|  +- org.slf4j:slf4j-api:jar:2.0.18:compile (version managed from 2.0.17)
+|  +- io.modelcontextprotocol.sdk:mcp:jar:0.17.0:compile
+|  |  +- io.modelcontextprotocol.sdk:mcp-json-jackson2:jar:0.17.0:compile
+|  |  |  +- io.modelcontextprotocol.sdk:mcp-json:jar:0.17.0:compile
+|  |  |  +- (com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile - version managed from 2.19.2; omitted for duplicate)
+|  |  |  \- (com.networknt:json-schema-validator:jar:2.0.0:compile - omitted for duplicate)
+|  |  \- io.modelcontextprotocol.sdk:mcp-core:jar:0.17.0:compile
+|  |     +- (io.modelcontextprotocol.sdk:mcp-json:jar:0.17.0:compile - omitted for duplicate)
+|  |     +- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.16; omitted for duplicate)
+|  |     +- (com.fasterxml.jackson.core:jackson-annotations:jar:2.21:compile - version managed from 2.19.2; omitted for duplicate)
+|  |     \- (io.projectreactor:reactor-core:jar:3.8.6:compile - version managed from 3.7.0; omitted for duplicate)
+|  +- com.squareup.okhttp3:okhttp:jar:5.3.2:compile
+|  |  +- org.jetbrains.kotlin:kotlin-stdlib:jar:2.3.21:compile (version managed from 2.2.21; scope not updated to compile)
+|  |  |  \- org.jetbrains:annotations:jar:13.0:compile
+|  |  \- com.squareup.okio:okio:jar:3.16.4:runtime
+|  |     \- (com.squareup.okio:okio-jvm:jar:3.16.4:runtime - omitted for duplicate)
+|  +- com.squareup.okhttp3:okhttp-jvm:jar:5.3.2:compile
+|  |  +- com.squareup.okio:okio-jvm:jar:3.16.4:compile (scope not updated to compile)
+|  |  |  \- (org.jetbrains.kotlin:kotlin-stdlib:jar:2.3.21:compile - version managed from 2.2.20; omitted for duplicate)
+|  |  \- (org.jetbrains.kotlin:kotlin-stdlib:jar:2.3.21:compile - version managed from 2.2.21; omitted for duplicate)
+|  +- com.networknt:json-schema-validator:jar:2.0.0:compile
+|  |  +- com.ethlo.time:itu:jar:1.14.0:compile
+|  |  +- (com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile - version managed from 2.18.3; omitted for duplicate)
+|  |  +- (com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.21.4:compile - version managed from 2.18.3; omitted for duplicate)
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.17; omitted for duplicate)
+|  +- org.yaml:snakeyaml:jar:2.6:compile (version managed from 2.6)
+|  +- io.github.bonede:tree-sitter:jar:0.24.4:compile (scope not updated to compile)
+|  +- io.github.bonede:tree-sitter-bash:jar:0.23.3:compile
+|  |  \- (io.github.bonede:tree-sitter:jar:0.24.4:runtime - omitted for duplicate)
+|  +- io.opentelemetry:opentelemetry-api:jar:1.62.0:compile (version managed from 1.61.0; scope not updated to compile)
+|  |  \- io.opentelemetry:opentelemetry-context:jar:1.62.0:compile (version managed from 1.62.0)
+|  |     \- io.opentelemetry:opentelemetry-common:jar:1.62.0:compile (version managed from 1.62.0)
+|  +- io.opentelemetry.instrumentation:opentelemetry-reactor-3.1:jar:2.27.0-alpha:compile
+|  |  +- io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:jar:2.27.0:compile (scope not updated to compile)
+|  |  |  +- (io.opentelemetry:opentelemetry-api:jar:1.62.0:compile - version managed from 1.61.0; omitted for duplicate)
+|  |  |  +- io.opentelemetry:opentelemetry-api-incubator:jar:1.61.0-alpha:compile (scope not updated to compile)
+|  |  |  |  \- (io.opentelemetry:opentelemetry-api:jar:1.62.0:compile - version managed from 1.61.0; omitted for duplicate)
+|  |  |  \- io.opentelemetry.semconv:opentelemetry-semconv:jar:1.40.0:compile (scope not updated to compile)
+|  |  +- io.opentelemetry.instrumentation:opentelemetry-instrumentation-api-incubator:jar:2.27.0-alpha:compile
+|  |  |  +- (io.opentelemetry.semconv:opentelemetry-semconv:jar:1.40.0:compile - omitted for duplicate)
+|  |  |  +- (io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:jar:2.27.0:compile - omitted for duplicate)
+|  |  |  \- (io.opentelemetry:opentelemetry-api-incubator:jar:1.61.0-alpha:compile - omitted for duplicate)
+|  |  +- (io.opentelemetry:opentelemetry-api:jar:1.62.0:compile - version managed from 1.61.0; omitted for duplicate)
+|  |  \- io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations-support:jar:2.27.0-alpha:runtime
+|  |     +- (io.opentelemetry:opentelemetry-api:jar:1.62.0:runtime - version managed from 1.61.0; omitted for duplicate)
+|  |     +- (io.opentelemetry.semconv:opentelemetry-semconv:jar:1.40.0:runtime - omitted for duplicate)
+|  |     +- io.opentelemetry.semconv:opentelemetry-semconv-incubating:jar:1.40.0-alpha:runtime
+|  |     |  \- (io.opentelemetry.semconv:opentelemetry-semconv:jar:1.40.0:runtime - omitted for duplicate)
+|  |     \- (io.opentelemetry.instrumentation:opentelemetry-instrumentation-api:jar:2.27.0:runtime - omitted for duplicate)
+|  +- com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.21.4:compile (version managed from 2.21.1)
+|  |  +- (com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile - version managed from 2.21.4; omitted for duplicate)
+|  |  +- (org.yaml:snakeyaml:jar:2.6:compile - version managed from 2.5; omitted for duplicate)
+|  |  \- (com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile - version managed from 2.21.4; omitted for duplicate)
+|  +- org.apache.commons:commons-compress:jar:1.27.1:compile
+|  |  +- commons-codec:commons-codec:jar:1.21.0:compile (version managed from 1.17.1)
+|  |  +- commons-io:commons-io:jar:2.16.1:compile
+|  |  \- org.apache.commons:commons-lang3:jar:3.20.0:compile (version managed from 3.16.0)
+|  \- org.xerial:sqlite-jdbc:jar:3.53.2.0:compile (version managed from 3.47.1.0)
++- org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile
+|  +- org.a2aproject.sdk:a2a-java-sdk-common:jar:1.1.0.Final:compile
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  \- com.google.code.gson:gson:jar:2.13.2:compile (version managed from 2.14.0)
+|     \- com.google.errorprone:error_prone_annotations:jar:2.41.0:compile
++- org.a2aproject.sdk:a2a-java-sdk-client:jar:1.1.0.Final:compile
+|  +- org.a2aproject.sdk:a2a-java-sdk-http-client:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec-grpc:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (com.google.protobuf:protobuf-java-util:jar:4.34.2:compile - version managed from 4.33.2; omitted for duplicate)
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-client-transport-spi:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-http-client:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  \- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-client-transport-jsonrpc:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-http-client:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-client-transport-spi:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  \- (org.a2aproject.sdk:a2a-java-sdk-spec-grpc:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- (org.a2aproject.sdk:a2a-java-sdk-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  \- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
++- org.a2aproject.sdk:a2a-java-sdk-client-transport-rest:jar:1.1.0.Final:compile
+|  +- (org.a2aproject.sdk:a2a-java-sdk-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  \- (com.google.code.gson:gson:jar:2.13.2:compile - version managed from 2.14.0; omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-spec-grpc:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- com.google.protobuf:protobuf-java:jar:4.34.2:compile (version managed from 4.33.2)
+|  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  +- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  |  \- com.google.api.grpc:proto-google-common-protos:jar:2.70.0:compile (version managed from 2.70.0)
+|  |     \- (com.google.protobuf:protobuf-java:jar:4.34.2:compile - version managed from 4.33.2; omitted for duplicate)
+|  +- (org.a2aproject.sdk:a2a-java-sdk-client-transport-spi:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- (org.a2aproject.sdk:a2a-java-sdk-http-client:jar:1.1.0.Final:compile - omitted for duplicate)
+|  \- com.google.protobuf:protobuf-java-util:jar:4.34.2:compile (version managed from 4.33.2)
+|     +- (com.google.protobuf:protobuf-java:jar:4.34.2:compile - version managed from 4.34.2; omitted for duplicate)
+|     +- com.google.code.findbugs:jsr305:jar:3.0.2:runtime
+|     +- (com.google.code.gson:gson:jar:2.13.2:runtime - version managed from 2.8.9; omitted for duplicate)
+|     \- (com.google.errorprone:error_prone_annotations:jar:2.18.0:runtime - omitted for conflict with 2.41.0)
++- org.a2aproject.sdk:a2a-java-sdk-reference-rest:jar:1.1.0.Final:compile
+|  +- org.a2aproject.sdk:a2a-java-sdk-reference-common:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-server-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- io.quarkus:quarkus-vertx-http:jar:3.36.3:compile
+|  |  |  +- io.quarkus:quarkus-core:jar:3.36.3:compile
+|  |  |  |  +- (jakarta.annotation:jakarta.annotation-api:jar:3.0.0:compile - version managed from 3.0.0; omitted for duplicate)
+|  |  |  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  |  |  +- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  |  |  |  +- io.smallrye.common:smallrye-common-os:jar:2.17.0:compile
+|  |  |  |  +- io.quarkus:quarkus-ide-launcher:jar:3.36.3:compile
+|  |  |  |  +- io.quarkus:quarkus-development-mode-spi:jar:3.36.3:compile
+|  |  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.3.Final; omitted for duplicate)
+|  |  |  |  |  \- (io.smallrye.common:smallrye-common-os:jar:2.17.0:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.config:smallrye-config:jar:3.17.2:compile
+|  |  |  |  |  +- io.smallrye.config:smallrye-config-core:jar:3.17.2:compile
+|  |  |  |  |  |  +- (org.eclipse.microprofile.config:microprofile-config-api:jar:3.1.1-RC1:compile - omitted for duplicate)
+|  |  |  |  |  |  +- (jakarta.annotation:jakarta.annotation-api:jar:3.0.0:compile - version managed from 2.1.1; omitted for duplicate)
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-annotation:jar:2.17.1:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-expression:jar:2.17.1:compile - omitted for conflict with 2.15.0)
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-constraint:jar:2.17.1:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  |  +- io.smallrye.common:smallrye-common-classloader:jar:2.17.1:compile
+|  |  |  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.1.Final; omitted for duplicate)
+|  |  |  |  |  |  +- org.ow2.asm:asm:jar:9.9.1:compile
+|  |  |  |  |  |  \- io.smallrye.config:smallrye-config-common:jar:3.17.2:compile
+|  |  |  |  |  |     +- (org.eclipse.microprofile.config:microprofile-config-api:jar:3.1.1-RC1:compile - omitted for duplicate)
+|  |  |  |  |  |     +- (io.smallrye.common:smallrye-common-classloader:jar:2.17.1:compile - omitted for duplicate)
+|  |  |  |  |  |     \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.1.Final; omitted for duplicate)
+|  |  |  |  |  \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.1.Final; omitted for duplicate)
+|  |  |  |  +- org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile (version managed from 3.6.3.Final)
+|  |  |  |  +- org.jboss.logmanager:jboss-logmanager:jar:3.2.2.Final:compile
+|  |  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.2.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-constraint:jar:2.15.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  +- io.smallrye.common:smallrye-common-cpu:jar:2.15.0:compile
+|  |  |  |  |  +- io.smallrye.common:smallrye-common-expression:jar:2.15.0:compile
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-function:jar:2.15.0:compile - omitted for conflict with 2.14.0)
+|  |  |  |  |  |  \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.0.Final; omitted for duplicate)
+|  |  |  |  |  +- io.smallrye.common:smallrye-common-net:jar:2.15.0:compile
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-constraint:jar:2.15.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  |  \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.0.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-os:jar:2.15.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  +- io.smallrye.common:smallrye-common-ref:jar:2.15.0:compile
+|  |  |  |  |  |  \- (io.smallrye.common:smallrye-common-constraint:jar:2.15.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  +- jakarta.json:jakarta.json-api:jar:2.1.3:compile (version managed from 2.1.3)
+|  |  |  |  |  \- org.eclipse.parsson:parsson:jar:1.1.7:compile
+|  |  |  |  |     \- (jakarta.json:jakarta.json-api:jar:2.1.3:compile - version managed from 2.1.3; omitted for duplicate)
+|  |  |  |  +- org.jboss.threads:jboss-threads:jar:3.9.2:compile
+|  |  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.1.Final; omitted for duplicate)
+|  |  |  |  |  +- (org.wildfly.common:wildfly-common:jar:2.0.1:compile - omitted for duplicate)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-annotation:jar:2.14.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-constraint:jar:2.14.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-cpu:jar:2.14.0:compile - omitted for conflict with 2.15.0)
+|  |  |  |  |  \- io.smallrye.common:smallrye-common-function:jar:2.14.0:compile
+|  |  |  |  |     +- (io.smallrye.common:smallrye-common-constraint:jar:2.14.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |     \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.0.Final; omitted for duplicate)
+|  |  |  |  +- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  |  |  |  +- org.jboss.slf4j:slf4j-jboss-logmanager:jar:2.0.2.Final:compile
+|  |  |  |  +- org.wildfly.common:wildfly-common:jar:2.0.1:compile
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-cpu:jar:2.4.0:compile - omitted for conflict with 2.15.0)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-expression:jar:2.4.0:compile - omitted for conflict with 2.15.0)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-net:jar:2.4.0:compile - omitted for conflict with 2.15.0)
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-os:jar:2.4.0:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  \- (io.smallrye.common:smallrye-common-ref:jar:2.4.0:compile - omitted for conflict with 2.15.0)
+|  |  |  |  +- io.quarkus:quarkus-value-registry:jar:3.36.3:compile
+|  |  |  |  +- io.quarkus:quarkus-bootstrap-runner:jar:3.36.3:compile
+|  |  |  |  |  +- io.quarkus:quarkus-classloader-commons:jar:3.36.3:compile
+|  |  |  |  |  +- io.smallrye.common:smallrye-common-io:jar:2.17.0:compile
+|  |  |  |  |  |  +- (io.smallrye.common:smallrye-common-constraint:jar:2.17.0:compile - omitted for duplicate)
+|  |  |  |  |  |  \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.0.Final; omitted for duplicate)
+|  |  |  |  |  +- (org.jboss.logmanager:jboss-logmanager:jar:3.2.2.Final:compile - omitted for duplicate)
+|  |  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.3.Final; omitted for duplicate)
+|  |  |  |  |  \- (org.crac:crac:jar:1.5.0:compile - version managed from 1.5.0; omitted for duplicate)
+|  |  |  |  \- io.quarkus:quarkus-fs-util:jar:1.4.2:compile
+|  |  |  +- io.quarkus:quarkus-security-runtime-spi:jar:3.36.3:compile
+|  |  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  \- (io.quarkus.security:quarkus-security:jar:2.3.2:compile - omitted for duplicate)
+|  |  |  +- io.quarkus:quarkus-tls-registry:jar:3.36.3:compile
+|  |  |  |  +- io.quarkus:quarkus-tls-registry-spi:jar:3.36.3:compile
+|  |  |  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  +- (io.quarkus.arc:arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  \- (io.quarkus:quarkus-vertx:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  +- (io.quarkus:quarkus-arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  +- (io.quarkus:quarkus-credentials:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  \- io.smallrye.certs:smallrye-private-key-pem-parser:jar:0.9.3:compile
+|  |  |  |     +- (io.smallrye.common:smallrye-common-constraint:jar:2.17.1:compile - omitted for conflict with 2.17.0)
+|  |  |  |     \- (io.vertx:vertx-core:jar:4.5.11:compile - omitted for conflict with 4.5.25)
+|  |  |  +- io.quarkus:quarkus-credentials:jar:3.36.3:compile
+|  |  |  |  \- (io.quarkus.arc:arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  +- io.quarkus:quarkus-mutiny:jar:3.36.3:compile
+|  |  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.reactive:mutiny:jar:3.2.0:compile
+|  |  |  |  |  +- (io.smallrye.common:smallrye-common-annotation:jar:2.17.1:compile - omitted for conflict with 2.17.0)
+|  |  |  |  |  \- org.jctools:jctools-core:jar:4.0.6:compile
+|  |  |  |  +- io.quarkus:quarkus-smallrye-context-propagation:jar:3.36.3:compile
+|  |  |  |  |  +- io.smallrye:smallrye-context-propagation:jar:2.3.0:compile
+|  |  |  |  |  |  +- (org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:jar:1.3:compile - omitted for duplicate)
+|  |  |  |  |  |  +- (org.eclipse.microprofile.config:microprofile-config-api:jar:3.0.2:compile - omitted for conflict with 3.1.1-RC1)
+|  |  |  |  |  |  +- io.smallrye:smallrye-context-propagation-api:jar:2.3.0:compile
+|  |  |  |  |  |  |  \- (org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:jar:1.3:compile - omitted for duplicate)
+|  |  |  |  |  |  +- io.smallrye:smallrye-context-propagation-storage:jar:2.3.0:compile
+|  |  |  |  |  |  \- (org.jboss.threads:jboss-threads:jar:3.5.0.Final:compile - omitted for conflict with 3.9.2)
+|  |  |  |  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  |  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  \- (io.quarkus:quarkus-arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  \- io.smallrye.reactive:mutiny-smallrye-context-propagation:jar:3.2.0:compile
+|  |  |  |     +- (org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:jar:1.3:compile - omitted for duplicate)
+|  |  |  |     +- (io.smallrye.reactive:mutiny:jar:3.2.0:compile - omitted for duplicate)
+|  |  |  |     \- (io.smallrye:smallrye-context-propagation:jar:2.3.0:compile - omitted for duplicate)
+|  |  |  +- io.smallrye.common:smallrye-common-vertx-context:jar:2.17.0:compile
+|  |  |  |  +- io.vertx:vertx-core:jar:4.5.25:compile
+|  |  |  |  |  +- io.netty:netty-common:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  +- io.netty:netty-buffer:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  \- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-transport:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-resolver:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-handler:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-resolver:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- io.netty:netty-transport-native-unix-common:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  \- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-handler-proxy:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- io.netty:netty-codec-socks:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-http:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-handler:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-codec-http:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- io.netty:netty-codec-compression:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-handler:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-codec-http2:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-handler:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-codec-http:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-resolver:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  \- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- io.netty:netty-resolver-dns:jar:4.2.15.Final:compile (version managed from 4.1.130.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-resolver:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- io.netty:netty-codec-dns:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- (io.netty:netty-handler:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  \- (com.fasterxml.jackson.core:jackson-core:jar:2.21.4:compile - version managed from 2.16.1; omitted for duplicate)
+|  |  |  |  \- io.smallrye.common:smallrye-common-constraint:jar:2.17.0:compile
+|  |  |  |     \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.0.Final; omitted for duplicate)
+|  |  |  +- io.quarkus.security:quarkus-security:jar:2.3.2:compile
+|  |  |  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.0.1:compile - omitted for conflict with 4.1.0)
+|  |  |  |  +- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.1.Final; omitted for duplicate)
+|  |  |  |  \- (io.smallrye.reactive:mutiny:jar:3.1.0:compile - omitted for conflict with 3.2.0)
+|  |  |  +- io.quarkus:quarkus-vertx:jar:3.36.3:compile
+|  |  |  |  +- (io.quarkus:quarkus-arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  +- io.quarkus:quarkus-netty:jar:3.36.3:compile
+|  |  |  |  |  +- io.netty:netty-codec:jar:4.2.15.Final:compile (version managed from 4.1.135.Final)
+|  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- (io.netty:netty-codec-compression:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  +- io.netty:netty-codec-protobuf:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |  |  +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  |  \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |  \- io.netty:netty-codec-marshalling:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |  |     +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |     +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |     +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  |     \- (io.netty:netty-codec-base:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.netty:netty-codec-http:jar:4.2.15.Final:compile - version managed from 4.1.135.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.netty:netty-codec-http2:jar:4.2.15.Final:compile - version managed from 4.1.135.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.quarkus:quarkus-arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  +- (io.netty:netty-handler:jar:4.2.15.Final:compile - version managed from 4.1.135.Final; omitted for duplicate)
+|  |  |  |  |  \- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  |  |  +- io.netty:netty-codec-haproxy:jar:4.2.15.Final:compile (version managed from 4.1.135.Final)
+|  |  |  |  |  +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  +- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |  \- io.netty:netty-codec-base:jar:4.2.15.Final:compile (version managed from 4.2.15.Final)
+|  |  |  |  |     +- (io.netty:netty-common:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |     +- (io.netty:netty-buffer:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  |     \- (io.netty:netty-transport:jar:4.2.15.Final:compile - version managed from 4.2.15.Final; omitted for duplicate)
+|  |  |  |  +- io.smallrye.common:smallrye-common-annotation:jar:2.17.0:compile
+|  |  |  |  +- (io.smallrye.common:smallrye-common-vertx-context:jar:2.17.0:compile - omitted for duplicate)
+|  |  |  |  +- (io.quarkus:quarkus-mutiny:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  +- io.quarkus:quarkus-virtual-threads:jar:3.36.3:compile
+|  |  |  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  +- (io.quarkus:quarkus-arc:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.28:compile - omitted for conflict with 4.5.25)
+|  |  |  |  +- io.quarkus:quarkus-vertx-latebound-mdc-provider:jar:3.36.3:compile
+|  |  |  |  |  \- (org.jboss.logmanager:jboss-logmanager:jar:3.2.2.Final:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile
+|  |  |  |  |  +- (io.smallrye.reactive:mutiny:jar:3.2.0:compile - omitted for duplicate)
+|  |  |  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-runtime:jar:3.22.2:compile
+|  |  |  |  |  |  +- (io.smallrye.reactive:mutiny:jar:3.2.0:compile - omitted for duplicate)
+|  |  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.26:compile - omitted for conflict with 4.5.25)
+|  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.26:compile - omitted for conflict with 4.5.25)
+|  |  |  |  +- io.smallrye:smallrye-fault-tolerance-vertx:jar:6.11.1:compile
+|  |  |  |  \- (io.quarkus:quarkus-security-runtime-spi:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-web:jar:3.22.2:compile
+|  |  |  |  +- (io.vertx:vertx-web:jar:4.5.26:compile - omitted for conflict with 4.5.28)
+|  |  |  |  +- (io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-web-common:jar:3.22.2:compile
+|  |  |  |  |  +- (io.vertx:vertx-web-common:jar:4.5.26:compile - omitted for conflict with 4.5.28)
+|  |  |  |  |  \- (io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-auth-common:jar:3.22.2:compile
+|  |  |  |  |  +- (io.vertx:vertx-auth-common:jar:4.5.26:compile - omitted for conflict with 4.5.28)
+|  |  |  |  |  \- (io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile - omitted for duplicate)
+|  |  |  |  +- io.smallrye.reactive:smallrye-mutiny-vertx-bridge-common:jar:3.22.2:compile
+|  |  |  |  |  +- (io.vertx:vertx-bridge-common:jar:4.5.26:compile - omitted for conflict with 4.5.28)
+|  |  |  |  |  \- (io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile - omitted for duplicate)
+|  |  |  |  \- io.smallrye.reactive:smallrye-mutiny-vertx-uri-template:jar:3.22.2:compile
+|  |  |  |     +- io.vertx:vertx-uri-template:jar:4.5.26:compile
+|  |  |  |     |  \- (io.vertx:vertx-core:jar:4.5.26:compile - omitted for conflict with 4.5.25)
+|  |  |  |     \- (io.smallrye.reactive:smallrye-mutiny-vertx-core:jar:3.22.2:compile - omitted for duplicate)
+|  |  |  +- io.vertx:vertx-web:jar:4.5.28:compile
+|  |  |  |  +- io.vertx:vertx-web-common:jar:4.5.28:compile
+|  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.28:compile - omitted for conflict with 4.5.25)
+|  |  |  |  +- io.vertx:vertx-auth-common:jar:4.5.28:compile
+|  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.28:compile - omitted for conflict with 4.5.25)
+|  |  |  |  +- io.vertx:vertx-bridge-common:jar:4.5.28:compile
+|  |  |  |  |  \- (io.vertx:vertx-core:jar:4.5.28:compile - omitted for conflict with 4.5.25)
+|  |  |  |  \- (io.vertx:vertx-core:jar:4.5.28:compile - omitted for conflict with 4.5.25)
+|  |  |  +- org.crac:crac:jar:1.5.0:compile (version managed from 1.5.0)
+|  |  |  \- com.aayushatharva.brotli4j:brotli4j:jar:1.23.0:compile
+|  |  |     +- com.aayushatharva.brotli4j:service:jar:1.23.0:compile
+|  |  |     \- com.aayushatharva.brotli4j:native-windows-x86_64:jar:1.23.0:compile
+|  |  +- io.quarkus:quarkus-arc:jar:3.36.3:compile
+|  |  |  +- io.quarkus.arc:arc:jar:3.36.3:compile
+|  |  |  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  |  |  +- (jakarta.annotation:jakarta.annotation-api:jar:3.0.0:compile - version managed from 3.0.0; omitted for duplicate)
+|  |  |  |  +- jakarta.transaction:jakarta.transaction-api:jar:2.0.1:compile (version managed from 2.0.1)
+|  |  |  |  +- (io.smallrye.reactive:mutiny:jar:3.2.0:compile - omitted for duplicate)
+|  |  |  |  \- (org.jboss.logging:jboss-logging:jar:3.6.3.Final:compile - version managed from 3.6.3.Final; omitted for duplicate)
+|  |  |  +- (io.quarkus:quarkus-core:jar:3.36.3:compile - omitted for duplicate)
+|  |  |  \- org.eclipse.microprofile.context-propagation:microprofile-context-propagation-api:jar:1.3:compile
+|  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  +- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  |  +- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  |  \- org.a2aproject.sdk:a2a-java-sdk-microprofile-config:jar:1.1.0.Final:compile
+|  |     +- (org.a2aproject.sdk:a2a-java-sdk-server-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |     +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |     +- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  |     +- org.eclipse.microprofile.config:microprofile-config-api:jar:3.1.1-RC1:compile
+|  |     \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-transport-rest:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-server-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec-grpc:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  \- (com.google.protobuf:protobuf-java-util:jar:4.34.2:compile - version managed from 4.33.2; omitted for duplicate)
+|  +- org.a2aproject.sdk:a2a-java-sdk-server-common:jar:1.1.0.Final:compile
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-spec-grpc:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-http-client:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- (org.a2aproject.sdk:a2a-java-sdk-client-transport-jsonrpc:jar:1.1.0.Final:compile - omitted for duplicate)
+|  |  +- io.smallrye.reactive:mutiny-zero:jar:1.1.1:compile
+|  |  +- (jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile - omitted for duplicate)
+|  |  +- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  |  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
+|  +- (org.a2aproject.sdk:a2a-java-sdk-jsonrpc-common:jar:1.1.0.Final:compile - omitted for duplicate)
+|  +- jakarta.enterprise:jakarta.enterprise.cdi-api:jar:4.1.0:compile
+|  |  +- jakarta.enterprise:jakarta.enterprise.lang-model:jar:4.1.0:compile
+|  |  +- jakarta.annotation:jakarta.annotation-api:jar:3.0.0:compile (version managed from 3.0.0)
+|  |  +- jakarta.el:jakarta.el-api:jar:6.0.0:compile
+|  |  +- jakarta.interceptor:jakarta.interceptor-api:jar:2.2.0:compile
+|  |  \- (jakarta.inject:jakarta.inject-api:jar:2.0.1:compile - version managed from 2.0.1; omitted for duplicate)
+|  +- jakarta.inject:jakarta.inject-api:jar:2.0.1:compile (version managed from 2.0.1)
+|  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.18; omitted for duplicate)
++- com.tngtech.archunit:archunit:jar:1.4.2:compile
+|  \- (org.slf4j:slf4j-api:jar:2.0.18:compile - version managed from 2.0.17; omitted for duplicate)
+\- org.junit.jupiter:junit-jupiter:jar:6.0.3:compile
+   +- org.junit.jupiter:junit-jupiter-api:jar:6.0.3:compile (version managed from 6.0.3; scope not updated to compile)
+   |  +- org.opentest4j:opentest4j:jar:1.3.0:compile (scope not updated to compile)
+   |  +- org.junit.platform:junit-platform-commons:jar:6.0.3:compile (version managed from 6.0.3; scope not updated to compile)
+   |  |  +- (org.apiguardian:apiguardian-api:jar:1.1.2:compile - omitted for duplicate)
+   |  |  \- (org.jspecify:jspecify:jar:1.0.0:compile - version managed from 1.0.0; omitted for duplicate)
+   |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile (scope not updated to compile)
+   |  \- (org.jspecify:jspecify:jar:1.0.0:compile - version managed from 1.0.0; omitted for duplicate)
+   +- org.junit.jupiter:junit-jupiter-params:jar:6.0.3:compile (version managed from 6.0.3)
+   |  +- (org.junit.jupiter:junit-jupiter-api:jar:6.0.3:compile - version managed from 6.0.3; omitted for duplicate)
+   |  +- (org.apiguardian:apiguardian-api:jar:1.1.2:compile - omitted for duplicate)
+   |  \- (org.jspecify:jspecify:jar:1.0.0:compile - version managed from 1.0.0; omitted for duplicate)
+   \- org.junit.jupiter:junit-jupiter-engine:jar:6.0.3:runtime (version managed from 6.0.3)
+      +- org.junit.platform:junit-platform-engine:jar:6.0.3:runtime (version managed from 6.0.3)
+      |  +- (org.opentest4j:opentest4j:jar:1.3.0:runtime - omitted for duplicate)
+      |  +- (org.junit.platform:junit-platform-commons:jar:6.0.3:runtime - version managed from 6.0.3; omitted for duplicate)
+      |  +- (org.apiguardian:apiguardian-api:jar:1.1.2:runtime - omitted for duplicate)
+      |  \- (org.jspecify:jspecify:jar:1.0.0:runtime - version managed from 1.0.0; omitted for duplicate)
+      +- (org.junit.jupiter:junit-jupiter-api:jar:6.0.3:runtime - version managed from 6.0.3; omitted for duplicate)
+      +- (org.apiguardian:apiguardian-api:jar:1.1.2:runtime - omitted for duplicate)
+      \- (org.jspecify:jspecify:jar:1.0.0:runtime - version managed from 1.0.0; omitted for duplicate)

@@ -1,0 +1,18 @@
+{
+  "schemaVersion" : "1.0.0",
+  "status" : "PASSED",
+  "generatedAt" : "2026-07-18T11:31:21.634236100Z",
+  "realSource" : "read-only JSONL through JsonlLogAdapter",
+  "realA2a" : "HTTP+JSON across supervisor and evidence-agent containers",
+  "realModel" : "deepseek-v4-flash; unreachable endpoint failed closed",
+  "realDatabase" : "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2",
+  "mockOrFakeUsed" : false,
+  "fixedRcaUsed" : false,
+  "silentFallbackUsed" : false,
+  "failureSemantics" : {
+    "source" : "SOURCE_UNAVAILABLE",
+    "a2a" : "A2A_UNAVAILABLE",
+    "model" : "MODEL_UNAVAILABLE",
+    "database" : "DATABASE_UNAVAILABLE"
+  }
+}
