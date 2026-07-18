@@ -17,6 +17,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -102,7 +103,10 @@ final class A2aCrossProcessHttpTest {
 
     private static Process startServerProcess(PostgreSQLContainer postgres, int port)
             throws IOException {
-        String java = Path.of(System.getProperty("java.home"), "bin", "java.exe").toString();
+        String javaExecutable = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win")
+                ? "java.exe"
+                : "java";
+        String java = Path.of(System.getProperty("java.home"), "bin", javaExecutable).toString();
         return new ProcessBuilder(
                 java,
                 "-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"),

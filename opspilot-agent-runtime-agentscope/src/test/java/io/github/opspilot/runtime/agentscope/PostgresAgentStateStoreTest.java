@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,7 +53,10 @@ final class PostgresAgentStateStoreTest {
 
     private static String runChild(String mode, String jdbcUrl, String username, String password)
             throws IOException, InterruptedException {
-        String java = Path.of(System.getProperty("java.home"), "bin", "java.exe").toString();
+        String javaExecutable = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win")
+                ? "java.exe"
+                : "java";
+        String java = Path.of(System.getProperty("java.home"), "bin", javaExecutable).toString();
         List<String> command = new ArrayList<>(List.of(
                 java,
                 "-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"),
