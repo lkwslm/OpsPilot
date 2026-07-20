@@ -1,0 +1,30 @@
+{
+  "change": "implement-phase-2-cohesive-core-module-skeleton",
+  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
+  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "compositionRoot": "opspilot-server/src/main/java/io/github/opspilot/server/OpsPilotCompositionRoot.java",
+  "repositoryOwnership": {
+    "IncidentAgentState": "Supervisor/core via IncidentAgentStateRepository",
+    "AgentRuntimeState": "Agent runtime via AgentRuntimeStatePort",
+    "A2aTaskState": "A2A runtime via A2aTaskStatePort"
+  },
+  "transactionBoundary": "CheckpointUnitOfWork atomically commits state/version, call audits, reference bindings, and outbox facts",
+  "extensionPoints": [
+    "ProviderExtension",
+    "ToolExtension",
+    "SourceExtension",
+    "AnalyzerExtension",
+    "SandboxExtension"
+  ],
+  "assembly": "Explicit composition-root parameters only; no registry, ServiceLoader, classpath scan, or dynamic discovery",
+  "testImplementationPolicy": "Test Ports and InMemoryUnitOfWork exist only under src/test and are never production Providers or fallbacks",
+  "realChainRegression": "Root verify retains real AgentScope, A2A, PostgreSQL/Testcontainers, Source Adapter, and evaluation integration tests",
+  "rootVerify": {
+    "command": ".\\mvnw.cmd verify",
+    "exitCode": 0
+  },
+  "coreVerify": {
+    "command": ".\\mvnw.cmd -pl opspilot-core test",
+    "exitCode": 0
+  }
+}

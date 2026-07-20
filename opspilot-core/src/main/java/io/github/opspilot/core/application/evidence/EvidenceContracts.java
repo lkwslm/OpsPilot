@@ -14,15 +14,47 @@ public final class EvidenceContracts {
     public record NormalizationContext(UUID incidentId, UUID runId, UUID stepId) {
     }
 
+    public interface ProvenanceRef {
+        String kind();
+        UUID batchId();
+        UUID observationId();
+        String sourceId();
+        String artifactSha256();
+        String revision();
+        String location();
+    }
+
     public record RuntimeObservationProvenance(
             String kind,
             UUID batchId,
             UUID observationId,
             String sourceId,
-            String artifactSha256) {
+            String artifactSha256,
+            String revision,
+            String location) implements ProvenanceRef {
         public RuntimeObservationProvenance {
             if (!"RUNTIME_OBSERVATION".equals(kind)) {
                 throw new IllegalArgumentException("Invalid runtime provenance kind");
+            }
+        }
+    }
+
+    public record CodeProvenance(
+            String kind, UUID batchId, UUID observationId, String sourceId,
+            String artifactSha256, String revision, String location) implements ProvenanceRef {
+        public CodeProvenance {
+            if (!"CODE_FINDING".equals(kind)) {
+                throw new IllegalArgumentException("Invalid code provenance kind");
+            }
+        }
+    }
+
+    public record KnowledgeProvenance(
+            String kind, UUID batchId, UUID observationId, String sourceId,
+            String artifactSha256, String revision, String location) implements ProvenanceRef {
+        public KnowledgeProvenance {
+            if (!"KNOWLEDGE_RESULT".equals(kind)) {
+                throw new IllegalArgumentException("Invalid knowledge provenance kind");
             }
         }
     }
@@ -37,7 +69,7 @@ public final class EvidenceContracts {
             Instant windowStart,
             Instant windowEnd,
             List<UUID> artifactIds,
-            List<RuntimeObservationProvenance> provenanceRefs) {
+            List<ProvenanceRef> provenanceRefs) {
         public Evidence {
             artifactIds = List.copyOf(artifactIds);
             provenanceRefs = List.copyOf(provenanceRefs);

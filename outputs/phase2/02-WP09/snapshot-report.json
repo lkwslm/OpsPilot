@@ -1,0 +1,17 @@
+{
+  "change": "implement-phase-2-cohesive-core-module-skeleton",
+  "workPackage": "02-WP09",
+  "group": "snapshot",
+  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
+  "workingTreeDirty": true,
+  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "command": ".\\mvnw.cmd -pl opspilot-core -Dtest=io.github.opspilot.core.state.SnapshotContractTest test",
+  "aggregateCommand": ".\\mvnw.cmd -pl opspilot-core test",
+  "exitCode": 0,
+  "tests": 6,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "durationSeconds": 0.695,
+  "sourceReport": "opspilot-core\\target\\surefire-reports\\TEST-io.github.opspilot.core.state.SnapshotContractTest.xml"
+}

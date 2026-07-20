@@ -11,7 +11,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.UUID;
 
-/** Real DeepSeek structured-RCA adapter. It has no alternate provider or local fallback. */
+/** Test-only DeepSeek structured-RCA fixture retained for the archived Phase 0 gate. */
 final class DeepSeekRcaClient {
     private static final ObjectMapper JSON = new ObjectMapper();
     private final HttpClient http;

@@ -4,14 +4,29 @@ import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
-import io.github.opspilot.core.fixture.ForbiddenSpringDependency;
+import io.github.opspilot.core.fixture.ForbiddenDependencyFixtures;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class CoreArchitectureTest {
+
+    private static final Map<String, String> FORBIDDEN_CATEGORIES = Map.of(
+            "Spring", "org.springframework..",
+            "AgentScope", "io.agentscope..",
+            "A2A SDK", "org.a2aproject.sdk..",
+            "JPA", "jakarta.persistence..",
+            "Prometheus", "io.prometheus..",
+            "Jaeger", "io.jaegertracing..",
+            "Infinity", "ai.infinity..",
+            "vendor SDK", "com.openai..");
 
     private static final String[] FORBIDDEN_PACKAGES = {
             "org.springframework..",
@@ -51,15 +66,32 @@ final class CoreArchitectureTest {
         CORE_DEPENDENCY_RULE.check(productionCore);
     }
 
-    @Test
-    void negativeControlProvesTheRuleRejectsAForbiddenDependency() {
+    @TestFactory
+    Stream<DynamicTest> negativeControlsProveEveryForbiddenCategoryIsRejected() {
         JavaClasses forbiddenFixture = new ClassFileImporter()
-                .importClasses(ForbiddenSpringDependency.class);
+                .importClasses(ForbiddenDependencyFixtures.class);
 
-        AssertionError violation = assertThrows(
-                AssertionError.class,
-                () -> CORE_DEPENDENCY_RULE.check(forbiddenFixture));
+        return FORBIDDEN_CATEGORIES.entrySet().stream().map(entry -> DynamicTest.dynamicTest(
+                entry.getKey(), () -> {
+                    ArchRule categoryRule = noClasses()
+                            .that().resideInAnyPackage("io.github.opspilot.core..")
+                            .should().dependOnClassesThat().resideInAnyPackage(entry.getValue());
+                    AssertionError violation = assertThrows(
+                            AssertionError.class, () -> categoryRule.check(forbiddenFixture));
+                    assertTrue(violation.getMessage().contains(entry.getValue().replace("..", ""))
+                                    || violation.getMessage().contains(entry.getKey()),
+                            violation.getMessage());
+                }));
+    }
 
-        assertTrue(violation.getMessage().contains("org.springframework.context.ApplicationContext"));
+    @Test
+    void domainAndPortPackagesCannotDependOnApplicationImplementations() {
+        JavaClasses productionCore = new ClassFileImporter()
+                .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
+                .importPackages("io.github.opspilot.core");
+
+        noClasses().that().resideInAnyPackage("..core.domain..", "..core.port..")
+                .should().dependOnClassesThat().resideInAnyPackage("..core.application..")
+                .check(productionCore);
     }
 }

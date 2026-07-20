@@ -1,0 +1,49 @@
+{
+  "change": "implement-phase-2-cohesive-core-module-skeleton",
+  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
+  "workingTreeDirty": true,
+  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "rootVerify": {
+    "command": ".\\mvnw.cmd verify",
+    "exitCode": 0
+  },
+  "coreVerify": {
+    "command": ".\\mvnw.cmd -pl opspilot-core test",
+    "exitCode": 0
+  },
+  "gate": "PASSED",
+  "reports": [
+    {
+      "path": "outputs\\phase2\\02-WP09\\state-report.json",
+      "sha256": "40f9771343277f834a9587a7bb5fd518263123493bce23969c1694aad9ab9ef9"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\snapshot-report.json",
+      "sha256": "9bc67c023b565c8aa8cd2dba00fe8fd661b4f8e7765f762d345b958a351fd74f"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\scheduling-report.json",
+      "sha256": "978aa5d2ca40520be1f1ac266cd5991eb109967fbdf7f21abf6d46cb3f253e9d"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\evidence-report.json",
+      "sha256": "2a32d1c13dcae4d781d0e3feecb9b88dcc0be1466eb90e652dc9471d3dc0b113"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\middleware-report.json",
+      "sha256": "399d1a7c672e5321656b7ac5444ea0f477f3c51b0a63255e66751ff7e0fd4cf7"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\transaction-report.json",
+      "sha256": "fe2a370dd875ec2473434e8c70584f93e76ecf20799cf632b2cdad10c00854d4"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\core-dependency-boundary-report.json",
+      "sha256": "f97bdd6a3d00dcd04c7f1e1256ff59f11adbe0a461ed2e0281b5fa06affd5efc"
+    },
+    {
+      "path": "outputs\\phase2\\02-WP09\\boundary-inventory.json",
+      "sha256": "5ab87eb96feb500bde4501cc38d7c921aa1acab7fcf1ee228fa8ec9cbfb39dff"
+    }
+  ]
+}
