@@ -19,7 +19,7 @@ public final class ObservationContracts {
 
     public enum SourceKind { PROMETHEUS, JAEGER, FILE, HTTP, CUSTOM }
 
-    public enum SignalType { LOG, METRIC, TRACE, EVENT, HEALTH, CONFIG, TOPOLOGY }
+    public enum SignalType { LOG, METRIC, TRACE, EVENT, HEALTH, CONFIG, TOPOLOGY, CODE, KNOWLEDGE }
 
     public enum ResourceType {
         SYSTEM, SERVICE, INSTANCE, ENDPOINT, POD, CONTAINER, NODE, CLUSTER, NAMESPACE,

@@ -23,7 +23,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 import java.util.UUID;
 
-/** Minimal real Incident -> Evidence -> RCA -> Evaluation use case for the Phase 0 gate. */
+/** Test fixture for the archived Phase 0 Incident -> Evidence -> RCA -> Evaluation gate. */
 public final class Phase0VerticalSlice {
     private static final ObjectMapper JSON = new ObjectMapper();
     private final Config config;

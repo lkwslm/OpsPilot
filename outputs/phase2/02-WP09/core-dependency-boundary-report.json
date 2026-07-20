@@ -1,0 +1,11 @@
+{
+  "change": "implement-phase-2-cohesive-core-module-skeleton",
+  "sourceCommit": "aed15def7cb3c69fce9d359cc5a24757ae06d4f9",
+  "generatedAt": "2026-07-20T20:36:39.7648900+08:00",
+  "command": ".\\mvnw.cmd -pl opspilot-core dependency:tree -Dscope=compile",
+  "exitCode": 0,
+  "forbiddenDependencyHits": [],
+  "forbiddenBytecodeImportHits": [],
+  "injectedTransitiveNegativeControl": "org.springframework:spring-core:6.0.0",
+  "negativeControlRejected": true
+}

@@ -1,0 +1,30 @@
+change=implement-phase-2-cohesive-core-module-skeleton
+workPackage=02-WP01
+sourceCommit=aed15def7cb3c69fce9d359cc5a24757ae06d4f9
+command=.\mvnw.cmd verify
+exitCode=0
+finishedAt=2026-07-20T20:34:45+08:00
+
+opspilot-parent [pom]
+opspilot-core [jar]
+opspilot-tools-default [jar]
+opspilot-agent-runtime-agentscope [jar]
+opspilot-a2a [jar]
+opspilot-adapter-persistence-postgres [jar]
+opspilot-adapter-model-openai-compatible [jar]
+opspilot-adapter-retrieval-infinity [jar]
+opspilot-adapter-knowledge-pgvector [jar]
+opspilot-adapter-observability [jar]
+opspilot-adapter-code-java [jar]
+opspilot-adapter-sandbox-maven [jar]
+opspilot-adapters [pom]
+opspilot-server [jar]
+opspilot-evaluation [jar]
+sample-system [pom]
+fault-lab [pom]
+opspilot-deployment [pom]
+
+architectureTests=14 passed
+adaptersAggregatorPackaging=pom
+compositionRoot=opspilot-server
+singleInterfaceModules=none

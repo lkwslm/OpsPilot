@@ -1,0 +1,17 @@
+{
+  "change": "implement-phase-2-cohesive-core-module-skeleton",
+  "workPackage": "02-WP09",
+  "group": "scheduling",
+  "sourceCommit": "aed15def7cb3c69fce9d359cc5a24757ae06d4f9",
+  "workingTreeDirty": false,
+  "generatedAt": "2026-07-20T20:36:39.7648900+08:00",
+  "command": ".\\mvnw.cmd -pl opspilot-core -Dtest=io.github.opspilot.core.scheduling.SchedulingContractTest test",
+  "aggregateCommand": ".\\mvnw.cmd -pl opspilot-core test",
+  "exitCode": 0,
+  "tests": 6,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "durationSeconds": 0.031,
+  "sourceReport": "opspilot-core\\target\\surefire-reports\\TEST-io.github.opspilot.core.scheduling.SchedulingContractTest.xml"
+}

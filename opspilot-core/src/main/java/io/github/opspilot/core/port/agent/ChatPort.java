@@ -1,5 +1,10 @@
 package io.github.opspilot.core.port.agent;
 
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderIdentity;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderResult;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderUsage;
+
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -7,6 +12,15 @@ import java.util.Map;
 public interface ChatPort {
 
     ChatResponse complete(ChatRequest request);
+
+    default ProviderResult<ChatResponse> invoke(ChatInvocation invocation) {
+        ChatResponse response = complete(invocation.request());
+        return new ProviderResult<>(response,
+                new ProviderUsage(response.usage().inputTokens(), response.usage().outputTokens(), null), null);
+    }
+
+    record ChatInvocation(ChatRequest request, Instant deadline, ProviderIdentity identity) {
+    }
 
     record ChatRequest(
             String modelId,
