@@ -2,9 +2,9 @@
   "change": "implement-phase-2-cohesive-core-module-skeleton",
   "workPackage": "02-WP09",
   "group": "middleware",
-  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
-  "workingTreeDirty": true,
-  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "sourceCommit": "aed15def7cb3c69fce9d359cc5a24757ae06d4f9",
+  "workingTreeDirty": false,
+  "generatedAt": "2026-07-20T20:36:39.7648900+08:00",
   "command": ".\\mvnw.cmd -pl opspilot-core -Dtest=io.github.opspilot.core.middleware.MiddlewareContractTest test",
   "aggregateCommand": ".\\mvnw.cmd -pl opspilot-core test",
   "exitCode": 0,
@@ -12,6 +12,6 @@
   "failures": 0,
   "errors": 0,
   "skipped": 0,
-  "durationSeconds": 0.069,
+  "durationSeconds": 0.048,
   "sourceReport": "opspilot-core\\target\\surefire-reports\\TEST-io.github.opspilot.core.middleware.MiddlewareContractTest.xml"
 }

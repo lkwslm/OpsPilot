@@ -1,8 +1,8 @@
 {
   "change": "implement-phase-2-cohesive-core-module-skeleton",
-  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
-  "workingTreeDirty": true,
-  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "sourceCommit": "aed15def7cb3c69fce9d359cc5a24757ae06d4f9",
+  "workingTreeDirty": false,
+  "generatedAt": "2026-07-20T20:36:39.7648900+08:00",
   "rootVerify": {
     "command": ".\\mvnw.cmd verify",
     "exitCode": 0
@@ -15,35 +15,35 @@
   "reports": [
     {
       "path": "outputs\\phase2\\02-WP09\\state-report.json",
-      "sha256": "40f9771343277f834a9587a7bb5fd518263123493bce23969c1694aad9ab9ef9"
+      "sha256": "62d6ba3c4cadf2253762a07390609b30dec14ae7da29bd87a42231eb9a5edf29"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\snapshot-report.json",
-      "sha256": "9bc67c023b565c8aa8cd2dba00fe8fd661b4f8e7765f762d345b958a351fd74f"
+      "sha256": "0b30a279be9be118e96abc0018e55b76ce28ca4cebdfb46b6f3dc26dc6a73f20"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\scheduling-report.json",
-      "sha256": "978aa5d2ca40520be1f1ac266cd5991eb109967fbdf7f21abf6d46cb3f253e9d"
+      "sha256": "91a067833406a846decb9504b5f5bd9582228ddf391c292aef7911c9c5b9afc0"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\evidence-report.json",
-      "sha256": "2a32d1c13dcae4d781d0e3feecb9b88dcc0be1466eb90e652dc9471d3dc0b113"
+      "sha256": "d1aead2fb3ed07a7099263de56e09bbcb799de601a7a481ee8a3ece2fbae68dc"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\middleware-report.json",
-      "sha256": "399d1a7c672e5321656b7ac5444ea0f477f3c51b0a63255e66751ff7e0fd4cf7"
+      "sha256": "098f265cf7ff8d72add09be40e6954051d7fd41f0643185f142bd728ec7c3430"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\transaction-report.json",
-      "sha256": "fe2a370dd875ec2473434e8c70584f93e76ecf20799cf632b2cdad10c00854d4"
+      "sha256": "ffafd6f0c8e08de290abeba53fe34dce4002788e5e8e68d8cd71edbf1eca2cd1"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\core-dependency-boundary-report.json",
-      "sha256": "f97bdd6a3d00dcd04c7f1e1256ff59f11adbe0a461ed2e0281b5fa06affd5efc"
+      "sha256": "0ffe3f772e2426b15df8df27f6a5ae1a1550bba34199b8903edd325cb10a5c56"
     },
     {
       "path": "outputs\\phase2\\02-WP09\\boundary-inventory.json",
-      "sha256": "5ab87eb96feb500bde4501cc38d7c921aa1acab7fcf1ee228fa8ec9cbfb39dff"
+      "sha256": "8f627cb20fdfa857e7a62dab68fe222954fead1677602bd9f21cde0a524c4761"
     }
   ]
 }

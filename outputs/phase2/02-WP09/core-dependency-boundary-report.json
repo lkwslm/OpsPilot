@@ -1,7 +1,7 @@
 {
   "change": "implement-phase-2-cohesive-core-module-skeleton",
-  "sourceCommit": "22eae67185d56b581961b033650edccca28244ae",
-  "generatedAt": "2026-07-18T23:40:20.1416789+08:00",
+  "sourceCommit": "aed15def7cb3c69fce9d359cc5a24757ae06d4f9",
+  "generatedAt": "2026-07-20T20:36:39.7648900+08:00",
   "command": ".\\mvnw.cmd -pl opspilot-core dependency:tree -Dscope=compile",
   "exitCode": 0,
   "forbiddenDependencyHits": [],
