@@ -11,7 +11,6 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,7 +20,7 @@ import java.util.TreeSet;
 /** PostgreSQL-backed AgentScope state isolated by server agent, user, and session. */
 public final class PostgresAgentStateStore implements AgentStateStore, AutoCloseable {
 
-    private static final String TABLE = "opspilot_agent_state";
+    private static final String TABLE = "opspilot_a2a.agent_scope_state";
 
     private final String serverAgentId;
     private final String jdbcUrl;
@@ -45,7 +44,6 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
         this.username = Objects.requireNonNull(username, "username");
         this.password = Objects.requireNonNull(password, "password");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
-        initializeSchema();
     }
 
     @Override
@@ -153,31 +151,10 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
         // Connections are opened per operation; there is no process-local state to release.
     }
 
-    private void initializeSchema() {
-        String sql = """
-                CREATE TABLE IF NOT EXISTS opspilot_agent_state (
-                    server_agent_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
-                    session_id TEXT NOT NULL,
-                    state_key TEXT NOT NULL,
-                    state_type TEXT NOT NULL,
-                    is_list BOOLEAN NOT NULL,
-                    state_json JSONB NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (server_agent_id, user_id, session_id, state_key)
-                )
-                """;
-        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            statement.execute(sql);
-        } catch (SQLException exception) {
-            throw persistenceFailure("initialize state schema", exception);
-        }
-    }
-
     private void upsert(
             String userId, String sessionId, String key, String stateType, boolean list, String json) {
         String sql = """
-                INSERT INTO opspilot_agent_state
+                INSERT INTO opspilot_a2a.agent_scope_state
                     (server_agent_id, user_id, session_id, state_key, state_type, is_list, state_json)
                 VALUES (?, ?, ?, ?, ?, ?, ?::jsonb)
                 ON CONFLICT (server_agent_id, user_id, session_id, state_key)
@@ -194,7 +171,7 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
             statement.setString(4, required("key", key));
             statement.setString(5, stateType);
             statement.setBoolean(6, list);
-            statement.setString(7, json);
+            statement.setString(7, envelope(json));
             statement.executeUpdate();
         } catch (SQLException exception) {
             throw persistenceFailure("save state", exception);
@@ -202,7 +179,7 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
     }
 
     private Optional<StoredState> find(String userId, String sessionId, String key) {
-        String sql = "SELECT state_type, is_list, state_json::text FROM " + TABLE
+        String sql = "SELECT state_type, is_list, state_json -> 'payload' FROM " + TABLE
                 + " WHERE server_agent_id = ? AND user_id = ? AND session_id = ? AND state_key = ?";
         try (Connection connection = connection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -246,6 +223,17 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
             return objectMapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {
             throw new IllegalArgumentException("State is not JSON serializable", exception);
+        }
+    }
+
+    private String envelope(String payloadJson) {
+        try {
+            var envelope = objectMapper.createObjectNode();
+            envelope.put("schemaVersion", "1.0.0");
+            envelope.set("payload", objectMapper.readTree(payloadJson));
+            return objectMapper.writeValueAsString(envelope);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("State is not valid JSON", exception);
         }
     }
 

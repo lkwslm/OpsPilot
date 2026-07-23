@@ -1,7 +1,9 @@
 package io.github.opspilot.server;
 
 import com.sun.net.httpserver.HttpServer;
+import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
 import org.junit.jupiter.api.Test;
+import org.postgresql.ds.PGSimpleDataSource;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
@@ -30,6 +32,18 @@ final class Phase0ProcessTest {
         } finally {
             dependency.stop(0);
         }
+    }
+
+    @Test
+    void databaseMismatchKeepsReadinessDownBeforeDependencyTraffic() {
+        var dataSource = new PGSimpleDataSource();
+        dataSource.setUrl("jdbc:postgresql://127.0.0.1:1/unreachable?connectTimeout=1");
+        dataSource.setUser("none");
+        dataSource.setPassword("none");
+        PostgresReadinessCheck database = new PostgresReadinessCheck(dataSource, "7", "0.8.4");
+        var readiness = Phase0Process.readiness(new String[0], database);
+        assertFalse(readiness.ready());
+        assertTrue(readiness.reason().contains("POSTGRES_READINESS_FAILED"));
     }
 
     private static boolean waitUntilReady(String url) throws InterruptedException {

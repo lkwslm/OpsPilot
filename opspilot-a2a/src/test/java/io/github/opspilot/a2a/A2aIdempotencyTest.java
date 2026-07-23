@@ -21,12 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class A2aIdempotencyTest {
 
-    private static final String IMAGE = "pgvector/pgvector:pg16";
+    private static final String IMAGE = A2aPostgresFixture.IMAGE;
 
     @Test
     void returnsOriginalTaskWithoutDuplicateEventsAndRejectsHashConflict() throws Exception {
         try (PostgreSQLContainer postgres = postgres()) {
             postgres.start();
+            A2aPostgresFixture.migrate(postgres);
             try (PostgresA2aTaskStore store = store(postgres);
                  Phase0A2aServer server = new Phase0A2aServer(store, 0)) {
                 server.start();
@@ -54,6 +55,7 @@ final class A2aIdempotencyTest {
     void concurrentDuplicateSendCreatesOneTaskAndOneSetOfSideEffects() throws Exception {
         try (PostgreSQLContainer postgres = postgres()) {
             postgres.start();
+            A2aPostgresFixture.migrate(postgres);
             try (PostgresA2aTaskStore store = store(postgres);
                  Phase0A2aServer server = new Phase0A2aServer(store, 0)) {
                 server.start();

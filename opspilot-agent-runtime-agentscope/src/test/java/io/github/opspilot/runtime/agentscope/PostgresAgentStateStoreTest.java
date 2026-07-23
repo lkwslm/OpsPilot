@@ -1,11 +1,13 @@
 package io.github.opspilot.runtime.agentscope;
 
+import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -15,19 +17,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class PostgresAgentStateStoreTest {
 
-    private static final String IMAGE = "pgvector/pgvector:pg16";
-    private static final String EXPECTED_IMAGE_ID =
-            "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d";
+    private static final String IMAGE =
+            "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2";
 
     @Test
     void restoresTwoIsolatedSessionsAfterRealJvmRestart() throws Exception {
-        assertEquals(EXPECTED_IMAGE_ID, inspectLocalImageId());
-
         try (PostgreSQLContainer postgres = new PostgreSQLContainer(IMAGE)
                 .withDatabaseName("opspilot")
-                .withUsername("opspilot")
+                .withUsername("postgres")
                 .withPassword("phase0-test-only")) {
             postgres.start();
+            try (var connection = DriverManager.getConnection(
+                    postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                 var statement = connection.createStatement()) {
+                statement.execute(resource("/db/bootstrap/roles.sql"));
+            }
+            Flyway.configure()
+                    .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                    .locations("classpath:db/migration")
+                    .load().migrate();
 
             String saveOutput = runChild(
                     "save", postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
@@ -41,14 +49,13 @@ final class PostgresAgentStateStoreTest {
         }
     }
 
-    private static String inspectLocalImageId() throws IOException, InterruptedException {
-        Process process = new ProcessBuilder(
-                "docker", "image", "inspect", IMAGE, "--format", "{{.Id}}")
-                .redirectErrorStream(true)
-                .start();
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-        assertEquals(0, process.waitFor(), output);
-        return output;
+    private static String resource(String name) throws IOException {
+        try (var stream = PostgresAgentStateStoreTest.class.getResourceAsStream(name)) {
+            if (stream == null) {
+                throw new IOException("Missing test resource " + name);
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 
     private static String runChild(String mode, String jdbcUrl, String username, String password)

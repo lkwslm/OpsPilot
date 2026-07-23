@@ -75,8 +75,8 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-            assertEquals("4", queryString(connection,
-                    "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1"));
+            assertEquals("7", queryString(connection,
+                    "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
                     "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('opspilot','opspilot_a2a','sample','opspilot_eval')"));
@@ -92,7 +92,7 @@ final class PostgresPhase0MigrationTest {
 
     @Test
     @Order(2)
-    void phase0MigrationPersistsVerticalSliceAndContainsOnlyFrozenMinimalTables() throws Exception {
+    void phase3MigrationPreservesVerticalSliceWhileExpandingTheFrozenSchema() throws Exception {
         String database = createDatabase("wp07_t02");
         migrate(database, null);
         UUID incidentId = UUID.randomUUID();
@@ -102,16 +102,16 @@ final class PostgresPhase0MigrationTest {
         try (Connection connection = connection(database); Statement statement = connection.createStatement()) {
             statement.executeUpdate("INSERT INTO opspilot.incident VALUES ('" + incidentId + "','sample-system','OPEN',now())");
             statement.executeUpdate("INSERT INTO opspilot.incident_run (run_id,incident_id,status) VALUES ('" + runId + "','" + incidentId + "','CREATED')");
-            statement.executeUpdate("INSERT INTO opspilot.agent_state VALUES ('" + runId + "','1.0','{}',1,now())");
-            statement.executeUpdate("INSERT INTO opspilot.artifact VALUES ('" + artifactId + "','" + runId + "','artifact://phase0','" + "a".repeat(64) + "','application/json','INTERNAL',now())");
+            statement.executeUpdate("INSERT INTO opspilot.agent_state VALUES ('" + runId + "','1.0','{\"schemaVersion\":\"1.0\",\"version\":1}',1,now())");
+            statement.executeUpdate("INSERT INTO opspilot.artifact (artifact_id,run_id,uri,sha256,media_type,access_level,object_key,size_bytes) VALUES ('" + artifactId + "','" + runId + "','artifact://phase0','" + "a".repeat(64) + "','application/json','INTERNAL','" + artifactId + "',0)");
             statement.executeUpdate("INSERT INTO opspilot.evidence (evidence_id,run_id,summary,artifact_id) VALUES ('" + UUID.randomUUID() + "','" + runId + "','phase0 evidence','" + artifactId + "')");
-            statement.executeUpdate("INSERT INTO opspilot.evaluation_result (evaluation_id,run_id,metrics_json) VALUES ('" + UUID.randomUUID() + "','" + runId + "','{\"score\":1}')");
-            statement.executeUpdate("INSERT INTO opspilot_a2a.task VALUES ('task-1','evidence-agent','message-1','hash-1','SUBMITTED','{}',0,now())");
-            statement.executeUpdate("INSERT INTO opspilot_a2a.task_event (task_id,event_type,payload_json) VALUES ('task-1','SUBMITTED','{}')");
-            statement.executeUpdate("INSERT INTO opspilot_a2a.agent_runtime_state VALUES ('evidence-agent','opspilot-system','evidence-agent:task-1','1.0','{}',1,now())");
-            statement.executeUpdate("INSERT INTO opspilot_eval.ground_truth VALUES ('scenario-1','ROOT_CAUSE','[]','[]',NULL,now())");
+            statement.executeUpdate("INSERT INTO opspilot.evaluation_result (evaluation_id,run_id,metrics_json) VALUES ('" + UUID.randomUUID() + "','" + runId + "','{\"schemaVersion\":\"1.0.0\",\"score\":1}')");
+            statement.executeUpdate("INSERT INTO opspilot_a2a.task (task_id,server_agent_id,message_id,request_hash,state,payload_json) VALUES ('task-1','evidence-collector','message-1','hash-1','SUBMITTED','{\"schemaVersion\":\"1.0.0\"}')");
+            statement.executeUpdate("INSERT INTO opspilot_a2a.task_event (task_id,server_agent_id,event_type,payload_json) VALUES ('task-1','evidence-collector','SUBMITTED','{\"schemaVersion\":\"1.0.0\"}')");
+            statement.executeUpdate("INSERT INTO opspilot_a2a.agent_runtime_state VALUES ('evidence-collector','opspilot-system','evidence-agent:task-1','1.0','{\"schemaVersion\":\"1.0\"}',1,now())");
+            statement.executeUpdate("INSERT INTO opspilot_eval.ground_truth (scenario_id,root_cause_code,expected_evidence,expected_actions) VALUES ('scenario-1','ROOT_CAUSE','{\"schemaVersion\":\"1.0.0\",\"items\":[]}','{\"schemaVersion\":\"1.0.0\",\"items\":[]}')");
 
-            assertEquals(PHASE0_TABLES, queryQualifiedTableSet(connection));
+            assertTrue(queryQualifiedTableSet(connection).containsAll(PHASE0_TABLES));
             assertEquals(10, queryInt(connection, "SELECT count(*) FROM ("
                     + "SELECT incident_id::text FROM opspilot.incident UNION ALL "
                     + "SELECT run_id::text FROM opspilot.incident_run UNION ALL "
@@ -166,19 +166,33 @@ final class PostgresPhase0MigrationTest {
     @Order(4)
     void upgradesPreviousVersionAndRejectsProfessionalAgentDomainAndGroundTruthAccess() throws Exception {
         String upgradeDatabase = createDatabase("wp07_t04_upgrade");
-        migrate(upgradeDatabase, "3");
-        try (Connection connection = connection(upgradeDatabase)) {
-            assertEquals("3", queryString(connection,
-                    "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1"));
-            assertFalse(queryBoolean(connection,
+        migrate(upgradeDatabase, "4");
+        UUID legacyIncident = UUID.randomUUID();
+        UUID legacyRun = UUID.randomUUID();
+        UUID legacyArtifact = UUID.randomUUID();
+        try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
+            assertEquals("4", queryString(connection,
+                    "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
+            assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
+            statement.executeUpdate("INSERT INTO opspilot.incident VALUES ('" + legacyIncident
+                    + "','sample-system','OPEN',now())");
+            statement.executeUpdate("INSERT INTO opspilot.incident_run (run_id, incident_id, status) VALUES ('"
+                    + legacyRun + "','" + legacyIncident + "','CREATED')");
+            statement.executeUpdate("INSERT INTO opspilot.artifact "
+                    + "(artifact_id, run_id, uri, sha256, media_type, access_level) VALUES ('"
+                    + legacyArtifact + "','" + legacyRun + "','artifact://legacy','" + "c".repeat(64)
+                    + "','application/json','INTERNAL')");
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("4", queryString(connection,
-                    "SELECT version FROM flyway_schema_history WHERE success ORDER BY installed_rank DESC LIMIT 1"));
+            assertEquals("7", queryString(connection,
+                    "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
+            assertEquals(1, queryInt(connection,
+                    "SELECT count(*) FROM opspilot.artifact WHERE artifact_id = '" + legacyArtifact
+                            + "' AND object_key = '" + legacyArtifact + "' AND size_bytes = 0"));
 
             statement.execute("SET ROLE evidence_agent_role");
             PSQLException domainDenied = assertThrows(PSQLException.class, () -> statement.executeUpdate(
@@ -192,8 +206,36 @@ final class PostgresPhase0MigrationTest {
 
         String emptyDatabase = createDatabase("wp07_t04_empty");
         migrate(emptyDatabase, null);
-        try (Connection connection = connection(emptyDatabase)) {
-            assertEquals(PHASE0_TABLES, queryQualifiedTableSet(connection));
+        try (Connection connection = connection(emptyDatabase);
+             Connection upgraded = connection(upgradeDatabase)) {
+            assertTrue(queryQualifiedTableSet(connection).containsAll(PHASE0_TABLES));
+            assertEquals(schemaDigest(connection), schemaDigest(upgraded));
+        }
+    }
+
+    @Test
+    @Order(5)
+    void everyVersionMigratesOnTheLockedEmptyDatabaseAndHasStableChecksums() throws Exception {
+        for (int version = 1; version <= 7; version++) {
+            String database = createDatabase("wp10_empty_v" + version);
+            migrate(database, Integer.toString(version));
+            try (Connection connection = connection(database)) {
+                assertEquals(Integer.toString(version), queryString(connection,
+                        "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL "
+                                + "ORDER BY installed_rank DESC LIMIT 1"));
+                assertEquals(version, queryInt(connection,
+                        "SELECT count(*) FROM flyway_schema_history WHERE success AND version IS NOT NULL"));
+                assertEquals(0, queryInt(connection,
+                        "SELECT count(*) FROM flyway_schema_history "
+                                + "WHERE success AND version IS NOT NULL AND checksum IS NULL"));
+            }
+            var validation = Flyway.configure()
+                    .dataSource(jdbcUrl(database), postgres.getUsername(), postgres.getPassword())
+                    .locations("classpath:db/migration")
+                    .target(Integer.toString(version))
+                    .load().validateWithResult();
+            assertTrue(validation.validationSuccessful, validation.errorDetails == null
+                    ? "validation failed" : validation.errorDetails.errorMessage);
         }
     }
 
@@ -285,5 +327,28 @@ final class PostgresPhase0MigrationTest {
             assertTrue(result.next());
             return result.getInt(1);
         }
+    }
+
+    private static String schemaDigest(Connection connection) throws SQLException {
+        return queryString(connection, """
+                SELECT md5(string_agg(item, chr(10) ORDER BY item))
+                FROM (
+                    SELECT 'column|' || table_schema || '.' || table_name || '|' || ordinal_position
+                           || '|' || column_name || '|' || data_type || '|' || is_nullable AS item
+                    FROM information_schema.columns
+                    WHERE table_schema IN ('opspilot','opspilot_a2a','sample','opspilot_eval')
+                    UNION ALL
+                    SELECT 'constraint|' || n.nspname || '.' || c.relname || '|' || con.conname
+                           || '|' || pg_get_constraintdef(con.oid)
+                    FROM pg_constraint con
+                    JOIN pg_class c ON c.oid = con.conrelid
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname IN ('opspilot','opspilot_a2a','sample','opspilot_eval')
+                    UNION ALL
+                    SELECT 'index|' || schemaname || '.' || tablename || '|' || indexname || '|' || indexdef
+                    FROM pg_indexes
+                    WHERE schemaname IN ('opspilot','opspilot_a2a','sample','opspilot_eval')
+                ) catalog
+                """);
     }
 }
