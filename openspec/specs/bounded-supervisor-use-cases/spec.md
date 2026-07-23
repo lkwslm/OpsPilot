@@ -1,7 +1,7 @@
 # bounded-supervisor-use-cases Specification
 
 ## Purpose
-定义 Core 调查用例、有界 Supervisor 调度、预算、取消、恢复与停止语义。
+定义 Core 调查用例、有界 Supervisor 调度、预算、取消、恢复与停止语义，确保调查编排在资源边界内可终止、可恢复并产生确定的业务结果。
 
 ## Requirements
 

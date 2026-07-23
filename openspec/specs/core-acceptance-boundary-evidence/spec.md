@@ -1,7 +1,7 @@
 # core-acceptance-boundary-evidence Specification
 
 ## Purpose
-定义 Phase 2 Core 的专项验收、依赖边界与可复现证据要求。
+定义 Phase 2 Core 的专项验收、依赖边界与可复现证据要求，确保验收结论能够由自动化检查和持久化证据独立复现，并可追溯至明确的交付边界。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # domain-identity-error-contracts Specification
 
 ## Purpose
-定义 Core 的强类型身份、组合身份、稳定根因代码和受控错误链合同。
+定义 Core 的强类型身份、组合身份、稳定根因代码和受控错误链合同，确保跨模块引用、失败传播与外部响应具有一致、稳定且可追踪的领域语义。
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # core-ports-evidence-boundary Specification
 
 ## Purpose
-定义 Core 的窄 Port、代码快照链、Evidence 唯一规范化入口和受控扩展边界。
+定义 Core 的窄 Port、代码快照链、Evidence 唯一规范化入口和受控扩展边界，确保核心层保持技术无关，并使所有证据写入遵循一致且可验证的合同。
 
 ## Requirements
 
