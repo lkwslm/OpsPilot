@@ -2,19 +2,20 @@ schema: spec-driven
 
 context: |
   项目：OpsPilot，本地可运行、可验证、可复现的智能运维演示系统。
-  当前变更只覆盖 docs/implementation-plan/02-cohesive-core-and-module-skeleton.md 定义的阶段 02。
+  当前变更只覆盖 docs/implementation-plan/03-postgresql-pgvector-and-artifacts.md 定义的阶段 03。
   事实源优先级：docs/design/contracts/ 中的 OpenAPI 与 JSON Schema，其次为设计中的状态矩阵、不变量和模块边界，再其次为阶段计划。
-  本阶段只实现内聚核心、模块骨架、状态机、窄 Port、仅位于测试源码的合同测试实现和事务语义，不提前实现真实持久化、Provider、AgentScope 映射、A2A HTTP 或产品 Controller。
-  测试 Port 只验证 core 纯逻辑和合同，不得替代或绕过真实 Provider、Source、A2A、PostgreSQL/pgvector 及检索链路的根门禁与集成验证，也不得成为生产回退。
+  本阶段实现 PostgreSQL/pgvector 持久化、四 schema 与角色隔离、Repository/UnitOfWork、事务 outbox、知识版本原语、Artifact 本地卷 Adapter、持久任务租约、SSE 重放及迁移交付证据。
+  本阶段不实现 Provider 驱动的知识导入编排，不引入 Redis、外部向量库、通用对象存储或未经基准验证的 ANN 索引。
+  所有数据库、权限、并发、向量和 Artifact 合同必须由 PostgreSQL/pgvector Testcontainers 集成测试验证，不得使用 H2 或 Hibernate 自动建表替代。
   文档、需求、场景、设计决策和任务说明统一使用中文；协议字段名、代码标识符、路径、命令及标准术语保留原文。
 
 rules:
   proposal:
-    - 明确阶段 02 的核心边界、非目标、前置门禁和可验证结果。
+    - 明确阶段 03 的持久化边界、非目标、前置门禁和可验证结果。
   specs:
     - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的冻结阈值和失败语义。
   design:
-    - 记录工作包依赖、事实源边界、状态所有权、事务语义、测试实现限制和阻塞条件，不扩展阶段范围。
+    - 记录工作包依赖、数据库与 Artifact 边界、角色权限、事务语义、版本切换、测试限制和阻塞条件，不扩展阶段范围。
   tasks:
-    - 保留 02-WPxx.Txx 编号，任务必须能追溯到实施落点、验证命令或证据。
+    - 保留 03-WPxx.Txx 编号，任务必须能追溯到实施落点、验证命令或证据。
     - 使用未勾选复选框，不把规划工作误标为已完成。

@@ -10,9 +10,7 @@ import io.github.opspilot.a2a.server.PostgresA2aTaskStore;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,15 +18,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 final class A2aRestartRecoveryTest {
 
-    private static final String IMAGE = "pgvector/pgvector:pg16";
-    private static final String EXPECTED_IMAGE_ID =
-            "sha256:b295c2aa92725ecaaa58ffb6664035b45076318d8ca93ae4a9b0994481862f7d";
+    private static final String IMAGE = A2aPostgresFixture.IMAGE;
 
     @Test
     void replaysStreamAndArtifactAfterDisconnectAndServerClientRestart() throws Exception {
-        assertEquals(EXPECTED_IMAGE_ID, inspectLocalImageId());
         try (PostgreSQLContainer postgres = postgres()) {
             postgres.start();
+            A2aPostgresFixture.migrate(postgres);
             String taskId;
 
             try (PostgresA2aTaskStore store = store(postgres);
@@ -84,13 +80,4 @@ final class A2aRestartRecoveryTest {
         return new Phase0A2aClient(URI.create("http://127.0.0.1:" + server.port() + "/"));
     }
 
-    private static String inspectLocalImageId() throws IOException, InterruptedException {
-        Process process = new ProcessBuilder(
-                "docker", "image", "inspect", IMAGE, "--format", "{{.Id}}")
-                .redirectErrorStream(true)
-                .start();
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
-        assertEquals(0, process.waitFor(), output);
-        return output;
-    }
 }

@@ -3,6 +3,8 @@ package io.github.opspilot.server;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.github.opspilot.adapters.observability.JsonlLogAdapter;
+import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
+import org.flywaydb.core.Flyway;
 import io.github.opspilot.core.application.evidence.EvidenceContracts.NormalizationContext;
 import io.github.opspilot.core.application.evidence.RuntimeEvidenceNormalizer;
 import io.github.opspilot.core.port.observability.ObservationContracts;
@@ -21,11 +23,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import org.postgresql.ds.PGSimpleDataSource;
 
 /** Minimal Phase 0 process used to prove the frozen six-process boundary. */
 public final class Phase0Process {
@@ -49,7 +54,7 @@ public final class Phase0Process {
             switch (args[0]) {
                 case "probe" -> probe(args[1]);
                 case "call" -> call(args);
-                case "migrate" -> validateMigrations();
+                case "migrate" -> migrateDatabase(System.getenv());
                 case "retrieval-gate" -> retrievalGate();
                 default -> throw new IllegalArgumentException("Unknown command");
             }
@@ -60,10 +65,11 @@ public final class Phase0Process {
 
     static void serve(Map<String, String> environment) throws Exception {
         RuntimeIdentity identity = RuntimeIdentity.from(environment);
+        PostgresReadinessCheck databaseReadiness = databaseReadiness(environment);
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", identity.profile.port), 0);
         server.createContext("/actuator/health/liveness", exchange -> json(exchange, 200, "{\"status\":\"UP\"}"));
         server.createContext("/actuator/health/readiness", exchange -> {
-            Readiness readiness = readiness(identity.readinessUrls);
+            Readiness readiness = readiness(identity.readinessUrls, databaseReadiness);
             json(exchange, readiness.ready ? 200 : 503,
                     "{\"status\":\"" + (readiness.ready ? "UP" : "DOWN")
                             + "\",\"reason\":\"" + readiness.reason + "\"}");
@@ -79,6 +85,16 @@ public final class Phase0Process {
     }
 
     static Readiness readiness(String[] urls) {
+        return readiness(urls, null);
+    }
+
+    static Readiness readiness(String[] urls, PostgresReadinessCheck database) {
+        if (database != null) {
+            var result = database.check();
+            if (!result.ready()) {
+                return new Readiness(false, result.reason());
+            }
+        }
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(300)).build();
         for (String url : urls) {
             if (url.isBlank()) {
@@ -97,6 +113,17 @@ public final class Phase0Process {
             }
         }
         return new Readiness(true, "READY");
+    }
+
+    private static PostgresReadinessCheck databaseReadiness(Map<String, String> environment) throws IOException {
+        var dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(RuntimeIdentity.required(environment, "JDBC_URL"));
+        dataSource.setUser(RuntimeIdentity.required(environment, "DB_USERNAME"));
+        dataSource.setPassword(Files.readString(
+                Path.of(RuntimeIdentity.required(environment, "DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
+        return new PostgresReadinessCheck(dataSource,
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "7"),
+                environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 
     private static void handleMessage(HttpExchange exchange, RuntimeIdentity identity) throws IOException {
@@ -247,12 +274,48 @@ public final class Phase0Process {
         }
     }
 
-    private static void validateMigrations() {
-        Path migrations = Path.of("/app/migrations");
-        if (!Files.isRegularFile(migrations.resolve("V4__enforce_one_active_run.sql"))) {
+    private static void migrateDatabase(Map<String, String> environment) throws IOException {
+        String jdbcUrl = RuntimeIdentity.required(environment, "JDBC_URL");
+        String username = RuntimeIdentity.required(environment, "MIGRATOR_USERNAME");
+        if (!"opspilot_migrator".equals(username)) {
+            throw new IllegalStateException("MIGRATOR_IDENTITY_INCOMPATIBLE");
+        }
+        String password = Files.readString(
+                Path.of(RuntimeIdentity.required(environment, "MIGRATOR_PASSWORD_FILE")),
+                StandardCharsets.UTF_8).strip();
+        String locations = environment.getOrDefault("FLYWAY_LOCATIONS", "filesystem:/app/migrations");
+        Flyway.configure()
+                .dataSource(jdbcUrl, username, password)
+                .locations(locations)
+                .target("1")
+                .validateOnMigrate(true)
+                .load().migrate();
+        demoteMigrator(jdbcUrl, username, password);
+        var result = Flyway.configure()
+                .dataSource(jdbcUrl, username, password)
+                .locations(locations)
+                .validateOnMigrate(true)
+                .load().migrate();
+        if (result.targetSchemaVersion == null || !"7".equals(result.targetSchemaVersion.toString())) {
             throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE");
         }
-        System.out.println("MIGRATION_SET_VALIDATED version=4");
+        System.out.println("MIGRATION_SET_VALIDATED version=7 migrations=" + result.migrationsExecuted);
+    }
+
+    private static void demoteMigrator(String jdbcUrl, String username, String password) {
+        try (var connection = DriverManager.getConnection(jdbcUrl, username, password);
+             var query = connection.prepareStatement("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")) {
+            try (var result = query.executeQuery()) {
+                if (!result.next() || !result.getBoolean(1)) {
+                    return;
+                }
+            }
+            try (var statement = connection.createStatement()) {
+                statement.execute("ALTER ROLE opspilot_migrator NOSUPERUSER");
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("MIGRATOR_DEMOTION_FAILED", exception);
+        }
     }
 
     private static void retrievalGate() {

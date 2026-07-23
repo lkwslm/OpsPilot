@@ -15,7 +15,6 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
@@ -26,15 +25,21 @@ import java.util.UUID;
 /** Minimal PostgreSQL A2A task and event store with replay after process restart. */
 public final class PostgresA2aTaskStore implements AutoCloseable {
 
+    private final String serverAgentId;
     private final String jdbcUrl;
     private final String username;
     private final String password;
 
     public PostgresA2aTaskStore(String jdbcUrl, String username, String password) {
+        this("opspilot-server", jdbcUrl, username, password);
+    }
+
+    public PostgresA2aTaskStore(
+            String serverAgentId, String jdbcUrl, String username, String password) {
+        this.serverAgentId = required("serverAgentId", serverAgentId);
         this.jdbcUrl = required("jdbcUrl", jdbcUrl);
         this.username = Objects.requireNonNull(username, "username");
         this.password = Objects.requireNonNull(password, "password");
-        initializeSchema();
     }
 
     public CreateResult create(A2aSendRequest request) {
@@ -66,10 +71,11 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
     }
 
     public long eventCount(String taskId) {
-        String sql = "SELECT COUNT(*) FROM phase0_a2a_task_event WHERE task_id = ?";
+        String sql = "SELECT COUNT(*) FROM opspilot_a2a.task_event WHERE server_agent_id = ? AND task_id = ?";
         try (Connection connection = connection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, required("taskId", taskId));
+            statement.setString(1, serverAgentId);
+            statement.setString(2, required("taskId", taskId));
             try (ResultSet result = statement.executeQuery()) {
                 result.next();
                 return result.getLong(1);
@@ -96,10 +102,12 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
 
     public Optional<A2aTask> get(String taskId) {
         String sql = "SELECT task_id, context_id, message_id, state, artifact_id, media_type, "
-                + "schema_version, sha256, payload, revision FROM phase0_a2a_task WHERE task_id = ?";
+                + "schema_version, sha256, artifact_payload AS payload, revision FROM opspilot_a2a.task "
+                + "WHERE server_agent_id = ? AND task_id = ?";
         try (Connection connection = connection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, required("taskId", taskId));
+            statement.setString(1, serverAgentId);
+            statement.setString(2, required("taskId", taskId));
             try (ResultSet result = statement.executeQuery()) {
                 return result.next() ? Optional.of(readTask(result)) : Optional.empty();
             }
@@ -110,13 +118,14 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
 
     public List<A2aTaskEvent> eventsAfter(String taskId, long sequence) {
         String sql = "SELECT task_id, context_id, message_id, state, artifact_id, media_type, "
-                + "schema_version, sha256, payload, revision FROM phase0_a2a_task_event "
-                + "WHERE task_id = ? AND revision > ? ORDER BY revision";
+                + "schema_version, sha256, artifact_payload AS payload, revision FROM opspilot_a2a.task_event "
+                + "WHERE server_agent_id = ? AND task_id = ? AND revision > ? ORDER BY revision";
         List<A2aTaskEvent> events = new ArrayList<>();
         try (Connection connection = connection();
              PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, required("taskId", taskId));
-            statement.setLong(2, sequence);
+            statement.setString(1, serverAgentId);
+            statement.setString(2, required("taskId", taskId));
+            statement.setLong(3, sequence);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     A2aTask task = readTask(result);
@@ -160,10 +169,11 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
 
     private A2aTask lock(Connection connection, String taskId) throws SQLException {
         String sql = "SELECT task_id, context_id, message_id, state, artifact_id, media_type, "
-                + "schema_version, sha256, payload, revision FROM phase0_a2a_task "
-                + "WHERE task_id = ? FOR UPDATE";
+                + "schema_version, sha256, artifact_payload AS payload, revision FROM opspilot_a2a.task "
+                + "WHERE server_agent_id = ? AND task_id = ? FOR UPDATE";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, required("taskId", taskId));
+            statement.setString(1, serverAgentId);
+            statement.setString(2, required("taskId", taskId));
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
                     throw new IllegalArgumentException("TASK_NOT_FOUND:" + taskId);
@@ -173,63 +183,20 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         }
     }
 
-    private void initializeSchema() {
-        String taskSql = """
-                CREATE TABLE IF NOT EXISTS phase0_a2a_task (
-                    task_id TEXT PRIMARY KEY,
-                    context_id TEXT NOT NULL,
-                    message_id TEXT NOT NULL,
-                    request_hash TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    artifact_id TEXT,
-                    media_type TEXT,
-                    schema_version TEXT,
-                    sha256 TEXT,
-                    payload TEXT,
-                    revision BIGINT NOT NULL,
-                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-                """;
-        String eventSql = """
-                CREATE TABLE IF NOT EXISTS phase0_a2a_task_event (
-                    task_id TEXT NOT NULL,
-                    context_id TEXT NOT NULL,
-                    message_id TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    artifact_id TEXT,
-                    media_type TEXT,
-                    schema_version TEXT,
-                    sha256 TEXT,
-                    payload TEXT,
-                    revision BIGINT NOT NULL,
-                    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (task_id, revision)
-                )
-                """;
-        try (Connection connection = connection(); Statement statement = connection.createStatement()) {
-            statement.execute(taskSql);
-            statement.execute("ALTER TABLE phase0_a2a_task "
-                    + "ADD COLUMN IF NOT EXISTS request_hash TEXT");
-            statement.execute("CREATE UNIQUE INDEX IF NOT EXISTS phase0_a2a_message_id_uq "
-                    + "ON phase0_a2a_task (message_id)");
-            statement.execute(eventSql);
-        } catch (SQLException exception) {
-            throw persistenceFailure("initialize task schema", exception);
-        }
-    }
-
     private boolean insertTask(Connection connection, A2aTask task, String requestHash)
             throws SQLException {
-        String sql = "INSERT INTO phase0_a2a_task "
-                + "(task_id, context_id, message_id, request_hash, state, revision) "
-                + "VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (message_id) DO NOTHING";
+        String sql = "INSERT INTO opspilot_a2a.task "
+                + "(task_id, server_agent_id, context_id, message_id, request_hash, state, payload_json, revision) "
+                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?) "
+                + "ON CONFLICT (server_agent_id, message_id) DO NOTHING";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, task.taskId());
-            statement.setString(2, task.contextId());
-            statement.setString(3, task.messageId());
-            statement.setString(4, requestHash);
-            statement.setString(5, task.state().name());
-            statement.setLong(6, task.revision());
+            statement.setString(2, serverAgentId);
+            statement.setString(3, task.contextId());
+            statement.setString(4, task.messageId());
+            statement.setString(5, requestHash);
+            statement.setString(6, task.state().name());
+            statement.setLong(7, task.revision());
             return statement.executeUpdate() == 1;
         }
     }
@@ -237,10 +204,11 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
     private A2aTask findByMessageId(
             Connection connection, String messageId, String expectedHash) throws SQLException {
         String sql = "SELECT task_id, context_id, message_id, state, artifact_id, media_type, "
-                + "schema_version, sha256, payload, revision, request_hash "
-                + "FROM phase0_a2a_task WHERE message_id = ?";
+                + "schema_version, sha256, artifact_payload AS payload, revision, request_hash "
+                + "FROM opspilot_a2a.task WHERE server_agent_id = ? AND message_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, messageId);
+            statement.setString(1, serverAgentId);
+            statement.setString(2, messageId);
             try (ResultSet result = statement.executeQuery()) {
                 if (!result.next()) {
                     throw new IllegalStateException("IDEMPOTENCY_RECORD_MISSING:" + messageId);
@@ -254,27 +222,31 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
     }
 
     private void updateTask(Connection connection, A2aTask task) throws SQLException {
-        String sql = "UPDATE phase0_a2a_task SET state = ?, artifact_id = ?, media_type = ?, "
-                + "schema_version = ?, sha256 = ?, payload = ?, revision = ?, "
-                + "updated_at = CURRENT_TIMESTAMP WHERE task_id = ?";
+        String sql = "UPDATE opspilot_a2a.task SET state = ?, artifact_id = ?, media_type = ?, "
+                + "schema_version = ?, sha256 = ?, artifact_payload = ?, revision = ?, "
+                + "updated_at = CURRENT_TIMESTAMP WHERE server_agent_id = ? AND task_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             bindMutable(statement, task, 1);
-            statement.setString(8, task.taskId());
+            statement.setString(8, serverAgentId);
+            statement.setString(9, task.taskId());
             statement.executeUpdate();
         }
     }
 
     private void insertEvent(Connection connection, A2aTask task) throws SQLException {
-        String sql = "INSERT INTO phase0_a2a_task_event "
-                + "(task_id, context_id, message_id, state, artifact_id, media_type, schema_version, "
-                + "sha256, payload, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO opspilot_a2a.task_event "
+                + "(task_id, server_agent_id, context_id, message_id, state, event_type, payload_json, "
+                + "artifact_id, media_type, schema_version, sha256, artifact_payload, revision) "
+                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, task.taskId());
-            statement.setString(2, task.contextId());
-            statement.setString(3, task.messageId());
-            statement.setString(4, task.state().name());
-            bindArtifact(statement, task.artifact(), 5);
-            statement.setLong(10, task.revision());
+            statement.setString(2, serverAgentId);
+            statement.setString(3, task.contextId());
+            statement.setString(4, task.messageId());
+            statement.setString(5, task.state().name());
+            statement.setString(6, task.state().name());
+            bindArtifact(statement, task.artifact(), 7);
+            statement.setLong(12, task.revision());
             statement.executeUpdate();
         }
     }

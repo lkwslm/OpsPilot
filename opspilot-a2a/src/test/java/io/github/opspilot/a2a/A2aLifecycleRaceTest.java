@@ -20,12 +20,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class A2aLifecycleRaceTest {
 
-    private static final String IMAGE = "pgvector/pgvector:pg16";
+    private static final String IMAGE = A2aPostgresFixture.IMAGE;
 
     @Test
     void terminalStateSurvivesDisconnectDuplicateCancelRaceAndRestart() throws Exception {
         try (PostgreSQLContainer postgres = postgres()) {
             postgres.start();
+            A2aPostgresFixture.migrate(postgres);
             A2aSendRequest deferred = new A2aSendRequest(
                     "message-race", "context-race", "race-result", true);
             String racedTaskId;

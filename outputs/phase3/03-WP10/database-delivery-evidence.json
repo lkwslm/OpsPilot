@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-22T15:36:19.7202646+00:00",
+  "sourceCommit": "51db99d354fc09812e42ec00574cffa48fcf35ff",
+  "image": "pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2",
+  "database": {
+    "postgresVersion": "16.14 (Debian 16.14-1.pgdg12+1)",
+    "pgvectorVersion": "0.8.4",
+    "flywayVersion": "7",
+    "schemaDigest": "f03dfabd4a3d43c1e0df36b4cd41f16f"
+  },
+  "migrationSetSha256": "9d56cf93d520179bddd288c8f4befe17fd5854f173d2502aaddca549a6d128ad",
+  "migrationChecksums": {
+    "R__seed_non_sensitive_reference_data.sql": "3983829ee211e8aa42123010e554bda785334cff4958b28ea4f7c159faf9899c",
+    "V1__create_extension_and_schemas.sql": "78761175f1bcc540373dd0a4f58f2c6c1ac93227901e2e39054b0bc43ad5cf5b",
+    "V2__create_supervisor_phase0_state.sql": "6c26aa53963d4cf4b34325b4902d7accc6907828cbbbf9ac2717d539d3d4519e",
+    "V3__create_a2a_and_evaluation_phase0_state.sql": "ca1aa66adcad8a39a785bb8f0a986647d25bcb4c05c36be64eade9f991ec61e2",
+    "V4__enforce_one_active_run.sql": "3531296d966f098b863e8bc6ad307e0cf4073494867195c2d902d031d251fa7a",
+    "V5__expand_relational_domain.sql": "2cc8cffa1aa3aebad770c356c4731200067a8ecd7512306286e3c79d5092a795",
+    "V6__create_models_knowledge_sample_and_evaluation.sql": "5b06427f694dc96df188462214b9d923fa04959a61bd31e882e3ce4cec62ee40",
+    "V7__enforce_indexes_roles_and_lifecycle.sql": "8520679c0bf00dfb55f7d67af3962caf1dfcb600f65dbe2af227f03bf6755e24"
+  },
+  "roleMatrix": {
+    "finalLoginFlags": "rolsuper=false, rolcreatedb=false, rolcreaterole=false",
+    "runtimeDdl": "DENIED (SQLSTATE 42501)",
+    "professionalAgentRls": "PASS (cross-agent row count 0)",
+    "groundTruth": "DENIED to app and professional agents"
+  },
+  "tests": {
+    "emptyAndV4Upgrade": "PostgresPhase0MigrationTest",
+    "rolesTransactionsTasksSseArtifacts": "PostgresPhase3AdapterTest",
+    "exactVectorAndKnowledgeSwitch": "PgvectorKnowledgeRepositoryTest",
+    "a2aIdempotency": "A2aIdempotencyTest",
+    "agentScopeRestart": "PostgresAgentStateStoreTest"
+  },
+  "gates": {
+    "runtimeDdl": "PASS",
+    "h2": "PASS",
+    "annIndexes": "PASS",
+    "productionDdlAuto": "validate",
+    "supportedPreviousSchema": "V4"
+  }
+}

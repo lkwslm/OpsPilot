@@ -6,6 +6,9 @@ x-runtime-environment: &runtime-environment
   EMBEDDING_MODEL_ID: embedding-bge-small-zh-v1.5
   RERANK_MODEL_ID: reranker-bge-v2-m3
   SOURCE_COMMIT: 60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b
+  JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
+  EXPECTED_FLYWAY_VERSION: "7"
+  EXPECTED_PGVECTOR_VERSION: "0.8.4"
 
 x-process-common: &process-common
   image: opspilot-phase0:0.1.0
@@ -35,6 +38,40 @@ x-process-common: &process-common
     start_period: 2s
 
 services:
+  postgres:
+    image: pgvector/pgvector@sha256:ad2e18408bf447f62092a8a5259e7df10505c5a0360bd1a1853ac8b8b0763da2
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: opspilot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-bootstrap-password
+      OPSPILOT_MIGRATOR_PASSWORD_FILE: /run/secrets/migrator-db-password
+      OPSPILOT_APP_PASSWORD_FILE: /run/secrets/runtime-db-password
+      SAMPLE_APP_PASSWORD_FILE: /run/secrets/runtime-db-password
+      FAULT_LAB_PASSWORD_FILE: /run/secrets/runtime-db-password
+      EVALUATION_PASSWORD_FILE: /run/secrets/runtime-db-password
+      EVIDENCE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
+      CODE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
+      KNOWLEDGE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
+      DIAGNOSIS_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
+      REMEDIATION_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
+    secrets:
+      - postgres-bootstrap-password
+      - migrator-db-password
+      - runtime-db-password
+    volumes:
+      - type: bind
+        source: ./postgres/init
+        target: /docker-entrypoint-initdb.d
+        read_only: true
+      - opspilot-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d opspilot"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
   db-migrate:
     image: opspilot-phase0:0.1.0
     build:
@@ -47,6 +84,15 @@ services:
       - no-new-privileges:true
     networks:
       - opspilot-backend
+    environment:
+      JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
+      MIGRATOR_USERNAME: opspilot_migrator
+      MIGRATOR_PASSWORD_FILE: /run/secrets/migrator-db-password
+      FLYWAY_LOCATIONS: filesystem:/app/migrations
+    secrets: [migrator-db-password]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   retrieval-model-probe:
     image: opspilot-phase0:0.1.0
@@ -75,6 +121,8 @@ services:
       AGENT_SKILL: supervise-incident
       SERVER_PORT: "8080"
       DB_ROLE: opspilot_app_role
+      DB_USERNAME: opspilot_app_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://opspilot-server:8080
       SERVICE_TOKEN_FILE: /run/secrets/supervisor-service-token
       EVIDENCE_AGENT_TOKEN_FILE: /run/secrets/evidence-agent-token
@@ -82,6 +130,7 @@ services:
     secrets:
       - supervisor-service-token
       - evidence-agent-token
+      - runtime-db-password
     volumes:
       - type: bind
         source: ./agent-input
@@ -101,10 +150,12 @@ services:
       AGENT_SKILL: collect-observability-evidence
       SERVER_PORT: "8081"
       DB_ROLE: evidence_agent_role
+      DB_USERNAME: evidence_agent_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://evidence-agent:8081
       SERVICE_TOKEN_FILE: /run/secrets/evidence-agent-token
       SOURCE_PATH: /datasets/input/observability.jsonl
-    secrets: [evidence-agent-token]
+    secrets: [evidence-agent-token, runtime-db-password]
 
   code-agent:
     <<: *process-common
@@ -115,9 +166,11 @@ services:
       AGENT_SKILL: analyze-code-location
       SERVER_PORT: "8082"
       DB_ROLE: code_agent_role
+      DB_USERNAME: code_agent_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://code-agent:8082
       SERVICE_TOKEN_FILE: /run/secrets/code-agent-token
-    secrets: [code-agent-token]
+    secrets: [code-agent-token, runtime-db-password]
 
   knowledge-agent:
     <<: *process-common
@@ -128,9 +181,11 @@ services:
       AGENT_SKILL: retrieve-incident-knowledge
       SERVER_PORT: "8083"
       DB_ROLE: knowledge_agent_role
+      DB_USERNAME: knowledge_agent_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://knowledge-agent:8083
       SERVICE_TOKEN_FILE: /run/secrets/knowledge-agent-token
-    secrets: [knowledge-agent-token]
+    secrets: [knowledge-agent-token, runtime-db-password]
 
   diagnosis-agent:
     <<: *process-common
@@ -141,9 +196,11 @@ services:
       AGENT_SKILL: generate-and-verify-hypotheses
       SERVER_PORT: "8084"
       DB_ROLE: diagnosis_agent_role
+      DB_USERNAME: diagnosis_agent_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://diagnosis-agent:8084
       SERVICE_TOKEN_FILE: /run/secrets/diagnosis-agent-token
-    secrets: [diagnosis-agent-token]
+    secrets: [diagnosis-agent-token, runtime-db-password]
 
   remediation-agent:
     <<: *process-common
@@ -154,9 +211,11 @@ services:
       AGENT_SKILL: propose-remediation
       SERVER_PORT: "8085"
       DB_ROLE: remediation_agent_role
+      DB_USERNAME: remediation_agent_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://remediation-agent:8085
       SERVICE_TOKEN_FILE: /run/secrets/remediation-agent-token
-    secrets: [remediation-agent-token]
+    secrets: [remediation-agent-token, runtime-db-password]
 
 networks:
   opspilot-backend:
@@ -164,6 +223,12 @@ networks:
   opspilot-frontend:
 
 secrets:
+  postgres-bootstrap-password:
+    file: ../.tmp/secrets/postgres-bootstrap-password.txt
+  migrator-db-password:
+    file: ../.tmp/secrets/migrator-db-password.txt
+  runtime-db-password:
+    file: ../.tmp/secrets/runtime-db-password.txt
   supervisor-service-token:
     file: ../.tmp/secrets/supervisor-service-token.txt
   evidence-agent-token:
@@ -176,3 +241,6 @@ secrets:
     file: ../.tmp/secrets/diagnosis-agent-token.txt
   remediation-agent-token:
     file: ../.tmp/secrets/remediation-agent-token.txt
+
+volumes:
+  opspilot-postgres-data:
