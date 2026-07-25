@@ -3,6 +3,8 @@ package io.github.opspilot.adapters.observability;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,9 +14,27 @@ import static io.github.opspilot.core.port.observability.ObservationContracts.Si
 import static io.github.opspilot.core.port.observability.ObservationContracts.SourceKind.PROMETHEUS;
 
 public final class PrometheusMetricAdapter extends AbstractObservabilityAdapter {
+    private final URI endpoint;
+
     public PrometheusMetricAdapter(URI endpoint) {
         super(SourceDescriptors.of("phase0-prometheus", PROMETHEUS, "prometheus-metric",
-                "observability-source://phase0/prometheus", METRIC), httpReader(endpoint), "application/json");
+                "observability-source://phase0/prometheus", METRIC), httpReader(endpoint), "application/json",
+                java.util.Set.of("phase0/replay", "metric/http-v1", "metric/hikari-v1"));
+        this.endpoint = endpoint;
+    }
+
+    @Override
+    protected RawSourceReader readerFor(io.github.opspilot.core.port.observability.ObservationContracts.ObservationQuery query) {
+        if ("phase0/replay".equals(query.templateId())) return super.readerFor(query);
+        String job = query.resource().serviceName() == null
+                ? query.resource().resourceId().replace("service:", "") : query.resource().serviceName();
+        String expression = switch (query.templateId()) {
+            case "metric/http-v1" -> "up{job=\"" + job + "\"}";
+            case "metric/hikari-v1" -> "hikaricp_connections_active{job=\"" + job + "\"}";
+            default -> throw new IllegalArgumentException("Unsupported metric query template");
+        };
+        String encoded = URLEncoder.encode(expression, StandardCharsets.UTF_8);
+        return httpReader(endpoint.resolve("/api/v1/query?query=" + encoded));
     }
 
     @Override
@@ -30,9 +50,15 @@ public final class PrometheusMetricAdapter extends AbstractObservabilityAdapter 
                 throw new IllegalArgumentException("Invalid Prometheus sample");
             }
             String metric = result.path("metric").path("__name__").asText("metric");
+            java.util.Map<String, Object> attributes = new java.util.HashMap<>();
+            attributes.put("metric", metric);
+            attributes.put("value", value.get(1).asText());
+            if (result.path("metric").hasNonNull("trace_id")) {
+                attributes.put("otelTraceId", result.path("metric").path("trace_id").asText());
+            }
             observations.add(new ParsedObservation(
                     METRIC, Instant.ofEpochSecond(value.get(0).asLong()), metric + "=" + value.get(1).asText(),
-                    Map.of("metric", metric, "value", value.get(1).asText())));
+                    attributes));
         }
         return observations;
     }

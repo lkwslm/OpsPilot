@@ -17,7 +17,10 @@ public final class ObservationContracts {
     private ObservationContracts() {
     }
 
-    public enum SourceKind { PROMETHEUS, JAEGER, FILE, HTTP, CUSTOM }
+    public enum SourceKind {
+        PROMETHEUS, LOKI, ELASTICSEARCH, JAEGER, TEMPO, OPENTELEMETRY, KUBERNETES,
+        CLOUDWATCH, AZURE_MONITOR, GOOGLE_CLOUD_MONITORING, FILE, HTTP, CUSTOM
+    }
 
     public enum SignalType { LOG, METRIC, TRACE, EVENT, HEALTH, CONFIG, TOPOLOGY, CODE, KNOWLEDGE }
 
@@ -106,9 +109,18 @@ public final class ObservationContracts {
             String summary,
             UUID artifactId,
             Map<String, Object> attributes,
-            ObservationQuality quality) {
+            ObservationQuality quality,
+            SourceDescriptor originSource,
+            String upstreamRequestId) {
         public ObservationRecord {
             attributes = Map.copyOf(attributes);
+        }
+
+        public ObservationRecord(
+                UUID observationId, SignalType signalType, ResourceRef resource, Instant observedAt,
+                String summary, UUID artifactId, Map<String, Object> attributes, ObservationQuality quality) {
+            this(observationId, signalType, resource, observedAt, summary, artifactId,
+                    attributes, quality, null, null);
         }
     }
 

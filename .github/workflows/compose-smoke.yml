@@ -1,0 +1,33 @@
+name: Phase 4 Compose smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  phase4-compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        jaeger: [v1, v2, dual]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Build and test real Phase 4 modules
+        run: ./mvnw -q clean verify
+      - name: Validate Compose and execute real telemetry vertical slice
+        shell: pwsh
+        run: ./deployment/smoke/phase4-smoke.ps1 -JaegerMode ${{ matrix.jaeger }}
+      - name: Upload success evidence and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase4-compose-smoke-${{ matrix.jaeger }}-evidence
+          path: .tmp/phase4-smoke/
+          if-no-files-found: error

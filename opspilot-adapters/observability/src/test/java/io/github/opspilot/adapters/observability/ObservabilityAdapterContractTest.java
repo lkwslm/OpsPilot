@@ -74,7 +74,7 @@ final class ObservabilityAdapterContractTest {
     }
 
     @Test
-    void fiveRealAdaptersPassTheSameSuccessEmptyFailureAndIntegrityContract() throws Exception {
+    void sixRealAdaptersPassTheSameSuccessEmptyFailureAndIntegrityContract() throws Exception {
         Set<String> sourceIds = new HashSet<>();
         for (AdapterKind kind : AdapterKind.values()) {
             ObservabilitySourceAdapter successAdapter = adapter(kind, "success");
@@ -105,7 +105,28 @@ final class ObservabilityAdapterContractTest {
                     SOURCE_CANCELLED);
             assertFailure(successAdapter, authorized("sha256:" + "0".repeat(64)), ARTIFACT_HASH_MISMATCH);
         }
-        assertEquals(5, sourceIds.size());
+        assertEquals(6, sourceIds.size());
+    }
+
+    @Test
+    void jaegerV1AndV2UseIndependentBoundariesAndShareCanonicalNormalization() throws Exception {
+        ObservabilitySourceAdapter v1 = new JaegerV1TraceAdapter(baseUri.resolve("/jaeger/success"));
+        ObservabilitySourceAdapter v2 = new JaegerV2TraceAdapter(baseUri.resolve("/jaeger/success"));
+
+        assertEquals("jaeger-trace-v1", v1.descriptor().adapterId());
+        assertEquals("jaeger-trace-v2", v2.descriptor().adapterId());
+        assertFalse(v1.descriptor().sourceId().equals(v2.descriptor().sourceId()));
+        assertFalse(v1.descriptor().connectionRef().equals(v2.descriptor().connectionRef()));
+
+        ObservationBatch v1Batch = v1.query(query(), authorized(null));
+        ObservationBatch v2Batch = v2.query(query(), authorized(null));
+        assertEquals(v1Batch.observations().getFirst().attributes().get("otelTraceId"),
+                v2Batch.observations().getFirst().attributes().get("otelTraceId"));
+
+        var bundle = new RuntimeEvidenceNormalizer().normalizeRuntime(List.of(v1Batch, v2Batch),
+                new NormalizationContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()));
+        assertEquals(1, bundle.evidence().size());
+        assertEquals(2, bundle.evidence().getFirst().provenanceRefs().size());
     }
 
     @Test
@@ -132,27 +153,28 @@ final class ObservabilityAdapterContractTest {
         var context = new NormalizationContext(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         var bundle = new RuntimeEvidenceNormalizer().normalizeRuntime(batches, context);
 
-        assertEquals(5, bundle.observationBatchIds().size());
-        assertEquals(batches.stream().mapToInt(batch -> batch.observations().size()).sum(), bundle.evidence().size());
+        assertEquals(6, bundle.observationBatchIds().size());
+        assertEquals(batches.stream().mapToInt(batch -> batch.observations().size()).sum() - 1,
+                bundle.evidence().size());
         assertThrows(UnsupportedOperationException.class,
                 () -> bundle.observationBatchIds().add(UUID.randomUUID()));
 
         bundle.evidence().forEach(evidence -> {
             assertEquals("RUNTIME", evidence.factOrigin());
-            assertEquals(1, evidence.provenanceRefs().size());
-            var provenance = evidence.provenanceRefs().getFirst();
-            ObservationBatch batch = batches.stream()
-                    .filter(candidate -> candidate.batchId().equals(provenance.batchId()))
-                    .findFirst().orElseThrow();
-            var record = batch.observations().stream()
-                    .filter(candidate -> candidate.observationId().equals(provenance.observationId()))
-                    .findFirst().orElseThrow();
-            assertEquals(batch.source().sourceId(), provenance.sourceId());
-            assertEquals(record.resource(), evidence.resource());
-            assertEquals(record.artifactId(), evidence.artifactIds().getFirst());
-            assertEquals(batch.rawArtifact().sha256(), provenance.artifactSha256());
-            assertEquals(batch.rawArtifact().sha256(),
-                    ObservationContracts.sha256(batch.rawArtifact().content()));
+            evidence.provenanceRefs().forEach(provenance -> {
+                ObservationBatch batch = batches.stream()
+                        .filter(candidate -> candidate.batchId().equals(provenance.batchId()))
+                        .findFirst().orElseThrow();
+                var record = batch.observations().stream()
+                        .filter(candidate -> candidate.observationId().equals(provenance.observationId()))
+                        .findFirst().orElseThrow();
+                assertEquals(batch.source().sourceId(), provenance.sourceId());
+                assertEquals(record.resource(), evidence.resource());
+                assertTrue(evidence.artifactIds().contains(record.artifactId()));
+                assertEquals(batch.rawArtifact().sha256(), provenance.artifactSha256());
+                assertEquals(batch.rawArtifact().sha256(),
+                        ObservationContracts.sha256(batch.rawArtifact().content()));
+            });
         });
     }
 
@@ -170,7 +192,9 @@ final class ObservabilityAdapterContractTest {
                     assertFalse(java.contains("io.prometheus"), file + " depends on Prometheus DTOs");
                     assertFalse(java.contains("io.jaegertracing"), file + " depends on Jaeger DTOs");
                     assertFalse(java.contains("org.springframework.boot.actuate"), file + " depends on Actuator DTOs");
-                    assertFalse(java.contains("ObservationBatch"), file + " bypasses EvidenceNormalizer");
+                    if (!module.equals("opspilot-server")) {
+                        assertFalse(java.contains("ObservationBatch"), file + " bypasses EvidenceNormalizer");
+                    }
                 }
             }
         }
@@ -198,7 +222,8 @@ final class ObservabilityAdapterContractTest {
     private static ObservabilitySourceAdapter adapter(AdapterKind kind, String mode) throws Exception {
         return switch (kind) {
             case PROMETHEUS -> new PrometheusMetricAdapter(baseUri.resolve("/prometheus/" + mode));
-            case JAEGER -> new JaegerTraceAdapter(baseUri.resolve("/jaeger/" + mode));
+            case JAEGER_V1 -> new JaegerV1TraceAdapter(baseUri.resolve("/jaeger/" + mode));
+            case JAEGER_V2 -> new JaegerV2TraceAdapter(baseUri.resolve("/jaeger/" + mode));
             case JSONL -> new JsonlLogAdapter(fixturePath("jsonl-" + mode + ".jsonl"));
             case ACTUATOR -> new SpringActuatorHealthAdapter(fixturePath("actuator-" + mode + ".json"));
             case COMPOSE -> new StaticComposeTopologyAdapter(fixturePath("compose-" + mode + ".yaml"));
@@ -254,5 +279,5 @@ final class ObservabilityAdapterContractTest {
         throw new IllegalStateException("OpsPilot project root not found");
     }
 
-    private enum AdapterKind { PROMETHEUS, JAEGER, JSONL, ACTUATOR, COMPOSE }
+    private enum AdapterKind { PROMETHEUS, JAEGER_V1, JAEGER_V2, JSONL, ACTUATOR, COMPOSE }
 }

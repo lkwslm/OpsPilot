@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Docker secrets are consumed without copying their values into the image or logs.
 
 # The official PostgreSQL image creates POSTGRES_DB and the bootstrap superuser.
 # This script only creates login identities and memberships. Flyway owns every

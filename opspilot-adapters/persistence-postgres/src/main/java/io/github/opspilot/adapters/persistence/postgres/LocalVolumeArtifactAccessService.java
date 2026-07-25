@@ -2,6 +2,8 @@ package io.github.opspilot.adapters.persistence.postgres;
 
 import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
 import io.github.opspilot.core.domain.identity.DomainIds.RunId;
+import io.github.opspilot.core.application.observability.ObservationValidationPipeline.ArtifactClaim;
+import io.github.opspilot.core.application.observability.ObservationValidationPipeline.ArtifactVerifier;
 import io.github.opspilot.core.port.artifact.ArtifactPort;
 
 import javax.sql.DataSource;
@@ -29,7 +31,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /** Controlled local-volume Artifact adapter with immutable metadata and reconciliation. */
-public final class LocalVolumeArtifactAccessService implements ArtifactPort {
+public final class LocalVolumeArtifactAccessService implements ArtifactPort, ArtifactVerifier {
     private static final String PROVIDER = "local-volume";
     private static final Pattern WINDOWS_DEVICE = Pattern.compile(
             "(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\\..*)?$");
@@ -68,6 +70,24 @@ public final class LocalVolumeArtifactAccessService implements ArtifactPort {
                 artifactId, runId.value(), null, mediaType, AccessLevel.RUN_PRIVATE,
                 RetentionClass.INCIDENT_RUN, new ByteArrayInputStream(content)));
         return new ArtifactId(artifactId);
+    }
+
+    /** Verifies the persisted object, ownership and immutable metadata before Observation persistence. */
+    @Override
+    public void verify(ArtifactClaim claim) {
+        Objects.requireNonNull(claim, "claim");
+        Metadata metadata = findMetadata(claim.artifactId());
+        String expectedHash = claim.sha256().startsWith("sha256:")
+                ? claim.sha256().substring("sha256:".length()) : claim.sha256();
+        if (!metadata.runId().equals(claim.runId())
+                || metadata.accessLevel() == AccessLevel.TASK_PRIVATE
+                    && !Objects.equals(metadata.taskId(), claim.taskId())
+                || !metadata.mediaType().equals(claim.mediaType())
+                || metadata.sizeBytes() != claim.sizeBytes()
+                || !metadata.sha256().equals(expectedHash)) {
+            throw new ArtifactAccessDeniedException();
+        }
+        read(claim.artifactId(), new AccessContext(claim.runId(), claim.taskId(), false, false));
     }
 
     public Metadata store(WriteRequest request) {

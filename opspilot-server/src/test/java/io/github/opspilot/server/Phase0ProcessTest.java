@@ -40,7 +40,7 @@ final class Phase0ProcessTest {
         dataSource.setUrl("jdbc:postgresql://127.0.0.1:1/unreachable?connectTimeout=1");
         dataSource.setUser("none");
         dataSource.setPassword("none");
-        PostgresReadinessCheck database = new PostgresReadinessCheck(dataSource, "7", "0.8.4");
+        PostgresReadinessCheck database = new PostgresReadinessCheck(dataSource, "8", "0.8.4");
         var readiness = Phase0Process.readiness(new String[0], database);
         assertFalse(readiness.ready());
         assertTrue(readiness.reason().contains("POSTGRES_READINESS_FAILED"));

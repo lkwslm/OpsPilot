@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "topologyVersion": "sample-compose/1.0.0",
+  "effectiveFrom": "2026-07-23T00:00:00Z",
+  "targetSystemId": "sample-commerce",
+  "resources": [
+    {"resourceId":"system:sample-commerce","resourceType":"SYSTEM","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"service:sample-gateway","resourceType":"SERVICE","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"service:order-service","resourceType":"SERVICE","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"service:inventory-service","resourceType":"SERVICE","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"datastore:sample-postgresql","resourceType":"DATASTORE","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"service:toxiproxy","resourceType":"SERVICE","systemId":"sample-commerce","environment":"local"},
+    {"resourceId":"external:otel-collector","resourceType":"EXTERNAL_DEPENDENCY","systemId":"sample-commerce","environment":"local"}
+  ],
+  "relations": [
+    {"source":"service:sample-gateway","target":"service:order-service","type":"CALLS"},
+    {"source":"service:sample-gateway","target":"service:toxiproxy","type":"CALLS"},
+    {"source":"service:order-service","target":"service:toxiproxy","type":"CALLS"},
+    {"source":"service:toxiproxy","target":"service:inventory-service","type":"CALLS"},
+    {"source":"service:order-service","target":"datastore:sample-postgresql","type":"WRITES_TO"},
+    {"source":"service:inventory-service","target":"datastore:sample-postgresql","type":"WRITES_TO"},
+    {"source":"service:sample-gateway","target":"external:otel-collector","type":"DEPENDS_ON"},
+    {"source":"service:order-service","target":"external:otel-collector","type":"DEPENDS_ON"},
+    {"source":"service:inventory-service","target":"external:otel-collector","type":"DEPENDS_ON"}
+  ]
+}

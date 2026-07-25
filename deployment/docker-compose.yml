@@ -7,7 +7,7 @@ x-runtime-environment: &runtime-environment
   RERANK_MODEL_ID: reranker-bge-v2-m3
   SOURCE_COMMIT: 60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b
   JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
-  EXPECTED_FLYWAY_VERSION: "7"
+  EXPECTED_FLYWAY_VERSION: "8"
   EXPECTED_PGVECTOR_VERSION: "0.8.4"
 
 x-process-common: &process-common
@@ -216,6 +216,209 @@ services:
       A2A_BASE_URL: http://remediation-agent:8085
       SERVICE_TOKEN_FILE: /run/secrets/remediation-agent-token
     secrets: [remediation-agent-token, runtime-db-password]
+
+  jaeger-v1:
+    image: jaegertracing/all-in-one@sha256:6279882637ae03e70f519965d2ba5ca84cb785f4baf4f0d7237e827a37c33a42
+    restart: unless-stopped
+    command: ["--memory.max-traces=10000"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    expose: ["16686", "4317"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:16686/api/services >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
+  jaeger-v2:
+    image: jaegertracing/jaeger@sha256:46a886260e04002d8f45e213fc39063fa11a50446048fdaa64786fc0840cb9f8
+    profiles: ["jaeger-v2"]
+    restart: unless-stopped
+    expose: ["16686", "4317"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:16686/api/services >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib@sha256:1ab0baba0ee3695d823c46653d8a6e8894896e668ce8bd7ebe002e948d827bc7
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - type: bind
+        source: ${OTEL_COLLECTOR_CONFIG:-./otel-collector/config-v1.yaml}
+        target: /etc/otelcol-contrib/config.yaml
+        read_only: true
+    expose: ["4317", "4318", "8888", "13133"]
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [opspilot-backend]
+
+  prometheus:
+    image: prom/prometheus@sha256:9abc6cf6aea7710d163dbb28d8eeb7dc5baef01e38fa4cd146a406dd9f07f70d
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+      - --storage.tsdb.retention.size=512MB
+      - --web.enable-lifecycle
+    volumes:
+      - type: bind
+        source: ./prometheus/prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+    expose: ["9090"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/ready >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
+  inventory-service:
+    image: opspilot-inventory-service:0.1.0
+    build:
+      context: ../sample-system/inventory-service
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
+      DB_USERNAME: sample_app_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
+      SPRING_PROFILES_ACTIVE: ${SAMPLE_PROFILE:-production}
+      MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+      OTEL_SERVICE_NAME: inventory-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    secrets: [runtime-db-password]
+    expose: ["8080"]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health/readiness >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    restart: unless-stopped
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - type: bind
+        source: ./toxiproxy/toxiproxy.json
+        target: /config/toxiproxy.json
+        read_only: true
+    expose: ["8474", "8666"]
+    depends_on:
+      inventory-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/toxiproxy-cli", "-h", "127.0.0.1:8474", "list"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+    networks: [opspilot-backend]
+
+  order-service:
+    image: opspilot-order-service:0.1.0
+    build:
+      context: ../sample-system/order-service
+    restart: unless-stopped
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/opspilot?currentSchema=sample
+      DB_USERNAME: sample_app_login
+      DB_PASSWORD_FILE: /run/secrets/runtime-db-password
+      INVENTORY_BASE_URL: http://toxiproxy:8666
+      SPRING_PROFILES_ACTIVE: ${SAMPLE_PROFILE:-production}
+      MANAGEMENT_ENDPOINT_HEALTH_GROUP_READINESS_INCLUDE: readinessState,db
+      OTEL_SERVICE_NAME: order-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    secrets: [runtime-db-password]
+    expose: ["8080"]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      toxiproxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health/readiness >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend]
+
+  sample-gateway:
+    image: opspilot-sample-gateway:0.1.0
+    build:
+      context: ../sample-system/sample-gateway
+    restart: unless-stopped
+    environment:
+      ORDER_BASE_URL: http://order-service:8080
+      INVENTORY_BASE_URL: http://toxiproxy:8666
+      OTEL_SERVICE_NAME: sample-gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+    ports: ["127.0.0.1:8090:8080"]
+    depends_on:
+      order-service:
+        condition: service_healthy
+      toxiproxy:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health/readiness >/dev/null"]
+      interval: 3s
+      timeout: 2s
+      retries: 30
+    networks: [opspilot-backend, opspilot-frontend]
+
+  observability-smoke:
+    image: opspilot-phase0:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+    profiles: ["phase4-smoke"]
+    command: ["phase4-smoke"]
+    restart: "no"
+    read_only: true
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      JAEGER_MODE: ${JAEGER_MODE:-v1}
+      JAEGER_V1_URL: http://jaeger-v1:16686
+      JAEGER_V2_URL: http://jaeger-v2:16686
+      PHASE4_EVIDENCE_DIR: /evidence
+    volumes:
+      - type: bind
+        source: ${PHASE4_EVIDENCE_HOST_DIR:-../.tmp/phase4-smoke}
+        target: /evidence
+      - type: bind
+        source: ./
+        target: /config
+        read_only: true
+    depends_on:
+      sample-gateway:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    networks: [opspilot-backend]
 
 networks:
   opspilot-backend:
