@@ -29,6 +29,10 @@ function Invoke-JaegerSmokeMode {
 
     $modeEvidenceDir = Join-Path $evidenceRoot $Mode
     New-Item -ItemType Directory -Force -Path $modeEvidenceDir | Out-Null
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        & chmod 0777 -- $modeEvidenceDir
+        if ($LASTEXITCODE -ne 0) { throw "Failed to make the Jaeger $Mode evidence directory container-writable" }
+    }
     $env:JAEGER_MODE = $Mode
     $env:PHASE4_EVIDENCE_HOST_DIR = $modeEvidenceDir
     $env:OTEL_COLLECTOR_CONFIG = if ($Mode -eq "dual") {
