@@ -2,6 +2,7 @@ package io.github.opspilot.adapters.observability;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -13,7 +14,14 @@ import static io.github.opspilot.core.port.observability.ObservationContracts.So
 public final class SpringActuatorHealthAdapter extends AbstractObservabilityAdapter {
     public SpringActuatorHealthAdapter(Path replayFile) {
         super(SourceDescriptors.of("phase0-actuator", HTTP, "spring-actuator-health",
-                "observability-source://phase0/actuator", HEALTH), fileReader(replayFile), "application/json");
+                "observability-source://phase0/actuator", HEALTH), fileReader(replayFile), "application/json",
+                java.util.Set.of("phase0/replay", "health/readiness-v1"));
+    }
+
+    public SpringActuatorHealthAdapter(URI endpoint) {
+        super(SourceDescriptors.of("sample-actuator", HTTP, "spring-actuator-health",
+                "observability-source://sample/actuator", HEALTH), httpReader(endpoint), "application/json",
+                java.util.Set.of("phase0/replay", "health/readiness-v1"));
     }
 
     @Override

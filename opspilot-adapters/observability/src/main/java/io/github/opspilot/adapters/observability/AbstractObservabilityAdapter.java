@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static io.github.opspilot.adapters.observability.SourceFailure.Code.ARTIFACT_HASH_MISMATCH;
@@ -39,11 +40,18 @@ abstract class AbstractObservabilityAdapter implements ObservabilitySourceAdapte
     private final SourceDescriptor descriptor;
     private final RawSourceReader reader;
     private final String mediaType;
+    private final Set<String> queryTemplates;
 
     AbstractObservabilityAdapter(SourceDescriptor descriptor, RawSourceReader reader, String mediaType) {
+        this(descriptor, reader, mediaType, Set.of("phase0/replay"));
+    }
+
+    AbstractObservabilityAdapter(
+            SourceDescriptor descriptor, RawSourceReader reader, String mediaType, Set<String> queryTemplates) {
         this.descriptor = descriptor;
         this.reader = reader;
         this.mediaType = mediaType;
+        this.queryTemplates = Set.copyOf(queryTemplates);
     }
 
     @Override
@@ -53,8 +61,9 @@ abstract class AbstractObservabilityAdapter implements ObservabilitySourceAdapte
 
     @Override
     public final ObservationBatch query(ObservationQuery query, SourceExecutionContext context) {
+        validateQuery(query);
         validateContext(context);
-        byte[] content = read(context);
+        byte[] content = read(query, context);
         validateContext(context);
         String hash = ObservationContracts.sha256(content);
         if (context.expectedArtifactSha256() != null && !context.expectedArtifactSha256().equals(hash)) {
@@ -80,9 +89,24 @@ abstract class AbstractObservabilityAdapter implements ObservabilitySourceAdapte
 
     protected abstract List<ParsedObservation> parse(byte[] content) throws Exception;
 
-    private byte[] read(SourceExecutionContext context) {
+    private void validateQuery(ObservationQuery query) {
+        if (query == null || query.resource() == null || !queryTemplates.contains(query.templateId())
+                || query.parameterHash() == null
+                || !query.parameterHash().matches("sha256:[a-f0-9]{64}")
+                || query.windowStart() == null || query.windowEnd() == null
+                || !query.windowEnd().isAfter(query.windowStart())
+                || Duration.between(query.windowStart(), query.windowEnd()).compareTo(Duration.ofHours(1)) > 0) {
+            throw failure(SOURCE_SCHEMA_INVALID, "Observation query is outside the controlled template contract");
+        }
+    }
+
+    protected RawSourceReader readerFor(ObservationQuery query) {
+        return reader;
+    }
+
+    private byte[] read(ObservationQuery query, SourceExecutionContext context) {
         try {
-            return reader.read(Duration.between(Instant.now(), context.deadline()));
+            return readerFor(query).read(Duration.between(Instant.now(), context.deadline()));
         } catch (HttpStatusException exception) {
             if (exception.statusCode == 401 || exception.statusCode == 403) {
                 throw failure(SOURCE_AUTH_FAILED, "Source rejected credentials");

@@ -19,7 +19,7 @@ toolchain:
 dependencies:
   - id: spring-boot-bom
     coordinate: "org.springframework.boot:spring-boot-dependencies"
-    version: "4.1.0"
+    version: "3.4.5"
     license: "Apache-2.0"
   - id: agentscope-core
     coordinate: "io.agentscope:agentscope-core"
@@ -127,6 +127,19 @@ containers:
     components:
       postgresql: "16.14"
       pgvector: "0.8.4"
+  - id: jaeger-v1
+    immutableRef: "jaegertracing/all-in-one@sha256:6279882637ae03e70f519965d2ba5ca84cb785f4baf4f0d7237e827a37c33a42"
+    digest: "sha256:6279882637ae03e70f519965d2ba5ca84cb785f4baf4f0d7237e827a37c33a42"
+    localImageId: "sha256:360e7eefdc36d574b928d8e0dbbfcffc231911854c90fde592cc607ed6e38fd8"
+    components:
+      jaegerMajor: "1"
+      lifecycle: "upstream-eol-retained-for-compatibility"
+  - id: jaeger-v2
+    immutableRef: "jaegertracing/jaeger@sha256:46a886260e04002d8f45e213fc39063fa11a50446048fdaa64786fc0840cb9f8"
+    digest: "sha256:46a886260e04002d8f45e213fc39063fa11a50446048fdaa64786fc0840cb9f8"
+    localImageId: "sha256:9ae01775e2b2d4a7a957647fe6e733fe17ca8a2cec87ec8c893f730afe49bf00"
+    components:
+      jaeger: "2.20.0"
   - id: infinity
     immutableRef: "michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"
     digest: "sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88"

@@ -13,7 +13,8 @@ import static io.github.opspilot.core.port.observability.ObservationContracts.So
 public final class StaticComposeTopologyAdapter extends AbstractObservabilityAdapter {
     public StaticComposeTopologyAdapter(Path path) {
         super(SourceDescriptors.of("phase0-compose", FILE, "static-compose-topology",
-                "observability-source://phase0/compose", TOPOLOGY), fileReader(path), "application/yaml");
+                "observability-source://phase0/compose", TOPOLOGY), fileReader(path), "application/yaml",
+                java.util.Set.of("phase0/replay", "topology/compose-v1"));
     }
 
     @Override

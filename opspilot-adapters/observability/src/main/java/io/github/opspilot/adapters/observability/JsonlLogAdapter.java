@@ -15,7 +15,8 @@ import static io.github.opspilot.core.port.observability.ObservationContracts.So
 public final class JsonlLogAdapter extends AbstractObservabilityAdapter {
     public JsonlLogAdapter(Path path) {
         super(SourceDescriptors.of("phase0-jsonl", FILE, "jsonl-log",
-                "observability-source://phase0/jsonl", LOG), fileReader(path), "application/x-ndjson");
+                "observability-source://phase0/jsonl", LOG), fileReader(path), "application/x-ndjson",
+                java.util.Set.of("phase0/replay", "log/errors-v1"));
     }
 
     @Override
@@ -29,9 +30,14 @@ public final class JsonlLogAdapter extends AbstractObservabilityAdapter {
             if (!node.hasNonNull("timestamp") || !node.hasNonNull("message")) {
                 throw new IllegalArgumentException("Invalid JSONL record");
             }
+            Map<String, Object> attributes = new java.util.HashMap<>();
+            attributes.put("level", node.path("level").asText("UNKNOWN"));
+            for (String key : List.of("requestId", "traceId", "runId")) {
+                if (node.hasNonNull(key)) attributes.put(key, node.path(key).asText());
+            }
+            if (node.hasNonNull("traceId")) attributes.put("otelTraceId", node.path("traceId").asText());
             observations.add(new ParsedObservation(
-                    LOG, Instant.parse(node.path("timestamp").asText()), node.path("message").asText(),
-                    Map.of("level", node.path("level").asText("UNKNOWN"))));
+                    LOG, Instant.parse(node.path("timestamp").asText()), node.path("message").asText(), attributes));
         }
         return observations;
     }

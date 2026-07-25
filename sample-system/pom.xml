@@ -8,4 +8,9 @@
     </parent>
     <artifactId>sample-system</artifactId>
     <packaging>pom</packaging>
+    <modules>
+        <module>sample-gateway</module>
+        <module>order-service</module>
+        <module>inventory-service</module>
+    </modules>
 </project>
