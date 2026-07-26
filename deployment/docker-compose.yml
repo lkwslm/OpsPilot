@@ -7,7 +7,7 @@ x-runtime-environment: &runtime-environment
   RERANK_MODEL_ID: reranker-bge-v2-m3
   SOURCE_COMMIT: 60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b
   JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
-  EXPECTED_FLYWAY_VERSION: "10"
+  EXPECTED_FLYWAY_VERSION: "12"
   EXPECTED_PGVECTOR_VERSION: "0.8.4"
 
 x-process-common: &process-common

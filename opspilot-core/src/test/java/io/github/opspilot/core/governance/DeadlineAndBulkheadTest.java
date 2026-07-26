@@ -117,7 +117,7 @@ class DeadlineAndBulkheadTest {
         AtomicBoolean cancelCalled = new AtomicBoolean();
         try (var invocationExecutor = Executors.newSingleThreadExecutor()) {
             ProfileBulkhead bulkhead = new ProfileBulkhead(Map.of("profile", 1),
-                    clock, Duration.ofMillis(5), invocationExecutor);
+                    clock, Duration.ofSeconds(1), invocationExecutor);
             CancellableInvocation<String> late = new CancellableInvocation<>() {
                 @Override
                 public String execute(Instant deadline) {
