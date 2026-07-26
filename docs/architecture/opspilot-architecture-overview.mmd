@@ -1,0 +1,103 @@
+flowchart LR
+    %% OpsPilot architecture overview
+    %% Solid nodes: implemented foundation (Phase 0-4)
+    %% Dashed nodes: target closed loop / planned work
+
+    subgraph INPUT["故障现场与被测系统"]
+        direction TB
+        TICKET["Incident Ticket<br/>症状、范围、时间窗"]
+        SAMPLE["Sample System<br/>Gateway · Order · Inventory"]
+        FAULT["Fault Lab<br/>延迟 · 连接池 · 实例停止"]
+        SIGNALS["Observability Sources<br/>Logs · Metrics · Traces<br/>Health · Topology · Config"]
+        FAULT --> SAMPLE --> SIGNALS
+        SAMPLE --> TICKET
+    end
+
+    subgraph AGENTS["多 Agent 诊断层 · Target Closed Loop"]
+        direction LR
+        SUP["Supervisor Agent<br/>计划 · 委派 · 预算 · 收敛"]
+
+        subgraph INVESTIGATION["调查 Agent"]
+            direction TB
+            EC["Evidence Collector"]
+            CA["Code Analysis"]
+            KA["Knowledge Agent"]
+        end
+
+        subgraph CONCLUSION["结论 Agent"]
+            direction TB
+            DA["Diagnosis Agent<br/>假设与验证"]
+            RA["Remediation Agent<br/>止血与长期修复"]
+        end
+
+        SUP -->|"A2A Task"| EC
+        SUP -->|"A2A Task"| CA
+        SUP -->|"A2A Task"| KA
+        EC --> DA
+        CA --> DA
+        KA --> DA
+        DA --> RA
+    end
+
+    subgraph RUNTIME["AgentScope Java Runtime · 已实现基础"]
+        direction LR
+        REACT["Bounded ReAct"]
+        A2A["A2A HTTP + Agent Card"]
+        STATE["Checkpoint · Recovery<br/>Idempotency"]
+        SECURE["Secure Tool Middleware<br/>Schema · Auth · Approval · Budget"]
+        AUDIT["Audit · Event · Usage"]
+    end
+
+    subgraph EVIDENCE["证据与知识层"]
+        direction LR
+        ADAPTER["Source Adapter Registry"]
+        NORMALIZE["Observation → Evidence<br/>Provenance · Reliability · Relevance"]
+        TOOLS["Controlled Tools<br/>Log · Metric · Trace · Health<br/>Topology · Config"]
+        RAG["RAG Pipeline<br/>Embedding · pgvector · Rerank"]
+        ADAPTER --> NORMALIZE
+        TOOLS --> ADAPTER
+        RAG --> NORMALIZE
+    end
+
+    subgraph DATA["状态与基础设施"]
+        direction LR
+        PG["PostgreSQL + pgvector<br/>State · Task · Knowledge · Outbox"]
+        ARTIFACT["Artifact Store<br/>SHA-256 · Access Boundary"]
+        OBS["OpenTelemetry · Prometheus · Jaeger"]
+        COMPOSE["Docker Compose · Flyway · Testcontainers"]
+    end
+
+    subgraph OUTPUT["诊断输出 · Target"]
+        RCA["Structured RCA<br/>CONCLUSIVE · PARTIAL · INCONCLUSIVE"]
+        FIX["Remediation Plan<br/>止血 · 修复 · 监控 · 测试"]
+        EVAL["Deterministic Evaluation"]
+        RCA --> FIX --> EVAL
+    end
+
+    TICKET --> SUP
+    SIGNALS --> TOOLS
+    NORMALIZE --> EC
+    NORMALIZE --> DA
+    RA --> RCA
+
+    RUNTIME -. "运行与治理" .-> AGENTS
+    SECURE --> TOOLS
+    STATE --> PG
+    AUDIT --> PG
+    NORMALIZE --> ARTIFACT
+    PG --- COMPOSE
+    ARTIFACT --- COMPOSE
+    OBS -. "端到端观测" .-> AGENTS
+    OBS -. "端到端观测" .-> RUNTIME
+
+    classDef implemented fill:#EEF8FF,stroke:#2563EB,stroke-width:2px,color:#173B72;
+    classDef evidence fill:#ECFEFF,stroke:#0891B2,stroke-width:2px,color:#164E63;
+    classDef controlled fill:#FFF7ED,stroke:#F59E0B,stroke-width:2px,color:#7C2D12;
+    classDef planned fill:#F8FAFC,stroke:#98A2B3,stroke-width:2px,stroke-dasharray:7 5,color:#475467;
+    classDef infrastructure fill:#F5F3FF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95;
+
+    class TICKET,SAMPLE,FAULT,SIGNALS,REACT,A2A,STATE,AUDIT,PG,ARTIFACT,OBS,COMPOSE implemented;
+    class ADAPTER,NORMALIZE,TOOLS evidence;
+    class SECURE controlled;
+    class SUP,EC,CA,KA,DA,RA,RAG,RCA,FIX,EVAL planned;
+    class PG,ARTIFACT infrastructure;

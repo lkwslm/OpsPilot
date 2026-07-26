@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T11:56:20Z",
+  "status": "PASS",
+  "searchContract": {
+    "snapshotLockedRevision": true,
+    "exactDistanceOperatorAllowlist": ["COSINE", "INNER_PRODUCT", "L2"],
+    "filters": ["collection", "knowledgeRevision", "modelRevision", "searchable", "deleted", "ACL", "language", "service", "documentType", "tag", "relation"],
+    "nonEmptyCandidatesRequireRerank": true,
+    "fallbacks": []
+  },
+  "knowledgeReference": {
+    "bodyCopied": false,
+    "fields": [
+      "collectionId", "documentId", "documentVersionId", "chunkId",
+      "knowledgeRevisionId", "modelRevisionId", "artifactId", "sourceLocation",
+      "contentSha256", "filterSummarySha256", "vectorDistance",
+      "rerankScore", "rerankRank", "rerankProviderIdentity"
+    ],
+    "authorizedIntegrityCheckedResolution": true,
+    "evidenceNormalizerGate": true
+  },
+  "realRagLatencyEvidence": "outputs/phase5/05-WP05/rag-chain-latency-report.json",
+  "realRagP95Ms": 901.24,
+  "thresholdP95ExclusiveMs": 2000.0,
+  "secretScanEvidence": "outputs/phase5/05-WP07/secret-scan-report.json",
+  "failures": []
+}

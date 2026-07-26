@@ -25,11 +25,16 @@ public interface ChatPort {
     record ChatRequest(
             String modelId,
             List<ChatMessage> messages,
-            List<ToolDefinition> tools) {
+            List<ToolDefinition> tools,
+            StructuredOutput structuredOutput) {
 
         public ChatRequest {
             messages = List.copyOf(messages);
             tools = List.copyOf(tools);
+        }
+
+        public ChatRequest(String modelId, List<ChatMessage> messages, List<ToolDefinition> tools) {
+            this(modelId, messages, tools, null);
         }
     }
 
@@ -61,10 +66,30 @@ public interface ChatPort {
             String text,
             List<ToolCall> toolCalls,
             TokenUsage usage,
-            String finishReason) {
+            String finishReason,
+            ProviderIdentity actualIdentity) {
 
         public ChatResponse {
             toolCalls = List.copyOf(toolCalls);
+        }
+
+        public ChatResponse(
+                String responseId,
+                String text,
+                List<ToolCall> toolCalls,
+                TokenUsage usage,
+                String finishReason) {
+            this(responseId, text, toolCalls, usage, finishReason, null);
+        }
+    }
+
+    /** repairAllowed means the profile permits repair and the caller reserved one repair call in its budget. */
+    record StructuredOutput(String name, Map<String, Object> jsonSchema, boolean strict, boolean repairAllowed) {
+        public StructuredOutput {
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("structured output name must not be blank");
+            }
+            jsonSchema = Map.copyOf(jsonSchema);
         }
     }
 }

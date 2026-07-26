@@ -1,0 +1,292 @@
+{
+  "schemaVersion": "1.0.0",
+  "probeVersion": "phase0-real-retrieval-chain-v1",
+  "generatedAtUtc": "2026-07-26T11:34:42.260748+00:00",
+  "status": "PASS",
+  "inputSha256": "9b84327e7bff21d6821c1bd9e4fbfd783f9f067a5736f868d4cb2644f5491c1a",
+  "models": {
+    "embedding": "embedding-bge-small-zh-v1.5",
+    "rerank": "reranker-bge-v2-m3"
+  },
+  "candidateCount": 4,
+  "warmupSamplesExcluded": 1,
+  "sampleCount": 20,
+  "aggregation": "nearest-rank: sorted[ceil(p*N)-1]",
+  "latencyMs": {
+    "p50": 823.376,
+    "p95": 901.24,
+    "thresholdP95Exclusive": 2000.0
+  },
+  "machine": {
+    "os": "Windows-10-10.0.26200-SP0",
+    "cpu": "AMD Ryzen 7 5800H with Radeon Graphics",
+    "logicalCpu": 16,
+    "hostMemoryBytes": 17024741376,
+    "dockerCpu": 16,
+    "dockerMemoryBytes": 8247738368,
+    "inferenceDevice": "cpu"
+  },
+  "samples": [
+    {
+      "embeddingMs": 42.52,
+      "exactRecallMs": 0.3,
+      "rerankMs": 787.96,
+      "totalMs": 830.784,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 40.723,
+      "exactRecallMs": 0.319,
+      "rerankMs": 860.195,
+      "totalMs": 901.24,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 37.594,
+      "exactRecallMs": 0.406,
+      "rerankMs": 782.665,
+      "totalMs": 820.669,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 37.734,
+      "exactRecallMs": 0.288,
+      "rerankMs": 773.274,
+      "totalMs": 811.299,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 39.303,
+      "exactRecallMs": 0.377,
+      "rerankMs": 791.395,
+      "totalMs": 831.079,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 55.978,
+      "exactRecallMs": 0.32,
+      "rerankMs": 772.608,
+      "totalMs": 828.91,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 37.962,
+      "exactRecallMs": 0.305,
+      "rerankMs": 787.735,
+      "totalMs": 826.006,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 38.002,
+      "exactRecallMs": 0.325,
+      "rerankMs": 750.753,
+      "totalMs": 789.083,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 38.545,
+      "exactRecallMs": 0.331,
+      "rerankMs": 774.346,
+      "totalMs": 813.225,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 48.769,
+      "exactRecallMs": 0.445,
+      "rerankMs": 779.022,
+      "totalMs": 828.239,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 39.172,
+      "exactRecallMs": 0.351,
+      "rerankMs": 783.849,
+      "totalMs": 823.376,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 42.202,
+      "exactRecallMs": 0.292,
+      "rerankMs": 786.24,
+      "totalMs": 828.736,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 38.609,
+      "exactRecallMs": 0.295,
+      "rerankMs": 773.537,
+      "totalMs": 812.444,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 43.021,
+      "exactRecallMs": 0.41,
+      "rerankMs": 859.294,
+      "totalMs": 902.728,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 47.757,
+      "exactRecallMs": 0.348,
+      "rerankMs": 760.281,
+      "totalMs": 808.39,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 48.426,
+      "exactRecallMs": 0.288,
+      "rerankMs": 804.825,
+      "totalMs": 853.542,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 38.98,
+      "exactRecallMs": 0.313,
+      "rerankMs": 762.294,
+      "totalMs": 801.591,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 40.217,
+      "exactRecallMs": 0.496,
+      "rerankMs": 769.862,
+      "totalMs": 810.578,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 39.17,
+      "exactRecallMs": 0.289,
+      "rerankMs": 755.423,
+      "totalMs": 794.885,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    },
+    {
+      "embeddingMs": 39.397,
+      "exactRecallMs": 0.292,
+      "rerankMs": 812.314,
+      "totalMs": 852.007,
+      "baselineOriginalIndices": [
+        2,
+        0,
+        1,
+        3
+      ],
+      "identityAndIndexValid": true
+    }
+  ],
+  "failures": []
+}

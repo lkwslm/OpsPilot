@@ -2,20 +2,20 @@ schema: spec-driven
 
 context: |
   项目：OpsPilot，本地可运行、可验证、可复现的智能运维演示系统。
-  当前变更只覆盖 docs/implementation-plan/04-sample-system-and-observability.md 定义的阶段 04。
+  当前变更只覆盖 docs/implementation-plan/05-real-providers-and-rag.md 定义的阶段 05。
   事实源优先级：docs/design/contracts/ 中的 OpenAPI 与 JSON Schema，其次为设计中的状态矩阵、不变量和模块边界，再其次为阶段计划。
-  本阶段实现三服务 Sample System、test-only 故障入口、真实日志/指标/Trace/健康/配置/拓扑采集、稳定 Resource/Source 身份、Source Registry、七类 Adapter、Observation 校验、EvidenceNormalizer、六个可观测 Tool 及 Compose smoke 纵切。
-  本阶段不编排阶段 07 的三个冻结故障场景，不实现阶段 05 的真实 Provider/RAG 或阶段 06 的 Agent/A2A 产品能力，不承诺 Loki、Tempo、Kubernetes、Cloud 或所有语言 Adapter，也不向 Agent 或 Tool 暴露 Docker socket。
-  所有 Source Adapter、Observation、Evidence、Artifact、Tool 和纵切合同必须用真实 Prometheus、Jaeger、OpenTelemetry Collector、JSONL、Actuator、HTTP、配置与 Compose 响应验证；不得用 Fake Provider 冒充模型或 E2E 通过。
+  本阶段实现 OpenAI-Compatible Chat、Infinity Embedding/Rerank、三个专用 Provider Registry、配置与真实能力探针、Context/Prompt/Token 预算、deadline/retry/bulkhead，以及文档版本、pgvector 精确召回、强制 Rerank、可核验引用和 active revision 原子切换的完整 RAG 链路。
+  本阶段不实现动态模型路由或自动 failover，不假定 Chat 端点支持 Embedding/Rerank，不使用生成模型冒充 Rerank，也不提供绕过 Rerank 的 MVP 开关；阶段 06 的 Agent/A2A 产品能力与阶段 07 的冻结故障场景不在范围内。
+  Provider、检索、知识版本、状态与预算合同必须通过共享合同测试、真实 DeepSeek-compatible/Infinity/pgvector 集成、固定中文质量基准、完整 RAG 性能测试及 secret scan 验证；不得用 Fake Provider 冒充真实集成或 E2E 通过。
   文档、需求、场景、设计决策和任务说明统一使用中文；协议字段名、代码标识符、路径、命令及标准术语保留原文。
 
 rules:
   proposal:
-    - 明确阶段 04 的 Sample System 与可观测性边界、非目标、前置门禁和可验证结果。
+    - 明确阶段 05 的真实 Provider、模型运行约束、知识版本与完整 RAG 边界、非目标、前置门禁和可验证结果。
   specs:
-    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的故障隔离、来源选择、失败语义、去重和权限约束。
+    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的能力探针、Secret 边界、预算与 deadline、revision 一致性、强制 Rerank、空结果语义、引用可核验性和原子切换约束。
   design:
-    - 记录工作包依赖、Sample/Fault Lab 所有权、遥测与 core 边界、Resource/Source 身份、Adapter/Observation/Evidence 数据流、Tool 边界、Compose smoke 和阻塞条件，不扩展阶段范围。
+    - 记录 05-WP01 至 05-WP09 的依赖、Provider Registry 与 Adapter 边界、配置快照、Context/预算中间件、知识导入与 revision 生命周期、检索/Rerank/Reference/Evidence 数据流、状态矩阵、真实集成门禁和阻塞条件，不扩展阶段范围。
   tasks:
-    - 保留 04-WPxx.Tx 编号，任务必须能追溯到实施落点、验证命令或证据。
+    - 保留 05-WPxx.Tx 编号，任务必须能追溯到实施落点、验证命令或证据。
     - 使用未勾选复选框，不把规划工作误标为已完成。

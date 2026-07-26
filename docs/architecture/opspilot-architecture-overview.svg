@@ -1,0 +1,479 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1080" viewBox="0 0 1800 1080" role="img" aria-labelledby="title desc">
+  <title id="title">OpsPilot 智能运维多 Agent 故障诊断系统架构概览</title>
+  <desc id="desc">面向 README 与面试讲解的分层架构图。实线表示已实现基础能力，虚线表示目标闭环或规划中能力。</desc>
+
+  <defs>
+    <linearGradient id="pageBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8FAFF"/>
+      <stop offset="1" stop-color="#F2F4F9"/>
+    </linearGradient>
+    <linearGradient id="agentGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="runtimeGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#EEF4FF"/>
+      <stop offset="1" stop-color="#F5F3FF"/>
+    </linearGradient>
+    <linearGradient id="evidenceGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ECFEFF"/>
+      <stop offset="1" stop-color="#EFF8FF"/>
+    </linearGradient>
+    <linearGradient id="obsGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#312E81"/>
+      <stop offset="0.55" stop-color="#4338CA"/>
+      <stop offset="1" stop-color="#155E75"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#101828" flood-opacity="0.09"/>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#101828" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4F46E5"/>
+    </marker>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0891B2"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#98A2B3"/>
+    </marker>
+    <marker id="arrowOrange" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#F59E0B"/>
+    </marker>
+    <style>
+      text { font-family: Inter, "Microsoft YaHei", "PingFang SC", Arial, sans-serif; }
+      .title { font-size: 32px; font-weight: 750; fill: #101828; letter-spacing: .2px; }
+      .subtitle { font-size: 15px; font-weight: 450; fill: #667085; }
+      .section-num { font-size: 12px; font-weight: 800; letter-spacing: 1.2px; fill: #667085; }
+      .section-title { font-size: 18px; font-weight: 750; fill: #1D2939; }
+      .section-note { font-size: 12px; font-weight: 550; fill: #667085; }
+      .card-title { font-size: 16px; font-weight: 750; fill: #1D2939; }
+      .card-title-sm { font-size: 14px; font-weight: 750; fill: #1D2939; }
+      .card-body { font-size: 12px; font-weight: 500; fill: #667085; }
+      .card-body-dark { font-size: 12px; font-weight: 550; fill: #344054; }
+      .tiny { font-size: 10.5px; font-weight: 650; fill: #667085; }
+      .white-title { font-size: 16px; font-weight: 750; fill: #FFFFFF; }
+      .white-body { font-size: 11px; font-weight: 500; fill: #E0E7FF; }
+      .pill-text { font-size: 11px; font-weight: 700; }
+      .solid-card { fill: #FFFFFF; stroke: #D0D5DD; stroke-width: 1.4; }
+      .planned-card { fill: #F9FAFB; stroke: #98A2B3; stroke-width: 1.7; stroke-dasharray: 7 6; }
+      .teal-card { fill: #FFFFFF; stroke: #06B6D4; stroke-width: 1.7; }
+      .orange-card { fill: #FFFBEB; stroke: #F59E0B; stroke-width: 1.7; }
+      .blue-line { fill: none; stroke: #4F46E5; stroke-width: 2.2; marker-end: url(#arrowBlue); }
+      .teal-line { fill: none; stroke: #0891B2; stroke-width: 2.2; marker-end: url(#arrowTeal); }
+      .gray-line { fill: none; stroke: #98A2B3; stroke-width: 1.8; stroke-dasharray: 6 5; marker-end: url(#arrowGray); }
+      .support-line { fill: none; stroke: #B3B8DB; stroke-width: 1.7; stroke-dasharray: 4 5; marker-end: url(#arrowBlue); opacity: .85; }
+    </style>
+  </defs>
+
+  <rect width="1800" height="1080" fill="url(#pageBg)"/>
+  <circle cx="1640" cy="-80" r="260" fill="#EEF2FF"/>
+  <circle cx="120" cy="1060" r="210" fill="#ECFEFF" opacity=".65"/>
+
+  <!-- Header -->
+  <g>
+    <rect x="48" y="25" width="9" height="60" rx="4.5" fill="url(#agentGradient)"/>
+    <text x="76" y="56" class="title">OpsPilot</text>
+    <text x="222" y="56" class="title">· 智能运维多 Agent 故障诊断系统</text>
+    <text x="77" y="82" class="subtitle">Evidence-driven diagnosis · AgentScope Java · A2A · PostgreSQL / pgvector · Observability</text>
+
+    <g transform="translate(1260 33)">
+      <rect width="145" height="29" rx="14.5" fill="#ECFDF3" stroke="#ABEFC6"/>
+      <circle cx="18" cy="14.5" r="5" fill="#12B76A"/>
+      <text x="31" y="19" class="pill-text" fill="#067647">Phase 0–4 已实现</text>
+    </g>
+    <g transform="translate(1420 33)">
+      <line x1="0" y1="14" x2="28" y2="14" stroke="#4F46E5" stroke-width="3"/>
+      <text x="38" y="18" class="tiny">已实现基础能力</text>
+    </g>
+    <g transform="translate(1585 33)">
+      <line x1="0" y1="14" x2="28" y2="14" stroke="#98A2B3" stroke-width="2" stroke-dasharray="6 5"/>
+      <text x="38" y="18" class="tiny">目标闭环</text>
+    </g>
+  </g>
+
+  <!-- Left: incident and sources -->
+  <g filter="url(#shadow)">
+    <rect x="48" y="122" width="254" height="824" rx="22" fill="#FFFFFF" stroke="#E4E7EC"/>
+  </g>
+  <text x="70" y="154" class="section-num">SYSTEM INPUT</text>
+  <text x="70" y="179" class="section-title">故障现场与系统输入</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="69" y="201" width="212" height="112" rx="15" class="solid-card"/>
+    <circle cx="94" cy="228" r="13" fill="#EEF4FF"/>
+    <path d="M89 222h10v12H89zm2-3h6v3h-6z" fill="#4F46E5"/>
+    <text x="117" y="232" class="card-title">Incident Ticket</text>
+    <text x="89" y="257" class="card-body-dark">症状 · 影响范围 · 时间窗口</text>
+    <rect x="89" y="273" width="166" height="22" rx="11" fill="#F2F4F7"/>
+    <text x="103" y="288" class="tiny">Ground Truth 与 Agent 隔离</text>
+  </g>
+
+  <g>
+    <text x="70" y="348" class="card-title-sm">Observability Sources</text>
+    <text x="70" y="367" class="card-body">统一接入六类现场信号</text>
+    <g transform="translate(69 384)">
+      <rect width="98" height="43" rx="11" fill="#ECFEFF" stroke="#A5F3FC"/>
+      <circle cx="17" cy="21.5" r="5" fill="#06B6D4"/><text x="30" y="26" class="card-body-dark">Logs</text>
+    </g>
+    <g transform="translate(183 384)">
+      <rect width="98" height="43" rx="11" fill="#ECFEFF" stroke="#A5F3FC"/>
+      <circle cx="17" cy="21.5" r="5" fill="#06B6D4"/><text x="30" y="26" class="card-body-dark">Metrics</text>
+    </g>
+    <g transform="translate(69 438)">
+      <rect width="98" height="43" rx="11" fill="#EFF8FF" stroke="#B2DDFF"/>
+      <circle cx="17" cy="21.5" r="5" fill="#0EA5E9"/><text x="30" y="26" class="card-body-dark">Traces</text>
+    </g>
+    <g transform="translate(183 438)">
+      <rect width="98" height="43" rx="11" fill="#EFF8FF" stroke="#B2DDFF"/>
+      <circle cx="17" cy="21.5" r="5" fill="#0EA5E9"/><text x="30" y="26" class="card-body-dark">Health</text>
+    </g>
+    <g transform="translate(69 492)">
+      <rect width="98" height="43" rx="11" fill="#F4F3FF" stroke="#D9D6FE"/>
+      <circle cx="17" cy="21.5" r="5" fill="#7C3AED"/><text x="30" y="26" class="card-body-dark">Topology</text>
+    </g>
+    <g transform="translate(183 492)">
+      <rect width="98" height="43" rx="11" fill="#FFF7ED" stroke="#FED7AA"/>
+      <circle cx="17" cy="21.5" r="5" fill="#F59E0B"/><text x="30" y="26" class="card-body-dark">Config</text>
+    </g>
+  </g>
+
+  <line x1="69" y1="566" x2="281" y2="566" stroke="#EAECF0"/>
+
+  <g>
+    <text x="70" y="600" class="card-title-sm">Sample System</text>
+    <text x="70" y="620" class="card-body">可运行的微服务故障实验环境</text>
+    <g transform="translate(69 640)">
+      <rect width="212" height="47" rx="12" fill="#F8FAFC" stroke="#D0D5DD"/>
+      <rect x="12" y="11" width="25" height="25" rx="7" fill="#EEF4FF"/>
+      <text x="49" y="29" class="card-body-dark">Sample Gateway</text>
+    </g>
+    <g transform="translate(69 698)">
+      <rect width="212" height="47" rx="12" fill="#F8FAFC" stroke="#D0D5DD"/>
+      <rect x="12" y="11" width="25" height="25" rx="7" fill="#F4F3FF"/>
+      <text x="49" y="29" class="card-body-dark">Order Service</text>
+    </g>
+    <g transform="translate(69 756)">
+      <rect width="212" height="47" rx="12" fill="#F8FAFC" stroke="#D0D5DD"/>
+      <rect x="12" y="11" width="25" height="25" rx="7" fill="#ECFEFF"/>
+      <text x="49" y="29" class="card-body-dark">Inventory Service</text>
+    </g>
+  </g>
+
+  <g transform="translate(69 827)">
+    <rect width="212" height="91" rx="14" fill="#FFFBEB" stroke="#FEC84B"/>
+    <text x="16" y="26" class="card-title-sm" fill="#92400E">Fault Lab</text>
+    <text x="16" y="49" class="card-body-dark">延迟 · 连接池耗尽 · 实例停止</text>
+    <rect x="16" y="61" width="180" height="20" rx="10" fill="#FEF0C7"/>
+    <text x="30" y="75" class="tiny" fill="#B54708">受控注入 / 恢复 / Ground Truth</text>
+  </g>
+
+  <!-- Center: target multi-agent layer -->
+  <g>
+    <rect x="337" y="122" width="1118" height="397" rx="22" fill="#FFFFFF" stroke="#98A2B3" stroke-width="1.8" stroke-dasharray="8 7"/>
+    <text x="365" y="153" class="section-num">01 · MULTI-AGENT DIAGNOSIS</text>
+    <text x="365" y="178" class="section-title">多 Agent 诊断层</text>
+    <text x="524" y="178" class="section-note">从证据收集到根因与修复建议的目标闭环</text>
+    <g transform="translate(1318 143)">
+      <rect width="108" height="27" rx="13.5" fill="#F2F4F7" stroke="#98A2B3" stroke-dasharray="5 4"/>
+      <text x="17" y="18" class="pill-text" fill="#667085">TARGET FLOW</text>
+    </g>
+
+    <g transform="translate(383 198)">
+      <rect width="1018" height="32" rx="16" fill="#EEF2FF" stroke="#C7D7FE"/>
+      <circle cx="19" cy="16" r="6" fill="#4F46E5"/>
+      <text x="34" y="21" class="pill-text" fill="#4338CA">A2A 1.0 Collaboration Bus</text>
+      <text x="213" y="21" class="tiny">Agent Card · Message · Task · Artifact · HTTP/JSON · 幂等与恢复基础已实现</text>
+    </g>
+
+    <!-- Supervisor -->
+    <g filter="url(#softShadow)">
+      <rect x="383" y="254" width="218" height="211" rx="18" class="planned-card"/>
+      <rect x="383" y="254" width="218" height="50" rx="18" fill="url(#agentGradient)"/>
+      <rect x="383" y="286" width="218" height="18" fill="url(#agentGradient)"/>
+      <circle cx="410" cy="279" r="13" fill="#FFFFFF" opacity=".18"/>
+      <path d="M404 280l5 5 9-12" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="433" y="284" class="white-title">Supervisor Agent</text>
+      <text x="405" y="333" class="card-body-dark">• 能力发现与调查计划</text>
+      <text x="405" y="359" class="card-body-dark">• A2A 任务委派与收敛</text>
+      <text x="405" y="385" class="card-body-dark">• Token / Tool / Deadline 预算</text>
+      <text x="405" y="411" class="card-body-dark">• 失败透明与补证决策</text>
+      <rect x="405" y="428" width="84" height="21" rx="10.5" fill="#F2F4F7"/>
+      <text x="419" y="442" class="tiny">目标编排逻辑</text>
+    </g>
+
+    <!-- Investigation agents group -->
+    <g>
+      <rect x="637" y="243" width="486" height="233" rx="18" fill="#FCFCFD" stroke="#D0D5DD"/>
+      <text x="660" y="271" class="card-title-sm">Investigation Agents</text>
+      <text x="819" y="271" class="tiny">调查与补证</text>
+
+      <g filter="url(#softShadow)">
+        <rect x="659" y="291" width="136" height="157" rx="15" class="planned-card"/>
+        <circle cx="686" cy="319" r="14" fill="#CFFAFE"/>
+        <path d="M680 318h12M686 312v12" stroke="#0891B2" stroke-width="2" stroke-linecap="round"/>
+        <text x="677" y="350" class="card-title-sm">Evidence</text>
+        <text x="669" y="369" class="card-title-sm">Collector</text>
+        <text x="678" y="397" class="card-body">日志 / 指标</text>
+        <text x="678" y="416" class="card-body">Trace / 健康</text>
+        <rect x="676" y="428" width="81" height="6" rx="3" fill="#06B6D4" opacity=".7"/>
+      </g>
+
+      <g filter="url(#softShadow)">
+        <rect x="812" y="291" width="136" height="157" rx="15" class="planned-card"/>
+        <circle cx="839" cy="319" r="14" fill="#E0E7FF"/>
+        <path d="M833 314l-5 5 5 5m12-10l5 5-5 5m-3-13l-6 16" fill="none" stroke="#4F46E5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="830" y="350" class="card-title-sm">Code</text>
+        <text x="827" y="369" class="card-title-sm">Analysis</text>
+        <text x="829" y="397" class="card-body">Commit 定位</text>
+        <text x="829" y="416" class="card-body">只读代码证据</text>
+        <rect x="829" y="428" width="81" height="6" rx="3" fill="#4F46E5" opacity=".65"/>
+      </g>
+
+      <g filter="url(#softShadow)">
+        <rect x="965" y="291" width="136" height="157" rx="15" class="planned-card"/>
+        <circle cx="992" cy="319" r="14" fill="#EDE9FE"/>
+        <path d="M986 313h12v13h-12zm3-4h12v13" fill="none" stroke="#7C3AED" stroke-width="1.8" stroke-linejoin="round"/>
+        <text x="985" y="350" class="card-title-sm">Knowledge</text>
+        <text x="990" y="369" class="card-title-sm">Agent</text>
+        <text x="981" y="397" class="card-body">Embedding</text>
+        <text x="981" y="416" class="card-body">Retrieval / Rerank</text>
+        <rect x="982" y="428" width="81" height="6" rx="3" fill="#7C3AED" opacity=".65"/>
+      </g>
+    </g>
+
+    <!-- Conclusion agents -->
+    <g>
+      <rect x="1158" y="243" width="254" height="233" rx="18" fill="#FCFCFD" stroke="#D0D5DD"/>
+      <text x="1180" y="271" class="card-title-sm">Conclusion Agents</text>
+      <g filter="url(#softShadow)">
+        <rect x="1180" y="291" width="210" height="68" rx="14" class="planned-card"/>
+        <circle cx="1204" cy="325" r="13" fill="#FCE7F3"/>
+        <path d="M1199 326l4 4 7-10" fill="none" stroke="#DB2777" stroke-width="2" stroke-linecap="round"/>
+        <text x="1227" y="320" class="card-title-sm">Diagnosis Agent</text>
+        <text x="1227" y="340" class="card-body">多假设 · 冲突证据 · 置信度</text>
+      </g>
+      <g filter="url(#softShadow)">
+        <rect x="1180" y="378" width="210" height="68" rx="14" class="planned-card"/>
+        <circle cx="1204" cy="412" r="13" fill="#FFEDD5"/>
+        <path d="M1198 416l12-12m-9-1l10 10" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/>
+        <text x="1227" y="407" class="card-title-sm">Remediation Agent</text>
+        <text x="1227" y="427" class="card-body">止血 · 长期修复 · 监控与测试</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Main diagnosis flow arrows -->
+  <path d="M281 254 H337 H367" class="blue-line"/>
+  <rect x="296" y="232" width="71" height="20" rx="10" fill="#EEF2FF"/>
+  <text x="307" y="246" class="tiny" fill="#4338CA">诊断入口</text>
+
+  <path d="M601 359 H631" class="gray-line"/>
+  <path d="M795 369 H806" class="gray-line"/>
+  <path d="M948 369 H959" class="gray-line"/>
+  <path d="M1101 369 H1149" class="gray-line"/>
+  <path d="M1285 359 V369 V374" class="gray-line"/>
+
+  <!-- Runtime layer -->
+  <g filter="url(#shadow)">
+    <rect x="337" y="541" width="1118" height="156" rx="22" fill="url(#runtimeGradient)" stroke="#A4BCFD" stroke-width="1.5"/>
+  </g>
+  <text x="365" y="571" class="section-num" fill="#4F46E5">02 · AGENTSCOPE JAVA RUNTIME</text>
+  <text x="365" y="595" class="section-title">可恢复、可审计、受约束的 Agent 运行基础</text>
+  <g transform="translate(1268 558)">
+    <rect width="158" height="27" rx="13.5" fill="#ECFDF3" stroke="#ABEFC6"/>
+    <circle cx="17" cy="13.5" r="4.5" fill="#12B76A"/>
+    <text x="30" y="18" class="pill-text" fill="#067647">FOUNDATION READY</text>
+  </g>
+
+  <g transform="translate(365 618)">
+    <rect width="190" height="54" rx="13" fill="#FFFFFF" stroke="#C7D7FE"/>
+    <text x="16" y="23" class="card-title-sm">Bounded ReAct</text>
+    <text x="16" y="41" class="tiny">有界循环 · Structured Decision</text>
+  </g>
+  <g transform="translate(570 618)">
+    <rect width="190" height="54" rx="13" fill="#FFFFFF" stroke="#C7D7FE"/>
+    <text x="16" y="23" class="card-title-sm">A2A Collaboration</text>
+    <text x="16" y="41" class="tiny">跨进程 HTTP · 幂等任务</text>
+  </g>
+  <g transform="translate(775 618)">
+    <rect width="190" height="54" rx="13" fill="#FFFFFF" stroke="#C7D7FE"/>
+    <text x="16" y="23" class="card-title-sm">Checkpoint &amp; Recovery</text>
+    <text x="16" y="41" class="tiny">状态快照 · 重启恢复 · 乐观锁</text>
+  </g>
+  <g transform="translate(980 618)">
+    <rect width="212" height="54" rx="13" class="orange-card"/>
+    <text x="16" y="23" class="card-title-sm" fill="#9A3412">Secure Invocation</text>
+    <text x="16" y="41" class="tiny" fill="#B54708">Schema · Auth · Approval · Budget</text>
+  </g>
+  <g transform="translate(1207 618)">
+    <rect width="219" height="54" rx="13" fill="#FFFFFF" stroke="#C7D7FE"/>
+    <text x="16" y="23" class="card-title-sm">Audit &amp; Event</text>
+    <text x="16" y="41" class="tiny">调用审计 · SSE · Usage · Failure</text>
+  </g>
+
+  <!-- Runtime supports target agent layer -->
+  <path d="M895 541 V522 V498" class="support-line"/>
+  <text x="908" y="530" class="tiny" fill="#4F46E5">runtime support</text>
+
+  <!-- Evidence layer -->
+  <g filter="url(#shadow)">
+    <rect x="337" y="718" width="1118" height="157" rx="22" fill="url(#evidenceGradient)" stroke="#67E8F9" stroke-width="1.5"/>
+  </g>
+  <text x="365" y="748" class="section-num" fill="#0891B2">03 · EVIDENCE &amp; KNOWLEDGE</text>
+  <text x="365" y="772" class="section-title">现场事实标准化与知识增强</text>
+  <text x="657" y="772" class="section-note">Evidence 是唯一进入诊断与假设的事实层</text>
+
+  <g transform="translate(365 791)">
+    <rect width="211" height="60" rx="13" class="orange-card"/>
+    <text x="15" y="24" class="card-title-sm" fill="#9A3412">Controlled Tools</text>
+    <text x="15" y="43" class="tiny" fill="#B54708">Log · Metric · Trace · Health · Config</text>
+  </g>
+  <g transform="translate(600 791)">
+    <rect width="211" height="60" rx="13" class="teal-card"/>
+    <text x="15" y="24" class="card-title-sm">Source Adapter Registry</text>
+    <text x="15" y="43" class="tiny">能力选择 · 来源身份 · 失败分类</text>
+  </g>
+  <g transform="translate(835 791)">
+    <rect width="295" height="60" rx="13" class="teal-card"/>
+    <text x="15" y="24" class="card-title-sm">Observation → Evidence</text>
+    <text x="15" y="43" class="tiny">Provenance · Reliability · Relevance · Redaction</text>
+  </g>
+  <g transform="translate(1154 791)">
+    <rect width="272" height="60" rx="13" class="planned-card"/>
+    <text x="15" y="24" class="card-title-sm">RAG Pipeline</text>
+    <text x="15" y="43" class="tiny">Embedding · pgvector · Rerank · Citation</text>
+  </g>
+
+  <path d="M576 821 H590" class="teal-line"/>
+  <path d="M811 821 H825" class="teal-line"/>
+  <path d="M1154 821 H1140" class="gray-line"/>
+  <path d="M280 457 H316 V821 H355" class="teal-line"/>
+  <rect x="292" y="681" width="83" height="20" rx="10" fill="#ECFEFF"/>
+  <text x="304" y="695" class="tiny" fill="#0E7490">现场信号</text>
+
+  <!-- Evidence feeds agents -->
+  <path d="M982 791 V706 H1102 V518" class="support-line"/>
+  <text x="995" y="710" class="tiny" fill="#0891B2">evidence feed</text>
+
+  <!-- Persistence strip -->
+  <g>
+    <rect x="337" y="893" width="1118" height="65" rx="18" fill="#FFFFFF" stroke="#D9D6FE"/>
+    <text x="365" y="920" class="section-num" fill="#7C3AED">04 · STATE &amp; INFRASTRUCTURE</text>
+    <text x="365" y="943" class="card-body-dark">PostgreSQL + pgvector</text>
+    <circle cx="534" cy="937" r="3" fill="#7C3AED"/>
+    <text x="548" y="943" class="card-body">State · Task · Outbox · Knowledge Version</text>
+    <line x1="804" y1="910" x2="804" y2="944" stroke="#E4E7EC"/>
+    <text x="830" y="926" class="card-title-sm">Artifact Store</text>
+    <text x="830" y="945" class="tiny">SHA-256 · Access Boundary</text>
+    <line x1="1048" y1="910" x2="1048" y2="944" stroke="#E4E7EC"/>
+    <text x="1075" y="926" class="card-title-sm">Docker Compose · Flyway</text>
+    <text x="1075" y="945" class="tiny">Testcontainers · Version Lock</text>
+  </g>
+
+  <path d="M900 893 V883" class="support-line"/>
+
+  <!-- Right: target output -->
+  <g filter="url(#shadow)">
+    <rect x="1480" y="122" width="272" height="836" rx="22" fill="#FFFFFF" stroke="#E4E7EC"/>
+  </g>
+  <text x="1504" y="154" class="section-num">DIAGNOSIS OUTPUT</text>
+  <text x="1504" y="179" class="section-title">结构化诊断输出</text>
+
+  <g filter="url(#softShadow)">
+    <rect x="1503" y="204" width="226" height="179" rx="17" class="planned-card"/>
+    <circle cx="1532" cy="235" r="15" fill="#E0E7FF"/>
+    <path d="M1525 235h14m-7-7v14" stroke="#4F46E5" stroke-width="2" stroke-linecap="round"/>
+    <text x="1557" y="240" class="card-title">Structured RCA</text>
+    <text x="1524" y="274" class="card-body-dark">• 多个根因假设与验证记录</text>
+    <text x="1524" y="299" class="card-body-dark">• 支持 / 冲突 Evidence 引用</text>
+    <text x="1524" y="324" class="card-body-dark">• JSON + Markdown Artifact</text>
+    <g transform="translate(1524 342)">
+      <rect width="58" height="23" rx="11.5" fill="#EEF2FF"/>
+      <text x="7" y="15.5" style="font-size:8.5px;font-weight:750;fill:#4338CA">CONCLUSIVE</text>
+      <rect x="63" width="48" height="23" rx="11.5" fill="#F4F3FF"/>
+      <text x="72" y="15.5" style="font-size:8.5px;font-weight:750;fill:#6941C6">PARTIAL</text>
+      <rect x="116" width="68" height="23" rx="11.5" fill="#F2F4F7"/>
+      <text x="122" y="15.5" style="font-size:8.5px;font-weight:750;fill:#475467">INCONCLUSIVE</text>
+    </g>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="1503" y="405" width="226" height="143" rx="17" class="planned-card"/>
+    <circle cx="1532" cy="436" r="15" fill="#FFEDD5"/>
+    <path d="M1526 440l12-12m-9-1l10 10" stroke="#EA580C" stroke-width="2" stroke-linecap="round"/>
+    <text x="1557" y="441" class="card-title">Remediation Plan</text>
+    <text x="1524" y="475" class="card-body-dark">止血措施 · 长期修复</text>
+    <text x="1524" y="499" class="card-body-dark">监控补充 · 回归测试</text>
+    <rect x="1524" y="516" width="181" height="17" rx="8.5" fill="#FFF7ED"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="1503" y="570" width="226" height="123" rx="17" class="planned-card"/>
+    <circle cx="1532" cy="601" r="15" fill="#FCE7F3"/>
+    <path d="M1525 605l5-6 4 3 6-9" fill="none" stroke="#DB2777" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1557" y="606" class="card-title">Evaluation</text>
+    <text x="1524" y="638" class="card-body-dark">Ground Truth 隔离评测</text>
+    <text x="1524" y="661" class="card-body-dark">确定性质量与效率指标</text>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="1503" y="716" width="226" height="131" rx="17" class="solid-card"/>
+    <rect x="1503" y="716" width="226" height="34" rx="17" fill="#EEF4FF"/>
+    <rect x="1503" y="738" width="226" height="12" fill="#EEF4FF"/>
+    <text x="1524" y="739" class="card-title-sm">Audit &amp; Live Events</text>
+    <text x="1524" y="777" class="card-body-dark">SSE replay · Task events</text>
+    <text x="1524" y="800" class="card-body-dark">requestId · traceId · runId</text>
+    <text x="1524" y="823" class="card-body-dark">toolCallId · invocationId</text>
+  </g>
+
+  <g transform="translate(1503 870)">
+    <rect width="226" height="63" rx="15" fill="#FFFBEB" stroke="#FEC84B"/>
+    <text x="16" y="24" class="card-title-sm" fill="#92400E">Safety Boundary</text>
+    <text x="16" y="45" class="tiny" fill="#B54708">只读默认 · 高风险禁止 · 全链路审计</text>
+  </g>
+
+  <!-- Output flow arrows -->
+  <path d="M1412 412 H1460 V293 H1493" class="gray-line"/>
+  <path d="M1616 383 V395" class="gray-line"/>
+  <path d="M1616 548 V560" class="gray-line"/>
+
+  <!-- Bottom observability and validation rail -->
+  <g filter="url(#shadow)">
+    <rect x="48" y="978" width="1704" height="67" rx="20" fill="url(#obsGradient)"/>
+  </g>
+  <text x="75" y="1008" class="white-title">Observability &amp; Verification</text>
+  <text x="75" y="1029" class="white-body">OpenTelemetry traces every REST → Agent → Model / Tool → PostgreSQL hop</text>
+
+  <g transform="translate(435 995)">
+    <rect width="127" height="34" rx="17" fill="#FFFFFF" opacity=".12"/>
+    <circle cx="18" cy="17" r="5" fill="#67E8F9"/>
+    <text x="32" y="21" class="pill-text" fill="#FFFFFF">OpenTelemetry</text>
+  </g>
+  <g transform="translate(575 995)">
+    <rect width="112" height="34" rx="17" fill="#FFFFFF" opacity=".12"/>
+    <circle cx="18" cy="17" r="5" fill="#FB923C"/>
+    <text x="32" y="21" class="pill-text" fill="#FFFFFF">Prometheus</text>
+  </g>
+  <g transform="translate(700 995)">
+    <rect width="91" height="34" rx="17" fill="#FFFFFF" opacity=".12"/>
+    <circle cx="18" cy="17" r="5" fill="#F9A8D4"/>
+    <text x="32" y="21" class="pill-text" fill="#FFFFFF">Jaeger</text>
+  </g>
+  <g transform="translate(815 995)">
+    <rect width="306" height="34" rx="17" fill="#FFFFFF" opacity=".10"/>
+    <text x="18" y="21" class="pill-text" fill="#E0E7FF">traceId · requestId · runId · invocationId</text>
+  </g>
+  <g transform="translate(1146 989)">
+    <rect width="254" height="45" rx="14" fill="#FFFFFF" opacity=".14"/>
+    <text x="18" y="20" class="pill-text" fill="#FFFFFF">21 Maven modules</text>
+    <text x="18" y="36" class="white-body">全量构建成功</text>
+  </g>
+  <g transform="translate(1416 989)">
+    <rect width="305" height="45" rx="14" fill="#FFFFFF" opacity=".16"/>
+    <text x="18" y="20" class="pill-text" fill="#FFFFFF">124 automated tests · 0 failures</text>
+    <text x="18" y="36" class="white-body">状态机 · A2A · 数据库 · 权限 · 可观测性</text>
+  </g>
+</svg>

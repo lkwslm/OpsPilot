@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T11:56:20Z",
+  "status": "PASS",
+  "matrix": [
+    {"condition":"EMPTY_COLLECTION","outcome":"COMPLETED+KB_EMPTY","embeddingCalls":0,"databaseCalls":0,"rerankCalls":0,"rerankApplied":false},
+    {"condition":"ZERO_CANDIDATES","outcome":"COMPLETED+NO_MATCH","embeddingCalls":1,"databaseCalls":1,"rerankCalls":0,"rerankApplied":false},
+    {"condition":"NON_EMPTY_VALID_RERANK","outcome":"COMPLETED+MATCH","embeddingCalls":1,"databaseCalls":1,"rerankCalls":1,"rerankApplied":true},
+    {"condition":"EMBEDDING_FAILURE","outcome":"CHAIN_FAILURE","fallback":false},
+    {"condition":"DATABASE_FAILURE","outcome":"CHAIN_FAILURE","fallback":false},
+    {"condition":"ACL_OR_REFERENCE_FAILURE","outcome":"CHAIN_FAILURE","fallback":false},
+    {"condition":"RERANK_TIMEOUT_AUTH_SCHEMA_INDEX_IDENTITY_CANCEL","outcome":"CHAIN_FAILURE","fallback":false}
+  ],
+  "technicalFailureContext": ["failedStage", "attempt", "correlationId", "checkpoint", "upstreamState"],
+  "failures": []
+}

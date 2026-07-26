@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T12:04:32Z",
+  "status": "PASS",
+  "sharedProviderContracts": {
+    "chat": {
+      "status": "PASS",
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "realProbe": true,
+      "fakeFallbackUsed": false,
+      "evidence": "outputs/phase5/05-WP02/real-chat-probe-report.json"
+    },
+    "embedding": {
+      "status": "PASS",
+      "provider": "infinity",
+      "model": "embedding-bge-small-zh-v1.5",
+      "dimension": 512,
+      "normalizationConvention": "L2_UNIT",
+      "evidence": "outputs/phase5/05-WP04/embedding-capability-report.json"
+    },
+    "rerank": {
+      "status": "PASS",
+      "provider": "infinity",
+      "model": "reranker-bge-v2-m3",
+      "identityAndIndexValidated": true,
+      "evidence": "outputs/phase5/05-WP05/rerank-capability-report.json"
+    }
+  },
+  "qualityGate": {
+    "status": "PASS",
+    "baselineNdcgAt10": 0.6897744744000489,
+    "rerankNdcgAt10": 0.7455904775773011,
+    "ndcgRelativeImprovement": 0.08091920656501501,
+    "baselineMrr": 0.7,
+    "rerankMrr": 0.7,
+    "minimumRequiredRelativeImprovement": 0.05,
+    "evidence": "outputs/phase5/05-WP05/chinese-quality-report.json"
+  },
+  "ragPerformanceGate": {
+    "status": "PASS",
+    "sampleCount": 20,
+    "p50Ms": 823.376,
+    "p95Ms": 901.24,
+    "thresholdP95ExclusiveMs": 2000.0,
+    "evidence": "outputs/phase5/05-WP05/rag-chain-latency-report.json"
+  },
+  "revisionLifecycleGate": {
+    "status": "PASS",
+    "database": "PostgreSQL 16 + pgvector",
+    "migrationVersion": 12,
+    "integrationTests": 4,
+    "validated": [
+      "fixed-vector exact ordering",
+      "active revision isolation",
+      "ACL/tag/relation/deleted filters",
+      "run effective snapshot",
+      "atomic activation failure rollback",
+      "authorized integrity-checked rollback",
+      "protected idempotent cleanup",
+      "knowledge reference resolution"
+    ]
+  },
+  "repositoryTestGate": {
+    "status": "PASS",
+    "command": ".\\mvnw.cmd test",
+    "reactorModules": 21,
+    "testSuites": 67,
+    "tests": 235,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "secretScanGate": {
+    "status": "PASS",
+    "scannedFileCount": 84,
+    "findingCount": 0,
+    "evidence": "outputs/phase5/05-WP09/secret-scan-report.json"
+  },
+  "supportingEvidence": [
+    "outputs/phase5/05-WP06/ingestion-lifecycle-report.json",
+    "outputs/phase5/05-WP07/knowledge-reference-and-rag-report.json",
+    "outputs/phase5/05-WP08/knowledge-outcome-matrix.json",
+    "outputs/phase5/05-WP08/state-mapping-report.json"
+  ],
+  "failures": []
+}

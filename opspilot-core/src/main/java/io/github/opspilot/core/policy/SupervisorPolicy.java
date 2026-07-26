@@ -23,7 +23,9 @@ public final class SupervisorPolicy {
         if (evaluation.progress().consecutiveNoProgress() >= evaluation.limits().maxNoProgress()) {
             return Decision.limitedReport(StopReason.NO_PROGRESS);
         }
-        if (evaluation.inputRequired()) {
+        if (evaluation.inputRequired()
+                && evaluation.inputKind() == InputKind.BUSINESS_ANSWERABLE
+                && evaluation.continuationCount() < evaluation.maxContinuations()) {
             return new Decision(Action.WAIT_FOR_INPUT, StopReason.INPUT_REQUIRED);
         }
         return new Decision(Action.CONTINUE, null);
@@ -98,8 +100,26 @@ public final class SupervisorPolicy {
             Instant now,
             boolean inputRequired,
             boolean criticalFailure,
-            boolean cancellationRequested) {
+            boolean cancellationRequested,
+            InputKind inputKind,
+            int continuationCount,
+            int maxContinuations) {
+        public Evaluation {
+            inputKind = inputKind == null ? InputKind.NONE : inputKind;
+            if (continuationCount < 0 || maxContinuations < 1) {
+                throw new IllegalArgumentException("continuation limits must be positive and monotonic");
+            }
+        }
+
+        public Evaluation(
+                FrozenLimits limits, Usage usage, Progress progress, Instant now,
+                boolean inputRequired, boolean criticalFailure, boolean cancellationRequested) {
+            this(limits, usage, progress, now, inputRequired, criticalFailure, cancellationRequested,
+                    inputRequired ? InputKind.BUSINESS_ANSWERABLE : InputKind.NONE, 0, 1);
+        }
     }
+
+    public enum InputKind { NONE, BUSINESS_ANSWERABLE, TECHNICAL_UNAVAILABLE }
 
     public enum Action { CONTINUE, WAIT_FOR_INPUT, GENERATE_LIMITED_REPORT, STOP }
 

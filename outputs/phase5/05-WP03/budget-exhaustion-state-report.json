@@ -1,0 +1,24 @@
+{
+  "workPackage": "05-WP03",
+  "task": "T5",
+  "generatedAt": "2026-07-26T19:09:00+08:00",
+  "recoveryOrder": [
+    "COMPACT_CONTEXT",
+    "REDUCE_KNOWLEDGE_CANDIDATES",
+    "SHRINK_CODE_AND_TIME_WINDOW",
+    "SPLIT_SUBTASK",
+    "SUPERVISOR_REPLAN"
+  ],
+  "verified": {
+    "newCallsStoppedAfterExhaustion": true,
+    "failedCallsStillCharged": true,
+    "checkpointAtomic": true,
+    "checkpointReloadable": true,
+    "missingWorkPersisted": true,
+    "remainingBudgetPersisted": true,
+    "state": "GENERATING_REPORT",
+    "errorCode": "TOKEN_BUDGET_EXCEEDED"
+  },
+  "allowedFinalOutcomes": ["PARTIAL", "INCONCLUSIVE"],
+  "result": "PASS"
+}

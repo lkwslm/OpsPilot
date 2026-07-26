@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T11:21:06.584028+00:00",
+  "status": "PASS",
+  "provider": "infinity",
+  "modelId": "BAAI/bge-small-zh-v1.5",
+  "servedName": "embedding-bge-small-zh-v1.5",
+  "modelRevision": "7999e1d3359715c523056ef9478215996d62a620",
+  "actualDimension": 512,
+  "normalization": "L2_UNIT",
+  "distanceMetric": "COSINE",
+  "imageDigest": "sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88",
+  "infinityVersion": "0.0.77",
+  "license": "MIT",
+  "resourceEvidence": "outputs/phase0/01-WP06/01-WP06.T07-retrieval-gate-report.json",
+  "machine": {
+    "cpu": "AMD Ryzen 7 5800H with Radeon Graphics",
+    "logicalCpu": 16,
+    "hostMemoryBytes": 17024741376,
+    "dockerMemoryBytes": 8247738368,
+    "inferenceDevice": "cpu"
+  },
+  "probeRuns": 3,
+  "sourceReports": [
+    "outputs/phase5/05-WP04/infinity-identity-report.json",
+    "outputs/phase5/05-WP04/embedding-capability-report.json"
+  ]
+}

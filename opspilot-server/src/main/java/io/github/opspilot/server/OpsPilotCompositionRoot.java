@@ -9,7 +9,15 @@ import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
 import io.github.opspilot.adapters.persistence.postgres.SseEventRepository;
 import io.github.opspilot.adapters.observability.*;
 import io.github.opspilot.core.application.observability.SourceAdapterRegistry;
+import io.github.opspilot.core.application.provider.ChatModelProviderRegistry;
+import io.github.opspilot.core.application.provider.EmbeddingProviderRegistry;
+import io.github.opspilot.core.application.provider.ProviderRegistryContracts.ProviderCapabilityKey;
+import io.github.opspilot.core.application.provider.ProviderRegistryContracts.ProviderRequirement;
+import io.github.opspilot.core.application.provider.RerankProviderRegistry;
+import io.github.opspilot.core.port.agent.ChatPort;
 import io.github.opspilot.core.port.observability.ObservabilityQueryPort;
+import io.github.opspilot.core.port.provider.EmbeddingPort;
+import io.github.opspilot.core.port.provider.RerankPort;
 import io.github.opspilot.core.application.evidence.EvidenceNormalizer;
 import io.github.opspilot.core.application.evidence.RuntimeEvidenceNormalizer;
 import io.github.opspilot.core.port.extension.ExtensionContracts.ExtensionDescriptor;
@@ -40,6 +48,33 @@ public final class OpsPilotCompositionRoot {
         return new Components(new RuntimeEvidenceNormalizer(), extensions);
     }
 
+    /** Model providers are supplied and registered explicitly; no classpath discovery is used. */
+    public static ModelProviderRegistries composeModelProviderRegistries(
+            List<ChatProviderRegistration> chatProviders,
+            List<EmbeddingProviderRegistration> embeddingProviders,
+            List<RerankProviderRegistration> rerankProviders,
+            ModelProviderRequirements requirements) {
+        Objects.requireNonNull(chatProviders, "chatProviders");
+        Objects.requireNonNull(embeddingProviders, "embeddingProviders");
+        Objects.requireNonNull(rerankProviders, "rerankProviders");
+        Objects.requireNonNull(requirements, "requirements");
+
+        ChatModelProviderRegistry chat = new ChatModelProviderRegistry();
+        chatProviders.forEach(registration -> chat.register(
+                registration.stableProviderId(), registration.provider(), registration.capabilities()));
+        EmbeddingProviderRegistry embedding = new EmbeddingProviderRegistry();
+        embeddingProviders.forEach(registration -> embedding.register(
+                registration.stableProviderId(), registration.provider(), registration.capabilities()));
+        RerankProviderRegistry rerank = new RerankProviderRegistry();
+        rerankProviders.forEach(registration -> rerank.register(
+                registration.stableProviderId(), registration.provider(), registration.capabilities()));
+
+        chat.freeze(requirements.chat());
+        embedding.freeze(requirements.embedding());
+        rerank.freeze(requirements.rerank());
+        return new ModelProviderRegistries(chat, embedding, rerank);
+    }
+
     /** Production persistence is PostgreSQL-only and never substitutes an in-memory adapter. */
     public static PersistenceComponents composePersistence(
             DataSource dataSource, Path artifactRoot, long maxArtifactBytes) {
@@ -50,7 +85,7 @@ public final class OpsPilotCompositionRoot {
                 new DurableTaskRepository(dataSource),
                 new SseEventRepository(dataSource),
                 new LocalVolumeArtifactAccessService(dataSource, artifactRoot, maxArtifactBytes),
-                new PostgresReadinessCheck(dataSource, "8", "0.8.4"));
+                new PostgresReadinessCheck(dataSource, "10", "0.8.4"));
     }
 
     /** Adapter implementations are explicitly enumerated here; no classpath discovery is used. */
@@ -104,6 +139,52 @@ public final class OpsPilotCompositionRoot {
 
     public record Components(EvidenceNormalizer evidenceNormalizer, List<ExtensionDescriptor> extensions) {
         public Components { extensions = List.copyOf(extensions); }
+    }
+
+    public record ChatProviderRegistration(
+            String stableProviderId, ChatPort provider, Set<ProviderCapabilityKey> capabilities) {
+        public ChatProviderRegistration {
+            Objects.requireNonNull(provider, "provider");
+            capabilities = Set.copyOf(capabilities);
+        }
+    }
+
+    public record EmbeddingProviderRegistration(
+            String stableProviderId, EmbeddingPort provider, Set<ProviderCapabilityKey> capabilities) {
+        public EmbeddingProviderRegistration {
+            Objects.requireNonNull(provider, "provider");
+            capabilities = Set.copyOf(capabilities);
+        }
+    }
+
+    public record RerankProviderRegistration(
+            String stableProviderId, RerankPort provider, Set<ProviderCapabilityKey> capabilities) {
+        public RerankProviderRegistration {
+            Objects.requireNonNull(provider, "provider");
+            capabilities = Set.copyOf(capabilities);
+        }
+    }
+
+    public record ModelProviderRequirements(
+            Set<ProviderRequirement> chat,
+            Set<ProviderRequirement> embedding,
+            Set<ProviderRequirement> rerank) {
+        public ModelProviderRequirements {
+            chat = Set.copyOf(chat);
+            embedding = Set.copyOf(embedding);
+            rerank = Set.copyOf(rerank);
+        }
+    }
+
+    public record ModelProviderRegistries(
+            ChatModelProviderRegistry chat,
+            EmbeddingProviderRegistry embedding,
+            RerankProviderRegistry rerank) {
+        public ModelProviderRegistries {
+            Objects.requireNonNull(chat, "chat");
+            Objects.requireNonNull(embedding, "embedding");
+            Objects.requireNonNull(rerank, "rerank");
+        }
     }
 
     public record PersistenceComponents(

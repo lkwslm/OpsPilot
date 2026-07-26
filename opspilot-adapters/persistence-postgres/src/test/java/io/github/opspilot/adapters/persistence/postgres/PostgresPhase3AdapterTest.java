@@ -37,6 +37,7 @@ import io.github.opspilot.core.port.repository.CheckpointContracts.DomainEvent;
 import io.github.opspilot.core.port.repository.CheckpointContracts.ReferenceBinding;
 import io.github.opspilot.core.port.repository.CheckpointContracts.StepAttemptWrite;
 import io.github.opspilot.core.port.repository.CheckpointContracts.StepWrite;
+import io.github.opspilot.core.port.repository.UsageLedgerRepository.UsageRecord;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -113,11 +114,11 @@ final class PostgresPhase3AdapterTest {
 
     @Test
     void readinessRolesRlsAndSchemaGateFailClosed() throws Exception {
-        assertTrue(new PostgresReadinessCheck(dataSource, "8", "0.8.4").check().ready());
+        assertTrue(new PostgresReadinessCheck(dataSource, "12", "0.8.4").check().ready());
         assertEquals("FLYWAY_VERSION_MISMATCH",
                 new PostgresReadinessCheck(dataSource, "99", "0.8.4").check().reason());
         assertEquals("PGVECTOR_VERSION_MISMATCH",
-                new PostgresReadinessCheck(dataSource, "8", "99").check().reason());
+                new PostgresReadinessCheck(dataSource, "12", "99").check().reason());
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             assertFalse(queryBoolean(statement, """
@@ -145,6 +146,35 @@ final class PostgresPhase3AdapterTest {
                     () -> statement.executeQuery("SELECT * FROM opspilot_eval.ground_truth"));
             assertEquals("42501", truthDenied.getSQLState());
         }
+    }
+
+    @Test
+    void usageLedgerPersistsFailedEstimatedAttemptsAndRemainsAppendOnly() throws Exception {
+        UUID incidentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        UUID invocationId = UUID.randomUUID();
+        insertIncidentRun(incidentId, runId);
+        UsageRecord record = new UsageRecord(
+                invocationId, incidentId.toString(), "task-1", "agent-1",
+                40, 20, 5, null, false, null,
+                "CONSERVATIVE_ESTIMATE", "estimate-v1", "FAILED", NOW);
+        PostgresUsageLedgerRepository repository = new PostgresUsageLedgerRepository(dataSource);
+
+        repository.append(runId, null, record);
+
+        assertEquals("40:20:5:CONSERVATIVE_ESTIMATE:estimate-v1:FAILED:unavailable",
+                queryString("""
+                        SELECT input_tokens || ':' || output_tokens || ':' || cached_tokens || ':'
+                               || usage_source || ':' || estimator_version || ':' || attempt_outcome || ':'
+                               || COALESCE(cost_micros::text, 'unavailable')
+                        FROM opspilot.model_usage WHERE model_call_id='%s'
+                        """.formatted(invocationId)));
+        assertThrows(SQLException.class, () -> execute(
+                "UPDATE opspilot.model_usage SET output_tokens=0 WHERE model_call_id='%s'".formatted(invocationId)));
+        assertThrows(PostgresUsageLedgerRepository.UsageLedgerPersistenceException.class,
+                () -> repository.append(runId, null, record));
+        assertEquals(1, count("opspilot.model_call", "model_call_id", invocationId));
+        assertEquals(1, count("opspilot.model_usage", "model_call_id", invocationId));
     }
 
     @Test

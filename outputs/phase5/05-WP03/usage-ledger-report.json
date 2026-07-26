@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "05-WP03",
+  "status": "PASS",
+  "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-adapters/persistence-postgres -am test",
+  "tests": {
+    "core": 84,
+    "persistencePostgres": 15,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "migrationVersion": "10",
+  "coverage": [
+    "pre_call_reservation",
+    "provider_usage_reconciliation",
+    "missing_usage_versioned_estimate",
+    "cached_tokens",
+    "failed_attempt",
+    "cancelled_attempt",
+    "retry_attempts_charged_separately",
+    "cost_available",
+    "cost_unavailable_not_zero",
+    "concurrent_reservation_conflict",
+    "atomic_model_call_and_usage_write",
+    "append_only_usage_rows",
+    "bounded_body_free_audit_mapping"
+  ]
+}

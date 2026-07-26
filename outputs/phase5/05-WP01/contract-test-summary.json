@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "05-WP01",
+  "status": "PASS",
+  "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-adapters/persistence-postgres,opspilot-server -am -Dtest=ProviderRegistryContractTest,ModelConfigurationTest,ModelProviderSecurityTest,PostgresPhase0MigrationTest,ModelProviderCompositionRootTest,EnvironmentFileSecretResolverTest,ModelProviderStartupCoordinatorTest -Dsurefire.failIfNoSpecifiedTests=false test",
+  "tests": {
+    "total": 23,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": [
+    {
+      "name": "ProviderRegistryContractTest",
+      "tests": 4
+    },
+    {
+      "name": "ModelConfigurationTest",
+      "tests": 3
+    },
+    {
+      "name": "ModelProviderSecurityTest",
+      "tests": 3
+    },
+    {
+      "name": "PostgresPhase0MigrationTest",
+      "tests": 6
+    },
+    {
+      "name": "ModelProviderCompositionRootTest",
+      "tests": 2
+    },
+    {
+      "name": "EnvironmentFileSecretResolverTest",
+      "tests": 2
+    },
+    {
+      "name": "ModelProviderStartupCoordinatorTest",
+      "tests": 3
+    }
+  ]
+}

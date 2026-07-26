@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "05-WP02",
+  "status": "PASS",
+  "command": ".\\mvnw.cmd -pl opspilot-adapters/model-openai-compatible -am test",
+  "tests": {
+    "moduleTotal": 22,
+    "coreRegressionTotal": 71,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "coverage": [
+    "ordinary_chat",
+    "complete_streaming_chat",
+    "interrupted_stream_rejected",
+    "tool_calls",
+    "strict_json_schema",
+    "single_authorized_structure_repair",
+    "missing_usage",
+    "cancellation",
+    "stable_error_mapping",
+    "request_trace_correlation",
+    "secret_and_response_body_redaction",
+    "actual_model_identity"
+  ],
+  "adapterRetryPolicy": "NO_GENERAL_RETRY_OR_PROVIDER_FAILOVER",
+  "structureRepairMaximum": 1,
+  "secretValuePersisted": false
+}

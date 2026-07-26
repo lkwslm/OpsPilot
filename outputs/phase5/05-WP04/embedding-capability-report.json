@@ -1,0 +1,69 @@
+{
+  "schemaVersion": "1.0.0",
+  "probeVersion": "phase0-embedding-v1",
+  "generatedAtUtc": "2026-07-26T11:21:06.584028+00:00",
+  "status": "PASS",
+  "model": "embedding-bge-small-zh-v1.5",
+  "inputCount": 3,
+  "inputSetSha256": "54fe5dc0830548ca65432e919e05957ad652ed1fa675f426f4faf3f1c0cd128c",
+  "dimension": 512,
+  "normalizationConvention": "L2_UNIT",
+  "cosineNonZeroNorm": true,
+  "runs": [
+    {
+      "run": 1,
+      "elapsedMs": 704.399,
+      "count": 3,
+      "indices": [
+        0,
+        1,
+        2
+      ],
+      "dimension": 512,
+      "l2NormMin": 0.9999999772027789,
+      "l2NormMax": 1.0000001268467877,
+      "vectorSummarySha256": "48757d346279548bbf683fd0041a13e1b9471ce875f3bdb9b73c06f3f7b6d2a8",
+      "usage": {
+        "prompt_tokens": 62,
+        "total_tokens": 62
+      }
+    },
+    {
+      "run": 2,
+      "elapsedMs": 33.777,
+      "count": 3,
+      "indices": [
+        0,
+        1,
+        2
+      ],
+      "dimension": 512,
+      "l2NormMin": 0.9999999772027789,
+      "l2NormMax": 1.0000001268467877,
+      "vectorSummarySha256": "48757d346279548bbf683fd0041a13e1b9471ce875f3bdb9b73c06f3f7b6d2a8",
+      "usage": {
+        "prompt_tokens": 62,
+        "total_tokens": 62
+      }
+    },
+    {
+      "run": 3,
+      "elapsedMs": 33.225,
+      "count": 3,
+      "indices": [
+        0,
+        1,
+        2
+      ],
+      "dimension": 512,
+      "l2NormMin": 0.9999999772027789,
+      "l2NormMax": 1.0000001268467877,
+      "vectorSummarySha256": "48757d346279548bbf683fd0041a13e1b9471ce875f3bdb9b73c06f3f7b6d2a8",
+      "usage": {
+        "prompt_tokens": 62,
+        "total_tokens": 62
+      }
+    }
+  ],
+  "failures": []
+}

@@ -123,7 +123,7 @@ public final class Phase0Process {
         dataSource.setPassword(Files.readString(
                 Path.of(RuntimeIdentity.required(environment, "DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
         return new PostgresReadinessCheck(dataSource,
-                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "8"),
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "10"),
                 environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 

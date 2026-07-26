@@ -255,15 +255,16 @@ public final class StateMachines {
         add(values, IncidentRunState.CREATED, IncidentRunState.QUEUED, IncidentRunState.CANCELLED);
         add(values, IncidentRunState.QUEUED, IncidentRunState.PLANNING);
         add(values, IncidentRunState.PLANNING, IncidentRunState.COLLECTING_EVIDENCE,
-                IncidentRunState.WAITING_INPUT);
+                IncidentRunState.WAITING_INPUT, IncidentRunState.GENERATING_REPORT);
         add(values, IncidentRunState.COLLECTING_EVIDENCE, IncidentRunState.ANALYZING_CODE,
-                IncidentRunState.RETRIEVING_KNOWLEDGE, IncidentRunState.WAITING_INPUT);
+                IncidentRunState.RETRIEVING_KNOWLEDGE, IncidentRunState.WAITING_INPUT,
+                IncidentRunState.GENERATING_REPORT);
         add(values, IncidentRunState.ANALYZING_CODE, IncidentRunState.RETRIEVING_KNOWLEDGE,
-                IncidentRunState.WAITING_INPUT);
+                IncidentRunState.WAITING_INPUT, IncidentRunState.GENERATING_REPORT);
         add(values, IncidentRunState.RETRIEVING_KNOWLEDGE, IncidentRunState.GENERATING_HYPOTHESES,
-                IncidentRunState.WAITING_INPUT);
+                IncidentRunState.WAITING_INPUT, IncidentRunState.GENERATING_REPORT);
         add(values, IncidentRunState.GENERATING_HYPOTHESES, IncidentRunState.VERIFYING_HYPOTHESES,
-                IncidentRunState.WAITING_INPUT);
+                IncidentRunState.WAITING_INPUT, IncidentRunState.GENERATING_REPORT);
         add(values, IncidentRunState.VERIFYING_HYPOTHESES, IncidentRunState.COLLECTING_EVIDENCE,
                 IncidentRunState.GENERATING_REMEDIATION, IncidentRunState.GENERATING_REPORT,
                 IncidentRunState.WAITING_INPUT);
