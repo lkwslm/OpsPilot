@@ -1,5 +1,7 @@
 package io.github.opspilot.adapters.persistence.postgres;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,6 +49,7 @@ final class PostgresPhase0MigrationTest {
             "opspilot_eval.ground_truth");
 
     private static PostgreSQLContainer postgres;
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @BeforeAll
     static void startPostgresAndCreateRoles() throws Exception {
@@ -75,7 +78,7 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-            assertEquals("8", queryString(connection,
+            assertEquals("12", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
@@ -186,13 +189,19 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("8", queryString(connection,
+            assertEquals("12", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
             assertEquals(1, queryInt(connection,
                     "SELECT count(*) FROM opspilot.artifact WHERE artifact_id = '" + legacyArtifact
                             + "' AND object_key = '" + legacyArtifact + "' AND size_bytes = 0"));
+            assertEquals("legacy", queryString(connection,
+                    "SELECT model_configuration_version FROM opspilot.incident_run WHERE run_id = '"
+                            + legacyRun + "'"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT effective_model_configuration_json ->> 'legacy' = 'true' "
+                            + "FROM opspilot.incident_run WHERE run_id = '" + legacyRun + "'"));
 
             statement.execute("SET ROLE evidence_agent_role");
             PSQLException domainDenied = assertThrows(PSQLException.class, () -> statement.executeUpdate(
@@ -215,8 +224,88 @@ final class PostgresPhase0MigrationTest {
 
     @Test
     @Order(5)
+    void runCreationFreezesSecretFreeEffectiveConfigurationAcrossHotUpdates() throws Exception {
+        String database = createDatabase("wp11_t05");
+        migrate(database, null);
+        UUID firstIncident = UUID.randomUUID();
+        UUID secondIncident = UUID.randomUUID();
+        UUID rejectedIncident = UUID.randomUUID();
+        UUID firstRun = UUID.randomUUID();
+        UUID secondRun = UUID.randomUUID();
+        UUID providerId = UUID.randomUUID();
+        UUID profileId = UUID.randomUUID();
+
+        ObjectNode modelV1 = (ObjectNode) JSON.readTree("""
+                {"schemaVersion":"1.0.0","roles":{"DIAGNOSIS":{"maxCalls":5,
+                "secretRef":"env:OPENAI_API_KEY","fieldSources":{"MAX_CALLS":{
+                "layer":"TASK_OVERRIDE","sourceRef":"task-v3"}}}}}
+                """);
+        ObjectNode knowledgeV1 = (ObjectNode) JSON.readTree("""
+                {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-1"}
+                """);
+        RunConfigurationSnapshot frozenV1 = new RunConfigurationSnapshot(
+                "model-v1", "knowledge-v1", modelV1, knowledgeV1);
+        ((ObjectNode) modelV1.at("/roles/DIAGNOSIS")).put("maxCalls", 999);
+
+        try (Connection connection = connection(database); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("INSERT INTO opspilot.incident (incident_id,target_system_id,status) VALUES "
+                    + "('" + firstIncident + "','sample-system','OPEN'),"
+                    + "('" + secondIncident + "','sample-system','OPEN'),"
+                    + "('" + rejectedIncident + "','sample-system','OPEN')");
+            statement.executeUpdate("INSERT INTO opspilot.model_provider (provider_id,provider_key,display_name) VALUES ('"
+                    + providerId + "','openai-primary','OpenAI Primary')");
+            statement.executeUpdate("INSERT INTO opspilot.model_profile "
+                    + "(profile_id,provider_id,profile_key,purpose,config_json) VALUES ('"
+                    + profileId + "','" + providerId
+                    + "','diagnosis','CHAT','{\"schemaVersion\":\"1.0.0\",\"model\":\"v1\"}')");
+
+            ActiveRunRepository repository = new ActiveRunRepository();
+            repository.createActiveRun(connection, firstIncident, firstRun, frozenV1);
+            statement.executeUpdate("UPDATE opspilot.model_profile SET config_json = "
+                    + "'{\"schemaVersion\":\"1.0.0\",\"model\":\"v2\"}' WHERE profile_id = '" + profileId + "'");
+            ObjectNode modelV2 = (ObjectNode) frozenV1.effectiveModelConfiguration();
+            ((ObjectNode) modelV2.at("/roles/DIAGNOSIS")).put("maxCalls", 9);
+            repository.createActiveRun(connection, secondIncident, secondRun,
+                    new RunConfigurationSnapshot("model-v2", "knowledge-v2", modelV2,
+                            (ObjectNode) JSON.readTree("""
+                                    {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-2"}
+                                    """)));
+
+            RunConfigurationSnapshot storedV1 = repository.findConfigurationSnapshot(connection, firstRun);
+            RunConfigurationSnapshot storedV2 = repository.findConfigurationSnapshot(connection, secondRun);
+            assertEquals(5, storedV1.effectiveModelConfiguration()
+                    .at("/roles/DIAGNOSIS/maxCalls").intValue());
+            assertEquals("TASK_OVERRIDE", storedV1.effectiveModelConfiguration()
+                    .at("/roles/DIAGNOSIS/fieldSources/MAX_CALLS/layer").textValue());
+            assertEquals("revision-1", storedV1.effectiveKnowledgeConfiguration()
+                    .at("/activeRevision").textValue());
+            assertEquals(9, storedV2.effectiveModelConfiguration()
+                    .at("/roles/DIAGNOSIS/maxCalls").intValue());
+            assertEquals("model-v1", storedV1.modelConfigurationVersion());
+            assertEquals("model-v2", storedV2.modelConfigurationVersion());
+
+            ObjectNode illegal = JSON.createObjectNode()
+                    .put("schemaVersion", "1.0.0")
+                    .put("apiKey", "plain-text-secret");
+            IllegalArgumentException rejected = assertThrows(IllegalArgumentException.class,
+                    () -> new RunConfigurationSnapshot("model-v3", "knowledge-v3", illegal, knowledgeV1));
+            assertTrue(rejected.getMessage().startsWith("RUN_CONFIGURATION_CONTAINS_SECRET:"));
+
+            PSQLException databaseRejected = assertThrows(PSQLException.class, () -> statement.executeUpdate(
+                    "INSERT INTO opspilot.incident_run (run_id,incident_id,status,model_configuration_version,"
+                            + "knowledge_configuration_version,effective_model_configuration_json,"
+                            + "effective_knowledge_configuration_json) VALUES ('" + UUID.randomUUID() + "','"
+                            + rejectedIncident + "','CREATED','model-v3','knowledge-v3',"
+                            + "'{\"schemaVersion\":\"1.0.0\",\"password\":\"plain\"}',"
+                            + "'{\"schemaVersion\":\"1.0.0\"}')"));
+            assertEquals("23514", databaseRejected.getSQLState());
+        }
+    }
+
+    @Test
+    @Order(6)
     void everyVersionMigratesOnTheLockedEmptyDatabaseAndHasStableChecksums() throws Exception {
-        for (int version = 1; version <= 7; version++) {
+        for (int version = 1; version <= 8; version++) {
             String database = createDatabase("wp10_empty_v" + version);
             migrate(database, Integer.toString(version));
             try (Connection connection = connection(database)) {

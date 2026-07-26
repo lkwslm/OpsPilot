@@ -17,6 +17,7 @@ public record ChainFailure(
         UUID correlationId,
         CheckpointRef checkpoint,
         List<ControlledLogRef> logRefs,
+        FailureContext context,
         String redactedSummary) {
     private static final Pattern ERROR_CODE = Pattern.compile("^[A-Z][A-Z0-9_]{2,63}$");
     private static final Pattern SECRET = Pattern.compile(
@@ -31,7 +32,16 @@ public record ChainFailure(
         Objects.requireNonNull(correlationId, "correlationId");
         Objects.requireNonNull(checkpoint, "checkpoint");
         logRefs = List.copyOf(logRefs);
+        context = context == null ? new FailureContext("UNKNOWN", 1, "UNKNOWN") : context;
         redactedSummary = bounded(redact(redactedSummary));
+    }
+
+    public ChainFailure(
+            UUID failureId, Category category, String errorCode, boolean retryable,
+            UUID correlationId, CheckpointRef checkpoint, List<ControlledLogRef> logRefs,
+            String redactedSummary) {
+        this(failureId, category, errorCode, retryable, correlationId, checkpoint, logRefs,
+                new FailureContext("UNKNOWN", 1, "UNKNOWN"), redactedSummary);
     }
 
     public static ChainFailure fromCause(
@@ -66,6 +76,15 @@ public record ChainFailure(
             Objects.requireNonNull(sha256, "sha256");
             if (!"audit".equals(uri.getScheme())) {
                 throw new IllegalArgumentException("only controlled audit log references are allowed");
+            }
+        }
+    }
+
+    public record FailureContext(String failedStage, int attempt, String upstreamState) {
+        public FailureContext {
+            if (failedStage == null || failedStage.isBlank() || attempt < 1
+                    || upstreamState == null || upstreamState.isBlank()) {
+                throw new IllegalArgumentException("failure context must be stable and attempt positive");
             }
         }
     }

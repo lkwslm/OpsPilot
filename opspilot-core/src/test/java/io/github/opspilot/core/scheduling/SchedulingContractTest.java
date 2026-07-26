@@ -17,6 +17,7 @@ import io.github.opspilot.core.policy.SupervisorPolicy;
 import io.github.opspilot.core.policy.SupervisorPolicy.Action;
 import io.github.opspilot.core.policy.SupervisorPolicy.Evaluation;
 import io.github.opspilot.core.policy.SupervisorPolicy.FrozenLimits;
+import io.github.opspilot.core.policy.SupervisorPolicy.InputKind;
 import io.github.opspilot.core.policy.SupervisorPolicy.ModelLimitRequest;
 import io.github.opspilot.core.policy.SupervisorPolicy.Progress;
 import io.github.opspilot.core.policy.SupervisorPolicy.StopReason;
@@ -116,6 +117,23 @@ class SchedulingContractTest {
         assertEquals("LATE_ARTIFACT_AUDIT_ONLY", result.outcomeCode());
         assertEquals(4, result.version());
         assertEquals(List.of(late), fixture.auditOnlyArtifacts);
+    }
+
+    @Test
+    void waitingInputIsOnlyForAnswerableBusinessInputWithinContinuationLimit() {
+        SupervisorPolicy policy = new SupervisorPolicy();
+        Usage usage = new Usage(1, 1, 1, 1, 10, 10);
+        Progress progress = new Progress(Set.of(), Set.of(), 0);
+
+        assertEquals(Action.CONTINUE, policy.evaluate(new Evaluation(
+                LIMITS, usage, progress, NOW, true, false, false,
+                InputKind.TECHNICAL_UNAVAILABLE, 0, 2)).action());
+        assertEquals(Action.CONTINUE, policy.evaluate(new Evaluation(
+                LIMITS, usage, progress, NOW, true, false, false,
+                InputKind.BUSINESS_ANSWERABLE, 2, 2)).action());
+        assertEquals(Action.WAIT_FOR_INPUT, policy.evaluate(new Evaluation(
+                LIMITS, usage, progress, NOW, true, false, false,
+                InputKind.BUSINESS_ANSWERABLE, 1, 2)).action());
     }
 
     @Test

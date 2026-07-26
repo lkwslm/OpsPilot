@@ -14,7 +14,8 @@ import java.util.UUID;
 /** Exact pgvector retrieval with a closed distance-operator allowlist. */
 public final class PgvectorKnowledgeRepository {
     private static final int EXACT_SCAN_LIMIT = 50_000;
-    private static final Set<String> FILTER_KEYS = Set.of("language", "service", "documentType");
+    private static final Set<String> FILTER_KEYS = Set.of(
+            "language", "service", "documentType", "tag", "relation");
     private static final Map<DistanceMetric, String> OPERATORS = operators();
 
     private final DataSource dataSource;
@@ -69,7 +70,8 @@ public final class PgvectorKnowledgeRepository {
                        chunk.content_artifact_id,
                        embedding.embedding """)
                 .append(OPERATORS.get(request.metric()))
-                .append(" ?::vector AS distance\n")
+                .append(" ?::vector AS distance, document.document_id, version.document_version_id,\n")
+                .append("       chunk.content_sha256, chunk.source_location\n")
                 .append("""
                         FROM opspilot.knowledge_embedding embedding
                         JOIN opspilot.model_revision revision
@@ -91,6 +93,16 @@ public final class PgvectorKnowledgeRepository {
                           AND document.status = 'ACTIVE'
                           AND document.deleted_at IS NULL
                         """);
+        if (request.knowledgeRevisionId() != null) {
+            sql.append(" AND version.knowledge_revision_id = ?\n")
+                    .append(" AND EXISTS (SELECT 1 FROM opspilot.knowledge_revision knowledge_revision\n")
+                    .append("             WHERE knowledge_revision.knowledge_revision_id = version.knowledge_revision_id\n")
+                    .append("               AND knowledge_revision.status IN ('ACTIVE','RETAINED'))\n");
+        }
+        if (!request.aclPrincipals().isEmpty()) {
+            sql.append(" AND EXISTS (SELECT 1 FROM jsonb_array_elements_text(version.acl_json -> 'principals') principal\n")
+                    .append("             WHERE principal.value = ANY (?::text[]))\n");
+        }
         request.metadataFilters().forEach((ignored, value) ->
                 sql.append(" AND chunk.metadata_json ->> ? = ?\n"));
         sql.append(" ORDER BY embedding.embedding ")
@@ -106,6 +118,13 @@ public final class PgvectorKnowledgeRepository {
             statement.setObject(index++, request.modelRevisionId());
             statement.setInt(index++, request.dimension());
             statement.setString(index++, request.metric().name());
+            if (request.knowledgeRevisionId() != null) {
+                statement.setObject(index++, request.knowledgeRevisionId());
+            }
+            if (!request.aclPrincipals().isEmpty()) {
+                statement.setArray(index++, connection.createArrayOf(
+                        "text", request.aclPrincipals().toArray(String[]::new)));
+            }
             for (var filter : request.metadataFilters().entrySet()) {
                 statement.setString(index++, filter.getKey());
                 statement.setString(index++, filter.getValue());
@@ -116,7 +135,9 @@ public final class PgvectorKnowledgeRepository {
             try (var result = statement.executeQuery()) {
                 while (result.next()) {
                     hits.add(new SearchHit(
-                            result.getObject(1, UUID.class), result.getObject(2, UUID.class), result.getDouble(3)));
+                            result.getObject(1, UUID.class), result.getObject(2, UUID.class), result.getDouble(3),
+                            result.getObject(4, UUID.class), result.getObject(5, UUID.class),
+                            result.getString(6), result.getString(7)));
                 }
             }
             return List.copyOf(hits);
@@ -220,12 +241,22 @@ public final class PgvectorKnowledgeRepository {
             DistanceMetric metric,
             float[] queryVector,
             int topK,
-            Map<String, String> metadataFilters) {
+            Map<String, String> metadataFilters,
+            UUID knowledgeRevisionId,
+            Set<String> aclPrincipals) {
         public SearchRequest {
             Objects.requireNonNull(collectionId, "collectionId");
             Objects.requireNonNull(modelRevisionId, "modelRevisionId");
             queryVector = queryVector.clone();
             metadataFilters = Map.copyOf(new LinkedHashMap<>(metadataFilters));
+            aclPrincipals = Set.copyOf(aclPrincipals);
+        }
+
+        public SearchRequest(
+                UUID collectionId, UUID modelRevisionId, int dimension, DistanceMetric metric,
+                float[] queryVector, int topK, Map<String, String> metadataFilters) {
+            this(collectionId, modelRevisionId, dimension, metric, queryVector, topK,
+                    metadataFilters, null, Set.of());
         }
 
         @Override
@@ -234,7 +265,9 @@ public final class PgvectorKnowledgeRepository {
         }
     }
 
-    public record SearchHit(UUID chunkId, UUID contentArtifactId, double distance) { }
+    public record SearchHit(
+            UUID chunkId, UUID contentArtifactId, double distance,
+            UUID documentId, UUID documentVersionId, String contentSha256, String sourceLocation) { }
 
     public static final class VectorContractException extends RuntimeException {
         public VectorContractException(String code) { super(code); }

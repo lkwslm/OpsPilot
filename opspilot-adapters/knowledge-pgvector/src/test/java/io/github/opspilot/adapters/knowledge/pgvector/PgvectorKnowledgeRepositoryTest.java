@@ -15,7 +15,15 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Map;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+
+import io.github.opspilot.core.port.repository.EmbeddingBatchCommitPort.EmbeddingBatchCommit;
+import io.github.opspilot.core.port.repository.EmbeddingBatchCommitPort.EmbeddingVectorWrite;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.KnowledgeReference;
+import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderIdentity;
 
 import static io.github.opspilot.adapters.knowledge.pgvector.PgvectorKnowledgeRepository.DistanceMetric.COSINE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -185,6 +193,146 @@ final class PgvectorKnowledgeRepositoryTest {
                 new float[]{1, 0, 0}, 1, Map.of())).isEmpty());
     }
 
+    @Test
+    void embeddingBatchVectorsCoverageAndCheckpointCommitAtomically() throws Exception {
+        Fixture fixture = fixture("atomic-batch");
+        var versions = new KnowledgeVersionRepository(dataSource);
+        var batches = new PostgresEmbeddingBatchCommitRepository(dataSource);
+        UUID version = UUID.randomUUID();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        UUID job = UUID.randomUUID();
+        versions.createDocument(fixture.documentId(), fixture.collectionId(), "doc-atomic-batch");
+        versions.createVersion(version, fixture.documentId(), 1, HASH_A, artifact(fixture.runId()), 2, null);
+        versions.appendChunk(first, version, 0, HASH_A, artifact(fixture.runId()), metadata("java"));
+        versions.appendChunk(second, version, 1, HASH_B, artifact(fixture.runId()), metadata("java"));
+        versions.createJob(job, version, fixture.revisionId());
+
+        EmbeddingBatchCommit invalid = new EmbeddingBatchCommit(job, fixture.revisionId(), 1,
+                2, 2, 3, "COSINE", List.of(
+                new EmbeddingVectorWrite(first, HASH_A, new float[]{1, 0, 0}),
+                new EmbeddingVectorWrite(second, HASH_A, new float[]{0, 1, 0})));
+        assertEquals("EMBEDDING_VECTOR_IDENTITY_MISMATCH", assertThrows(
+                PostgresEmbeddingBatchCommitRepository.EmbeddingBatchPersistenceException.class,
+                () -> batches.commit(invalid)).getMessage());
+        assertEquals(0, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_embedding WHERE model_revision_id = ?",
+                fixture.revisionId()));
+        assertEquals(0, batches.load(job).orElseThrow().checkpointOrdinal());
+        assertEquals(0, batches.load(job).orElseThrow().completedChunks());
+
+        batches.commit(new EmbeddingBatchCommit(job, fixture.revisionId(), 1,
+                2, 2, 3, "COSINE", List.of(
+                new EmbeddingVectorWrite(first, HASH_A, new float[]{1, 0, 0}),
+                new EmbeddingVectorWrite(second, HASH_B, new float[]{0, 1, 0}))));
+
+        assertEquals(2, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_embedding WHERE model_revision_id = ?",
+                fixture.revisionId()));
+        var completed = batches.load(job).orElseThrow();
+        assertEquals(1, completed.checkpointOrdinal());
+        assertEquals(2, completed.completedChunks());
+        assertEquals("COMPLETED", completed.status());
+    }
+
+    @Test
+    void runSnapshotsAtomicRevisionSwitchRollbackAndReferenceResolutionStayIsolated() throws Exception {
+        Fixture fixture = fixture("knowledge-revision");
+        var versions = new KnowledgeVersionRepository(dataSource);
+        var revisions = new KnowledgeRevisionRepository(dataSource);
+        var vectors = new PgvectorKnowledgeRepository(dataSource);
+        var references = new PostgresKnowledgeReferenceRepository(dataSource);
+        UUID oldRevision = knowledgeRevision(fixture.collectionId(), fixture.revisionId(), "READY");
+        UUID newRevision = knowledgeRevision(fixture.collectionId(), fixture.revisionId(), "READY");
+        UUID oldVersion = UUID.randomUUID();
+        UUID newVersion = UUID.randomUUID();
+        UUID oldChunk = UUID.randomUUID();
+        UUID newChunk = UUID.randomUUID();
+        UUID oldDocument = fixture.documentId();
+        UUID newDocument = UUID.randomUUID();
+
+        versions.createDocument(oldDocument, fixture.collectionId(), "old-runbook");
+        versions.createVersion(oldVersion, oldDocument, 1, HASH_A, artifact(fixture.runId()), 1, null);
+        versions.appendChunk(oldChunk, oldVersion, 0, HASH_A, artifact(fixture.runId()),
+                "{\"schemaVersion\":\"1.0.0\",\"service\":\"payment\",\"tag\":\"runbook\",\"relation\":\"incident:db\"}");
+        execute("UPDATE opspilot.knowledge_document_version SET knowledge_revision_id = ?, "
+                        + "acl_json = '{\"principals\":[\"role:knowledge\"]}'::jsonb WHERE document_version_id = ?",
+                oldRevision, oldVersion);
+        vectors.insertEmbedding(oldChunk, fixture.revisionId(), 3, COSINE,
+                new float[]{1, 0, 0}, HASH_A);
+        UUID oldJob = UUID.randomUUID();
+        versions.createJob(oldJob, oldVersion, fixture.revisionId());
+        versions.recordCheckpoint(oldJob, 1, 1, "COMPLETE", null);
+        versions.activateVersion(oldVersion, fixture.revisionId());
+        revisions.activate(fixture.collectionId(), oldRevision);
+        var oldSnapshot = revisions.resolveRunSnapshot(fixture.runId(), fixture.collectionId());
+        assertEquals(oldRevision, oldSnapshot.knowledgeRevisionId());
+
+        versions.createDocument(newDocument, fixture.collectionId(), "new-runbook");
+        versions.createVersion(newVersion, newDocument, 1, HASH_B, artifact(fixture.runId()), 1, null);
+        versions.appendChunk(newChunk, newVersion, 0, HASH_B, artifact(fixture.runId()),
+                "{\"schemaVersion\":\"1.0.0\",\"service\":\"payment\",\"tag\":\"runbook\",\"relation\":\"incident:db\"}");
+        execute("UPDATE opspilot.knowledge_document_version SET knowledge_revision_id = ?, "
+                        + "acl_json = '{\"principals\":[\"role:knowledge\"]}'::jsonb WHERE document_version_id = ?",
+                newRevision, newVersion);
+        vectors.insertEmbedding(newChunk, fixture.revisionId(), 3, COSINE,
+                new float[]{0, 1, 0}, HASH_B);
+        UUID newJob = UUID.randomUUID();
+        versions.createJob(newJob, newVersion, fixture.revisionId());
+        versions.recordCheckpoint(newJob, 1, 1, "COMPLETE", null);
+        versions.activateVersion(newVersion, fixture.revisionId());
+
+        assertThrows(InjectedFailure.class, () -> revisions.activate(
+                fixture.collectionId(), newRevision, point -> {
+                    if (point == KnowledgeRevisionRepository.ActivationPoint.AFTER_OLD_REVISION_DISABLED) {
+                        throw new InjectedFailure();
+                    }
+                }));
+        assertEquals(oldRevision, scalarUuid(
+                "SELECT active_knowledge_revision_id FROM opspilot.knowledge_collection WHERE collection_id = ?",
+                fixture.collectionId()));
+        revisions.activate(fixture.collectionId(), newRevision);
+
+        assertEquals(oldRevision, revisions.resolveRunSnapshot(
+                fixture.runId(), fixture.collectionId()).knowledgeRevisionId());
+        UUID newRun = createRun("new-snapshot");
+        assertEquals(newRevision, revisions.resolveRunSnapshot(
+                newRun, fixture.collectionId()).knowledgeRevisionId());
+
+        Map<String, String> filters = Map.of(
+                "service", "payment", "tag", "runbook", "relation", "incident:db");
+        var oldHits = vectors.exactTopK(new PgvectorKnowledgeRepository.SearchRequest(
+                fixture.collectionId(), fixture.revisionId(), 3, COSINE,
+                new float[]{1, 0, 0}, 10, filters, oldRevision, Set.of("role:knowledge")));
+        var newHits = vectors.exactTopK(new PgvectorKnowledgeRepository.SearchRequest(
+                fixture.collectionId(), fixture.revisionId(), 3, COSINE,
+                new float[]{0, 1, 0}, 10, filters, newRevision, Set.of("role:knowledge")));
+        assertEquals(List.of(oldChunk), oldHits.stream().map(
+                PgvectorKnowledgeRepository.SearchHit::chunkId).toList());
+        assertEquals(List.of(newChunk), newHits.stream().map(
+                PgvectorKnowledgeRepository.SearchHit::chunkId).toList());
+        assertTrue(vectors.exactTopK(new PgvectorKnowledgeRepository.SearchRequest(
+                fixture.collectionId(), fixture.revisionId(), 3, COSINE,
+                new float[]{1, 0, 0}, 10, filters, oldRevision, Set.of("role:other"))).isEmpty());
+
+        UUID referenceId = UUID.randomUUID();
+        KnowledgeReference reference = new KnowledgeReference(referenceId, fixture.collectionId(),
+                oldDocument, oldVersion, oldChunk, oldRevision, fixture.revisionId(),
+                new ArtifactId(oldHits.getFirst().contentArtifactId()), "legacy", HASH_A, "c".repeat(64),
+                oldHits.getFirst().distance(), 8.5, 1,
+                new ProviderIdentity("infinity", "rerank", "locked"));
+        references.persist(fixture.runId(), reference);
+        assertEquals(reference, references.resolve(referenceId, fixture.runId(),
+                Set.of("role:knowledge")).orElseThrow());
+        assertTrue(references.resolve(referenceId, fixture.runId(), Set.of("role:other")).isEmpty());
+
+        revisions.rollback(fixture.collectionId(), oldRevision, true, true);
+        assertEquals(oldRevision, scalarUuid(
+                "SELECT active_knowledge_revision_id FROM opspilot.knowledge_collection WHERE collection_id = ?",
+                fixture.collectionId()));
+        assertFalse(revisions.markCleaned(oldRevision));
+    }
+
     private static Fixture fixture(String suffix) throws SQLException {
         UUID incidentId = UUID.randomUUID();
         UUID runId = UUID.randomUUID();
@@ -247,12 +395,38 @@ final class PgvectorKnowledgeRepositoryTest {
         }
     }
 
-    private static int scalarInt(String sql) throws SQLException {
-        try (var connection = dataSource.getConnection(); var statement = connection.createStatement();
-             var result = statement.executeQuery(sql)) {
+    private static int scalarInt(String sql, Object... values) throws SQLException {
+        try (var connection = dataSource.getConnection(); var statement = connection.prepareStatement(sql)) {
+            for (int index = 0; index < values.length; index++) statement.setObject(index + 1, values[index]);
+            try (var result = statement.executeQuery()) {
             result.next();
             return result.getInt(1);
+            }
         }
+    }
+
+    private static UUID knowledgeRevision(UUID collectionId, UUID modelRevisionId, String status)
+            throws SQLException {
+        UUID id = UUID.randomUUID();
+        execute("INSERT INTO opspilot.knowledge_revision "
+                        + "(knowledge_revision_id, collection_id, status, normalization_version, "
+                        + "chunk_strategy_version, model_revision_id, embedding_dimension, coverage_status, "
+                        + "expected_chunk_count, completed_chunk_count) "
+                        + "VALUES (?, ?, ?, 'norm-v1', 'chunk-v1', ?, 3, 'COMPLETE', 1, 1)",
+                id, collectionId, status, modelRevisionId);
+        return id;
+    }
+
+    private static UUID createRun(String suffix) throws SQLException {
+        String target = "target-" + suffix + '-' + UUID.randomUUID();
+        UUID incident = UUID.randomUUID();
+        UUID run = UUID.randomUUID();
+        execute("INSERT INTO opspilot.target_system (target_system_id, display_name) VALUES (?, ?)", target, target);
+        execute("INSERT INTO opspilot.incident (incident_id, target_system_id, status) VALUES (?, ?, 'OPEN')",
+                incident, target);
+        execute("INSERT INTO opspilot.incident_run (run_id, incident_id, status) VALUES (?, ?, 'CREATED')",
+                run, incident);
+        return run;
     }
 
     private static String scalarText(String sql) throws SQLException {

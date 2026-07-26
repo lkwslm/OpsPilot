@@ -123,7 +123,7 @@ public final class Phase0Process {
         dataSource.setPassword(Files.readString(
                 Path.of(RuntimeIdentity.required(environment, "DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
         return new PostgresReadinessCheck(dataSource,
-                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "8"),
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "12"),
                 environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 
@@ -297,10 +297,12 @@ public final class Phase0Process {
                 .locations(locations)
                 .validateOnMigrate(true)
                 .load().migrate();
-        if (result.targetSchemaVersion == null || !"8".equals(result.targetSchemaVersion.toString())) {
+        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "12");
+        if (result.targetSchemaVersion == null || !expectedVersion.equals(result.targetSchemaVersion.toString())) {
             throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE");
         }
-        System.out.println("MIGRATION_SET_VALIDATED version=8 migrations=" + result.migrationsExecuted);
+        System.out.println("MIGRATION_SET_VALIDATED version=" + expectedVersion
+                + " migrations=" + result.migrationsExecuted);
     }
 
     private static void demoteMigrator(String jdbcUrl, String username, String password) {

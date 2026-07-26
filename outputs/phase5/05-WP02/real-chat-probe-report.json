@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "configVersion": "phase0-2026-07-18",
+  "generatedAtUtc": "2026-07-26T10:40:17.913002Z",
+  "results": [
+    {
+      "status": "PASS",
+      "modelIdentity": {
+        "provider": "deepseek",
+        "protocol": "openai-chat-completions",
+        "configuredModelId": "deepseek-v4-flash",
+        "actualModelId": "deepseek-v4-flash"
+      },
+      "secretRef": "env:DEEPSEEK_API_KEY",
+      "usage": {
+        "promptTokens": 360,
+        "completionTokens": 160,
+        "totalTokens": 520
+      },
+      "probes": [
+        {
+          "requestType": "identity",
+          "status": "PASS",
+          "httpStatus": 200,
+          "timestampUtc": "2026-07-26T10:40:14.300973Z"
+        },
+        {
+          "requestType": "structured_output",
+          "status": "PASS",
+          "httpStatus": 200,
+          "timestampUtc": "2026-07-26T10:40:15.412189Z"
+        },
+        {
+          "requestType": "tool_calling",
+          "status": "PASS",
+          "httpStatus": 200,
+          "timestampUtc": "2026-07-26T10:40:16.703976Z"
+        },
+        {
+          "requestType": "streaming",
+          "status": "PASS",
+          "httpStatus": 200,
+          "eventChunks": 66,
+          "timestampUtc": "2026-07-26T10:40:17.913002Z"
+        }
+      ]
+    }
+  ],
+  "readiness": "UP",
+  "fakeFallbackUsed": false,
+  "sensitiveDataPolicy": {
+    "secretValuePersisted": false,
+    "fullPromptPersisted": false,
+    "fullResponsePersisted": false
+  }
+}

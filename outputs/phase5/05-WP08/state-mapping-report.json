@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T11:56:20Z",
+  "status": "PASS",
+  "mappings": [
+    {"condition":"KB_EMPTY_OR_NO_MATCH","action":"CONTINUE_FIELD_INVESTIGATION"},
+    {"condition":"TOKEN_CALL_DEADLINE_BUDGET_EXHAUSTED","action":"GENERATING_REPORT","allowedResults":["PARTIAL","INCONCLUSIVE"]},
+    {"condition":"NO_PROGRESS","action":"GENERATING_REPORT","checkpointRequired":true},
+    {"condition":"ANSWERABLE_BUSINESS_INPUT_MISSING","action":"WAITING_INPUT","deadlineBounded":true,"continuationBounded":true},
+    {"condition":"PROVIDER_OR_TECHNICAL_UNAVAILABLE","action":"TECHNICAL_FAILURE_OR_LIMITED_REPORT","waitingInput":false}
+  ],
+  "infiniteRetryAllowed": false,
+  "failures": []
+}

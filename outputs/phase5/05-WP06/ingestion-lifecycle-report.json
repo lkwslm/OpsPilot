@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAtUtc": "2026-07-26T11:43:58Z",
+  "status": "PASS",
+  "migrationVersion": 11,
+  "contracts": {
+    "formatMetadataAclAuthorizationFailClosed": true,
+    "rawArtifactStoredBeforeChunks": true,
+    "normalizationVersion": "knowledge-text-nfkc-lf-trim-v1",
+    "chunkStrategyVersion": "fixed-char-1000-v1",
+    "idempotencySameHashReturnsOriginal": true,
+    "idempotencyDifferentHashConflicts": true,
+    "immutableUpdate": true,
+    "batchAtomicCheckpointRecovery": true,
+    "softDeleteImmediate": true,
+    "historicalReferenceCleanupProtection": true
+  },
+  "tests": {
+    "core": 103,
+    "persistencePostgres": 15,
+    "knowledgePgvector": 3,
+    "failures": 0
+  },
+  "failures": []
+}

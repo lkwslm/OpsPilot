@@ -106,7 +106,7 @@ def probe(unique_model: dict[str, Any], secret_ref: str) -> dict[str, Any]:
                 "messages": [
                     {
                         "role": "user",
-                        "content": "Return exactly one JSON object with boolean field ok and no prose.",
+                        "content": "Return JSON only in exactly this shape: {\"ok\": true}. Do not add prose.",
                     }
                 ],
                 "max_tokens": 128,
@@ -121,7 +121,7 @@ def probe(unique_model: dict[str, Any], secret_ref: str) -> dict[str, Any]:
                 "messages": [
                     {
                         "role": "user",
-                        "content": "Use phase0_echo with value ok. Do not answer directly.",
+                        "content": "Call phase0_echo with value ok. You must use the tool and must not answer directly.",
                     }
                 ],
                 "tools": [
@@ -129,7 +129,7 @@ def probe(unique_model: dict[str, Any], secret_ref: str) -> dict[str, Any]:
                         "type": "function",
                         "function": {
                             "name": "phase0_echo",
-                            "description": "Phase 0 capability probe",
+                            "description": "Echo a capability probe value. Always call this tool for the requested probe.",
                             "parameters": {
                                 "type": "object",
                                 "properties": {"value": {"type": "string"}},
@@ -240,6 +240,8 @@ def main() -> int:
         "configVersion": resolved["configVersion"],
         "generatedAtUtc": utc_now(),
         "results": results,
+        "readiness": "UP" if status == "PASS" else "DOWN",
+        "fakeFallbackUsed": False,
         "sensitiveDataPolicy": {
             "secretValuePersisted": False,
             "fullPromptPersisted": False,

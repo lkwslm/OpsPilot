@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "05-WP01",
+  "status": "PASS",
+  "configVersion": "config-v1",
+  "profileCount": 6,
+  "deduplicatedProbeTargetCount": 1,
+  "capabilityDigest": "sha256:94859d0015da5ab3b7ea6c065d0a0436ad21a650cba9d82a3e547551fcc38dac",
+  "target": {
+    "provider": "deepseek",
+    "protocol": "openai-chat-completions",
+    "protocolVersion": "1.0",
+    "model": "deepseek-v4-flash",
+    "revision": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com",
+    "secretRef": "env:DEEPSEEK_API_KEY",
+    "contextWindowTokens": 1000000,
+    "requiredCapabilities": [
+      "CHAT",
+      "STRUCTURED_OUTPUT"
+    ],
+    "status": "VALIDATED"
+  },
+  "startupStages": [
+    "STATIC_VALIDATE",
+    "DEDUPLICATE_PROBES",
+    "PROBE_CAPABILITIES",
+    "BUILD_CAPABILITY_SNAPSHOT",
+    "FREEZE_REGISTRIES"
+  ],
+  "registryState": "FROZEN"
+}

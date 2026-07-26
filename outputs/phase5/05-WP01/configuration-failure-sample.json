@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "05-WP01",
+  "status": "EXPECTED_FAILURE",
+  "errorCode": "MODEL_PROFILE_CONFIGURATION_INVALID",
+  "profile": "diagnosis",
+  "fieldErrors": [
+    {
+      "field": "baseUrl",
+      "code": "REQUIRED_FIELD_MISSING",
+      "required": "absolute http(s) base URL"
+    },
+    {
+      "field": "capabilities",
+      "code": "REQUIRED_CAPABILITY_MISSING",
+      "required": "all required capabilities"
+    },
+    {
+      "field": "concurrencyLimit",
+      "code": "POSITIVE_VALUE_REQUIRED",
+      "required": "positive integer"
+    },
+    {
+      "field": "contextWindowTokens",
+      "code": "POSITIVE_VALUE_REQUIRED",
+      "required": "positive integer"
+    },
+    {
+      "field": "maxAttempts",
+      "code": "POSITIVE_VALUE_REQUIRED",
+      "required": "positive integer"
+    },
+    {
+      "field": "maxOutputTokensPerCall",
+      "code": "POSITIVE_VALUE_REQUIRED",
+      "required": "positive integer"
+    },
+    {
+      "field": "model",
+      "code": "REQUIRED_FIELD_MISSING",
+      "required": "explicit model ID"
+    },
+    {
+      "field": "provider",
+      "code": "REQUIRED_FIELD_MISSING",
+      "required": "stable provider ID"
+    },
+    {
+      "field": "secretRef",
+      "code": "SECRET_REF_INVALID",
+      "required": "env:NAME or file:/absolute/path"
+    }
+  ],
+  "rejectedValueEchoed": false,
+  "secretValuePresent": false,
+  "processExitPolicy": "NON_ZERO"
+}
