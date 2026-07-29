@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": "opspilot-wp10",
+  "principalId": "phase6-compose-tenant",
+  "incidentId": "818c9ff3-dda3-4226-b543-105add5450aa",
+  "runId": "0f84a100-f183-4a18-b61a-aefeca63a628",
+  "requestId": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+  "traceId": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+  "correlatedStores": {
+    "toolCalls": 1,
+    "modelCalls": 1,
+    "outboxEvents": 1
+  },
+  "nodes": [
+    {
+      "audit_id": "0baaa044-ee91-46dd-a44d-3402d4c414b9",
+      "parent_audit_id": null,
+      "boundary": "REST",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "REST vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "8698f400-e589-4e5e-991c-30fad91caab3",
+      "parent_audit_id": "0baaa044-ee91-46dd-a44d-3402d4c414b9",
+      "boundary": "SUPERVISOR",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "SUPERVISOR vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "278081f8-d33b-421c-b053-bb0b3d55ce41",
+      "parent_audit_id": "8698f400-e589-4e5e-991c-30fad91caab3",
+      "boundary": "A2A",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "A2A vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "449652a7-235c-4ea7-859c-d780dd36d7bf",
+      "parent_audit_id": "278081f8-d33b-421c-b053-bb0b3d55ce41",
+      "boundary": "AGENT_RUNTIME",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "AGENT_RUNTIME vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "75cd5293-a550-44b2-a59f-a9e9ad2d02d8",
+      "parent_audit_id": "449652a7-235c-4ea7-859c-d780dd36d7bf",
+      "boundary": "TOOL",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "TOOL vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "4bb700ef-6ab8-4c7c-84a7-cd470476aece",
+      "parent_audit_id": "75cd5293-a550-44b2-a59f-a9e9ad2d02d8",
+      "boundary": "PROVIDER",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "PROVIDER vertical slice succeeded; provider=deepseek; model=deepseek-v4-flash",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "7eb45683-8d47-4248-a5b7-3b11bf56a160",
+      "parent_audit_id": "4bb700ef-6ab8-4c7c-84a7-cd470476aece",
+      "boundary": "ARTIFACT",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "ARTIFACT vertical slice succeeded",
+      "log_artifact_id": "c3678db4-584c-4b36-906f-b9a64870d2c9",
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "48cbbbef-4e08-45a6-a50d-a9ec38eb5ffe",
+      "parent_audit_id": "7eb45683-8d47-4248-a5b7-3b11bf56a160",
+      "boundary": "EVIDENCE",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "EVIDENCE vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "16b22ce4-6642-4749-8f6c-4d90759bda5f",
+      "parent_audit_id": "48cbbbef-4e08-45a6-a50d-a9ec38eb5ffe",
+      "boundary": "ANALYSIS_SEAL",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "ANALYSIS_SEAL vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "fa023d5b-ced5-4c53-b9ab-9a69e2604031",
+      "parent_audit_id": "16b22ce4-6642-4749-8f6c-4d90759bda5f",
+      "boundary": "RCA",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "RCA vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    },
+    {
+      "audit_id": "10cba721-de6f-429a-b962-c8ff5a099dad",
+      "parent_audit_id": "fa023d5b-ced5-4c53-b9ab-9a69e2604031",
+      "boundary": "SSE",
+      "principal_id": "phase6-compose-tenant",
+      "incident_id": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "run_id": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "step_id": "1106b565-71af-401c-801b-573ddb1ac7f5",
+      "request_id": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "trace_id": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "a2a_task_id": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+      "invocation_id": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+      "result_code": "SUCCEEDED",
+      "error_code": null,
+      "summary": "SSE vertical slice succeeded",
+      "log_artifact_id": null,
+      "occurred_at": "2026-07-28T17:06:28.913528+00:00"
+    }
+  ],
+  "edges": [
+    {
+      "from": "0baaa044-ee91-46dd-a44d-3402d4c414b9",
+      "to": "8698f400-e589-4e5e-991c-30fad91caab3"
+    },
+    {
+      "from": "8698f400-e589-4e5e-991c-30fad91caab3",
+      "to": "278081f8-d33b-421c-b053-bb0b3d55ce41"
+    },
+    {
+      "from": "278081f8-d33b-421c-b053-bb0b3d55ce41",
+      "to": "449652a7-235c-4ea7-859c-d780dd36d7bf"
+    },
+    {
+      "from": "449652a7-235c-4ea7-859c-d780dd36d7bf",
+      "to": "75cd5293-a550-44b2-a59f-a9e9ad2d02d8"
+    },
+    {
+      "from": "75cd5293-a550-44b2-a59f-a9e9ad2d02d8",
+      "to": "4bb700ef-6ab8-4c7c-84a7-cd470476aece"
+    },
+    {
+      "from": "4bb700ef-6ab8-4c7c-84a7-cd470476aece",
+      "to": "7eb45683-8d47-4248-a5b7-3b11bf56a160"
+    },
+    {
+      "from": "7eb45683-8d47-4248-a5b7-3b11bf56a160",
+      "to": "48cbbbef-4e08-45a6-a50d-a9ec38eb5ffe"
+    },
+    {
+      "from": "48cbbbef-4e08-45a6-a50d-a9ec38eb5ffe",
+      "to": "16b22ce4-6642-4749-8f6c-4d90759bda5f"
+    },
+    {
+      "from": "16b22ce4-6642-4749-8f6c-4d90759bda5f",
+      "to": "fa023d5b-ced5-4c53-b9ab-9a69e2604031"
+    },
+    {
+      "from": "fa023d5b-ced5-4c53-b9ab-9a69e2604031",
+      "to": "10cba721-de6f-429a-b962-c8ff5a099dad"
+    }
+  ]
+}

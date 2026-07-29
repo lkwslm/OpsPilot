@@ -1,0 +1,86 @@
+{
+  "code-agent": {
+    "state": "running",
+    "health": "starting",
+    "publishers": []
+  },
+  "diagnosis-agent": {
+    "state": "running",
+    "health": "starting",
+    "publishers": []
+  },
+  "evidence-agent": {
+    "state": "running",
+    "health": "starting",
+    "publishers": []
+  },
+  "inventory-service": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "jaeger-v1": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "knowledge-agent": {
+    "state": "running",
+    "health": "starting",
+    "publishers": []
+  },
+  "opspilot-server": {
+    "state": "running",
+    "health": "starting",
+    "publishers": [
+      {
+        "URL": "127.0.0.1",
+        "TargetPort": 8080,
+        "PublishedPort": 8080,
+        "Protocol": "tcp"
+      }
+    ]
+  },
+  "order-service": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "otel-collector": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "postgres": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "prometheus": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  },
+  "remediation-agent": {
+    "state": "running",
+    "health": "starting",
+    "publishers": []
+  },
+  "sample-gateway": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": [
+      {
+        "URL": "127.0.0.1",
+        "TargetPort": 8080,
+        "PublishedPort": 8090,
+        "Protocol": "tcp"
+      }
+    ]
+  },
+  "toxiproxy": {
+    "state": "running",
+    "health": "healthy",
+    "publishers": []
+  }
+}

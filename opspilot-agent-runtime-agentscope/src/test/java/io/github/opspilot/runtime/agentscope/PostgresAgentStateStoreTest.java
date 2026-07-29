@@ -42,9 +42,10 @@ final class PostgresAgentStateStoreTest {
             String restoreOutput = runChild(
                     "verify", postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
 
-            assertTrue(saveOutput.contains("SAVED:session-a,session-b"), saveOutput);
+            assertTrue(saveOutput.contains("SAVED:session-a,session-b,journal"), saveOutput);
             assertTrue(restoreOutput.contains(
-                    "RESTORED:session-a=checkpoint-a,session-b=checkpoint-b;ISOLATED:true"),
+                    "RESTORED:session-a=checkpoint-a,session-b=checkpoint-b;"
+                            + "JOURNAL:usage-and-events;ISOLATED:true"),
                     restoreOutput);
         }
     }

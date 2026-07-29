@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "profileId": "supervisor-default",
+  "profileVersion": "1.0.0",
+  "role": "SUPERVISOR",
+  "skillId": "incident-investigation",
+  "description": "Coordinates the bounded incident investigation plan through declared A2A skills.",
+  "prompt": {"templateId": "supervisor-v1", "templateVersion": "1.0.0", "systemPolicyTemplateId": "opspilot-system-policy-v1"},
+  "model": {"modelProfileRef": "reasoning-high", "requiredCapabilities": ["STRUCTURED_OUTPUT", "STREAMING"], "generation": {"temperature": 0.1, "maxOutputTokens": 4096, "timeoutMs": 60000}},
+  "inputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/investigationRequest", "mediaType": "application/vnd.opspilot.incident-investigation.request+json;v=1"},
+  "outputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/investigationResult", "mediaType": "application/vnd.opspilot.incident-investigation.result+json;v=1"},
+  "contextPolicy": {"allowedInputs": ["INCIDENT", "EVIDENCE", "ARTIFACT", "TASK_STATE", "APPROVAL"], "factsFromEvidenceOnly": true, "maxEvidenceItems": 1000, "maxArtifactBytes": 20971520},
+  "toolPolicy": {"allowedTools": [], "maxPermission": "NONE", "maxCalls": 0, "dynamicDiscovery": false},
+  "a2aPolicy": {"allowedSkills": ["collect-observability-evidence", "analyze-code-location", "retrieve-incident-knowledge", "generate-and-verify-hypotheses", "propose-remediation"], "maxDelegations": 12, "peerToPeerDelegation": false},
+  "budget": {"maxTurns": 20, "maxModelCalls": 20, "maxToolCalls": 0, "maxInputTokensPerCall": 24000, "maxOutputTokensPerCall": 4096, "maxTaskTokens": 80000, "deadlineSeconds": 1800},
+  "sandboxPolicy": {"mode": "DISABLED", "runnerRef": null, "requireApproval": false, "allowedTestSuiteIds": [], "networkAccess": "DENY", "writableRoots": [], "limits": null},
+  "securityPolicy": {"policyRef": "supervisor-readonly-v1", "resourceScopes": ["incident:${incidentId}", "run:${runId}"], "maxDataClassification": "CONFIDENTIAL", "groundTruthAccess": false, "secretAccess": false, "arbitraryCommandExecution": false, "codeMutation": false},
+  "terminationPolicy": {"completionConditions": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"], "noProgressRounds": 2, "resultMapperRef": "supervisor-result-mapper-v1"}
+}

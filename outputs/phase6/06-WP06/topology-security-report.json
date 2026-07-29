@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "06-WP06",
+  "status": "PASS",
+  "compose": {
+    "project": "opspilot-wp06",
+    "processCount": 6,
+    "healthyCount": 6,
+    "productImageTarget": "product-runtime",
+    "professionalImageTarget": "agent-runtime",
+    "productPublishedPort": "127.0.0.1:8080",
+    "professionalHostPortsOpen": []
+  },
+  "directory": {
+    "schemaVersion": "1.0",
+    "digest": "10c366855497b18e7640584c7d3f2d54f045398660cd9bc2f9b165234f9f7353",
+    "mount": "read-only:/app/config/agent-directory.yaml",
+    "entries": 5,
+    "runtimeMutation": "DENIED",
+    "unknownEndpoint": "DENIED_BEFORE_NETWORK"
+  },
+  "agentCards": {
+    "originCount": 6,
+    "uniqueAgentIds": 6,
+    "allHttpStatus": 200,
+    "productOriginProfessionalProxy": false
+  },
+  "security": {
+    "serviceIdentitiesUnique": true,
+    "serviceTokenRefsUnique": true,
+    "databaseRolesUnique": true,
+    "crossSkillToken": "HTTP_403_BEFORE_TASK",
+    "crossAgentDatabaseWrite": "RLS_DENIED",
+    "taskCountDeltaAfterDeniedCalls": 0
+  },
+  "trafficGate": {
+    "livenessWhileSkillDown": "UP",
+    "readinessWhileSkillDown": "DOWN",
+    "newTaskWhileSkillDown": "HTTP_503_SERVICE_NOT_READY",
+    "readinessAfterRecovery": "UP"
+  },
+  "migration": {
+    "version": 15,
+    "freshAndUpgrade": "PASS",
+    "idempotentRerun": "PASS"
+  },
+  "tests": {
+    "command": ".\\mvnw.cmd -pl opspilot-server,opspilot-adapters/persistence-postgres -am test",
+    "total": 187,
+    "failures": 0,
+    "errors": 0,
+    "modules": {
+      "core": 118,
+      "toolsDefault": 5,
+      "persistencePostgres": 16,
+      "agentRuntimeAgentScope": 24,
+      "observabilityAdapter": 9,
+      "server": 15
+    }
+  },
+  "evidence": {
+    "staticReport": "outputs/phase6/06-WP06/topology-static-report.json",
+    "httpCapture": "outputs/phase6/06-WP06/topology-http-capture.log",
+    "testLog": "outputs/phase6/06-WP06/topology-tests.log"
+  }
+}

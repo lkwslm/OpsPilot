@@ -86,18 +86,25 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
     }
 
     public A2aTask markWorking(String taskId) {
-        return transition(taskId, A2aTaskState.WORKING, null);
+        return transitionTo(taskId, A2aTaskState.WORKING, null);
     }
 
     public A2aTask complete(String taskId, String result) {
+        return complete(taskId, result, "application/json");
+    }
+
+    public A2aTask complete(String taskId, String result, String mediaType) {
         String payload = "{\"result\":" + io.github.opspilot.a2a.contract.A2aJson.write(result) + "}";
+        A2aTask current = get(taskId)
+                .orElseThrow(() -> new IllegalArgumentException("TASK_NOT_FOUND:" + taskId));
         A2aArtifact artifact = new A2aArtifact(
-                UUID.randomUUID().toString(), "application/json", "1.0.0", sha256(payload), payload);
-        return transition(taskId, A2aTaskState.COMPLETED, artifact);
+                UUID.randomUUID().toString(), mediaType, "1.0.0", sha256(payload), payload,
+                current.taskId(), current.contextId(), serverAgentId, List.of());
+        return transitionTo(taskId, A2aTaskState.COMPLETED, artifact);
     }
 
     public A2aTask cancel(String taskId) {
-        return transition(taskId, A2aTaskState.CANCELED, null);
+        return transitionTo(taskId, A2aTaskState.CANCELED, null);
     }
 
     public Optional<A2aTask> get(String taskId) {
@@ -143,13 +150,17 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         // Connections are deliberately opened per operation so process restart has no local state.
     }
 
-    private A2aTask transition(String taskId, A2aTaskState next, A2aArtifact artifact) {
+    public A2aTask transitionTo(String taskId, A2aTaskState next, A2aArtifact artifact) {
         try (Connection connection = connection()) {
             connection.setAutoCommit(false);
             try {
                 A2aTask current = lock(connection, taskId);
                 if (current.state().terminal()) {
                     throw new IllegalStateException("TASK_TERMINAL:" + current.state());
+                }
+                if (!legalTransition(current.state(), next)) {
+                    throw new IllegalStateException(
+                            "TASK_STATE_TRANSITION_INVALID:" + current.state() + "->" + next);
                 }
                 A2aTask updated = new A2aTask(
                         current.taskId(), current.contextId(), current.messageId(), next,
@@ -267,11 +278,13 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         statement.setString(index + 4, artifact == null ? null : artifact.payload());
     }
 
-    private static A2aTask readTask(ResultSet result) throws SQLException {
+    private A2aTask readTask(ResultSet result) throws SQLException {
         String artifactId = result.getString("artifact_id");
         A2aArtifact artifact = artifactId == null ? null : new A2aArtifact(
                 artifactId, result.getString("media_type"), result.getString("schema_version"),
-                result.getString("sha256"), result.getString("payload"));
+                result.getString("sha256"), result.getString("payload"),
+                result.getString("task_id"), result.getString("context_id"),
+                serverAgentId, List.of());
         return new A2aTask(
                 result.getString("task_id"), result.getString("context_id"),
                 result.getString("message_id"), A2aTaskState.valueOf(result.getString("state")),
@@ -289,6 +302,23 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 unavailable", exception);
         }
+    }
+
+    private static boolean legalTransition(A2aTaskState current, A2aTaskState next) {
+        if (next == null || !next.valid() || current == next) {
+            return false;
+        }
+        return switch (current) {
+            case SUBMITTED -> List.of(A2aTaskState.WORKING, A2aTaskState.INPUT_REQUIRED,
+                    A2aTaskState.AUTH_REQUIRED, A2aTaskState.CANCELED, A2aTaskState.FAILED,
+                    A2aTaskState.REJECTED).contains(next);
+            case WORKING -> List.of(A2aTaskState.INPUT_REQUIRED, A2aTaskState.AUTH_REQUIRED,
+                    A2aTaskState.COMPLETED, A2aTaskState.CANCELED, A2aTaskState.FAILED,
+                    A2aTaskState.REJECTED).contains(next);
+            case INPUT_REQUIRED, AUTH_REQUIRED -> List.of(A2aTaskState.WORKING,
+                    A2aTaskState.CANCELED, A2aTaskState.FAILED, A2aTaskState.REJECTED).contains(next);
+            case COMPLETED, CANCELED, FAILED, REJECTED, UNSPECIFIED, UNRECOGNIZED -> false;
+        };
     }
 
     private static String required(String name, String value) {

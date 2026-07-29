@@ -21,6 +21,11 @@
         </dependency>
         <dependency>
             <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-adapter-model-openai-compatible</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.opspilot</groupId>
             <artifactId>opspilot-adapter-persistence-postgres</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -30,15 +35,55 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-agent-runtime-agentscope</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-product-api-contract</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <executable>python</executable>
+                            <arguments>
+                                <argument>${maven.multiModuleProjectDirectory}/scripts/contracts/generate_product_api_contract.py</argument>
+                                <argument>${maven.multiModuleProjectDirectory}/docs/design/contracts/openapi/opspilot-v1.yaml</argument>
+                                <argument>${project.basedir}/src/main/java/io/github/opspilot/server/generated/ProductApiContract.java</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>

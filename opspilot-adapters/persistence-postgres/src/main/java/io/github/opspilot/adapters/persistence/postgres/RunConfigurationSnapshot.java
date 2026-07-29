@@ -12,8 +12,10 @@ import java.util.Set;
 public record RunConfigurationSnapshot(
         String modelConfigurationVersion,
         String knowledgeConfigurationVersion,
+        String agentProfileConfigurationVersion,
         JsonNode effectiveModelConfiguration,
-        JsonNode effectiveKnowledgeConfiguration) {
+        JsonNode effectiveKnowledgeConfiguration,
+        JsonNode effectiveAgentProfileConfiguration) {
     private static final Set<String> SENSITIVE_KEYS = Set.of(
             "apikey", "secret", "secretvalue", "password", "accesstoken",
             "bearertoken", "credential", "credentials", "privatekey");
@@ -22,17 +24,28 @@ public record RunConfigurationSnapshot(
         modelConfigurationVersion = requireText(modelConfigurationVersion, "modelConfigurationVersion");
         knowledgeConfigurationVersion = requireText(
                 knowledgeConfigurationVersion, "knowledgeConfigurationVersion");
+        agentProfileConfigurationVersion = requireText(
+                agentProfileConfigurationVersion, "agentProfileConfigurationVersion");
         effectiveModelConfiguration = validateAndCopy(
                 effectiveModelConfiguration, "effectiveModelConfiguration");
         effectiveKnowledgeConfiguration = validateAndCopy(
                 effectiveKnowledgeConfiguration, "effectiveKnowledgeConfiguration");
+        effectiveAgentProfileConfiguration = validateAndCopy(
+                effectiveAgentProfileConfiguration, "effectiveAgentProfileConfiguration");
+    }
+
+    public RunConfigurationSnapshot(
+            String modelConfigurationVersion,
+            String knowledgeConfigurationVersion,
+            JsonNode effectiveModelConfiguration,
+            JsonNode effectiveKnowledgeConfiguration) {
+        this(modelConfigurationVersion, knowledgeConfigurationVersion, "legacy",
+                effectiveModelConfiguration, effectiveKnowledgeConfiguration, legacyDocument());
     }
 
     public static RunConfigurationSnapshot legacy() {
-        JsonNode legacy = JsonNodeFactory.instance.objectNode()
-                .put("schemaVersion", "1.0.0")
-                .put("legacy", true);
-        return new RunConfigurationSnapshot("legacy", "legacy", legacy, legacy);
+        JsonNode legacy = legacyDocument();
+        return new RunConfigurationSnapshot("legacy", "legacy", "legacy", legacy, legacy, legacy);
     }
 
     @Override
@@ -43,6 +56,17 @@ public record RunConfigurationSnapshot(
     @Override
     public JsonNode effectiveKnowledgeConfiguration() {
         return effectiveKnowledgeConfiguration.deepCopy();
+    }
+
+    @Override
+    public JsonNode effectiveAgentProfileConfiguration() {
+        return effectiveAgentProfileConfiguration.deepCopy();
+    }
+
+    private static JsonNode legacyDocument() {
+        return JsonNodeFactory.instance.objectNode()
+                .put("schemaVersion", "1.0.0")
+                .put("legacy", true);
     }
 
     private static JsonNode validateAndCopy(JsonNode value, String field) {

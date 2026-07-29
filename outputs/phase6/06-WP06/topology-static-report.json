@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "composeFile": "E:\\Code\\OpsPilot\\deployment\\docker-compose.yml",
+  "processCount": 6,
+  "agentIdsUnique": true,
+  "databaseRolesUnique": true,
+  "serviceTokenRefsUnique": true,
+  "directoryDigest": "10c366855497b18e7640584c7d3f2d54f045398660cd9bc2f9b165234f9f7353",
+  "publishedPorts": {
+    "opspilot-server": "127.0.0.1:8080"
+  },
+  "errorCount": 0,
+  "errors": []
+}

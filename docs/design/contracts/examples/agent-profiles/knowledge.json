@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "profileId": "knowledge-default",
+  "profileVersion": "1.0.0",
+  "role": "KNOWLEDGE",
+  "skillId": "retrieve-incident-knowledge",
+  "description": "Retrieves bounded cited knowledge and reports MATCH, NO_MATCH, or KB_EMPTY.",
+  "prompt": {"templateId": "knowledge-v1", "templateVersion": "1.0.0", "systemPolicyTemplateId": "opspilot-system-policy-v1"},
+  "model": {"modelProfileRef": "reasoning-standard", "requiredCapabilities": ["TOOL_CALLS", "STRUCTURED_OUTPUT"], "generation": {"temperature": 0.0, "maxOutputTokens": 2048, "timeoutMs": 60000}},
+  "inputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/knowledgeRequest", "mediaType": "application/vnd.opspilot.retrieve-incident-knowledge.request+json;v=1"},
+  "outputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/knowledgeResult", "mediaType": "application/vnd.opspilot.retrieve-incident-knowledge.result+json;v=1"},
+  "contextPolicy": {"allowedInputs": ["INCIDENT", "EVIDENCE", "TASK_STATE"], "factsFromEvidenceOnly": true, "maxEvidenceItems": 500, "maxArtifactBytes": 10485760},
+  "toolPolicy": {"allowedTools": [{"toolId": "KnowledgeSearchTool", "contractMajor": 1}], "maxPermission": "READ_ONLY", "maxCalls": 10, "dynamicDiscovery": false},
+  "a2aPolicy": {"allowedSkills": [], "maxDelegations": 0, "peerToPeerDelegation": false},
+  "budget": {"maxTurns": 8, "maxModelCalls": 8, "maxToolCalls": 10, "maxInputTokensPerCall": 12000, "maxOutputTokensPerCall": 2048, "maxTaskTokens": 30000, "deadlineSeconds": 600},
+  "sandboxPolicy": {"mode": "DISABLED", "runnerRef": null, "requireApproval": false, "allowedTestSuiteIds": [], "networkAccess": "DENY", "writableRoots": [], "limits": null},
+  "securityPolicy": {"policyRef": "knowledge-readonly-v1", "resourceScopes": ["incident:${incidentId}", "run:${runId}", "knowledge:${collectionId}"], "maxDataClassification": "CONFIDENTIAL", "groundTruthAccess": false, "secretAccess": false, "arbitraryCommandExecution": false, "codeMutation": false},
+  "terminationPolicy": {"completionConditions": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"], "noProgressRounds": 2, "resultMapperRef": "knowledge-result-mapper-v1"}
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "06-WP04",
+  "status": "PASS",
+  "protocol": {
+    "release": "v1.0.1",
+    "wireVersion": "1.0",
+    "sdk": "org.a2aproject.sdk:a2a-java-sdk-spec:1.1.0.Final",
+    "binding": "HTTP+JSON",
+    "requestMediaType": "application/a2a+json",
+    "license": "Apache-2.0"
+  },
+  "cards": {
+    "count": 6,
+    "fixtures": "opspilot-a2a/src/main/resources/agent-cards",
+    "officialObjectValidation": "PASS",
+    "identitySkillMediaSecurityExtensionValidation": "PASS"
+  },
+  "operations": ["send", "stream", "get", "cancel", "subscribe"],
+  "security": {
+    "preTaskChecks": [
+      "caller service identity",
+      "target Agent",
+      "skill scope",
+      "input and output media type",
+      "protocol version",
+      "required extensions"
+    ],
+    "unknownRequiredExtension": "HTTP 400 before task creation; persistent task delta 0",
+    "captureContainsPayload": false
+  },
+  "idempotency": {
+    "key": "serverAgentId + messageId",
+    "proof": "request SHA-256 match replays original task; mismatch conflicts; concurrent duplicate has one task"
+  },
+  "taskStates": {
+    "mapped": [
+      "SUBMITTED", "WORKING", "INPUT_REQUIRED", "AUTH_REQUIRED",
+      "COMPLETED", "CANCELED", "FAILED", "REJECTED"
+    ],
+    "invalid": ["UNSPECIFIED", "UNRECOGNIZED"],
+    "terminalRewrite": "DENIED"
+  },
+  "resultBoundary": {
+    "statusMessageAuthoritative": false,
+    "artifactRequiredFields": [
+      "mediaType", "schemaVersion", "taskId", "runId",
+      "ownerAgentId", "sha256", "references"
+    ]
+  },
+  "tests": {
+    "command": ".\\mvnw.cmd -pl opspilot-a2a -am test",
+    "total": 144,
+    "a2aModule": 14,
+    "failures": 0,
+    "errors": 0,
+    "log": "outputs/phase6/06-WP04/a2a-contract-tests.log",
+    "httpCapture": "outputs/phase6/06-WP04/a2a-http-capture.log"
+  }
+}

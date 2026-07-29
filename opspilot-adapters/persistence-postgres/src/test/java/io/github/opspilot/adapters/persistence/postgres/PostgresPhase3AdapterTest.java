@@ -13,10 +13,15 @@ import io.github.opspilot.adapters.persistence.postgres.entity.AgentStateEntity;
 import io.github.opspilot.adapters.persistence.postgres.entity.HypothesisEntity;
 import io.github.opspilot.adapters.persistence.postgres.entity.IncidentRunEntity;
 import io.github.opspilot.core.application.checkpoint.CommittedEventProjector;
+import io.github.opspilot.core.application.correlation.CorrelationContext;
+import io.github.opspilot.core.application.evidence.ArtifactReceiver;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService;
 import io.github.opspilot.core.domain.identity.DomainIds.A2aTaskId;
 import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
 import io.github.opspilot.core.domain.identity.DomainIds.Attempt;
 import io.github.opspilot.core.domain.identity.DomainIds.IncidentId;
+import io.github.opspilot.core.domain.identity.DomainIds.EvidenceId;
+import io.github.opspilot.core.domain.identity.DomainIds.HypothesisId;
 import io.github.opspilot.core.domain.identity.DomainIds.RemoteTaskId;
 import io.github.opspilot.core.domain.identity.DomainIds.RunId;
 import io.github.opspilot.core.domain.identity.DomainIds.StepId;
@@ -25,7 +30,11 @@ import io.github.opspilot.core.domain.state.IncidentAgentState.ReactLoopSnapshot
 import io.github.opspilot.core.domain.state.IncidentAgentState.TokenBudgetSnapshot;
 import io.github.opspilot.core.domain.state.IncidentAgentState.UsageStatistics;
 import io.github.opspilot.core.domain.state.StateMachines.IncidentRunState;
+import io.github.opspilot.core.domain.state.StateMachines.A2aTaskState;
 import io.github.opspilot.core.domain.state.StateMachines.StepAttemptState;
+import io.github.opspilot.core.port.repository.A2aAttemptRepository.AttemptConflict;
+import io.github.opspilot.core.port.repository.A2aAttemptRepository.AttemptDraft;
+import io.github.opspilot.core.port.repository.A2aAttemptRepository.RemoteBinding;
 import io.github.opspilot.core.port.repository.CheckpointContracts.A2aBindingWrite;
 import io.github.opspilot.core.port.repository.CheckpointContracts.BindingType;
 import io.github.opspilot.core.port.repository.CheckpointContracts.CallAudit;
@@ -65,9 +74,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -114,11 +125,11 @@ final class PostgresPhase3AdapterTest {
 
     @Test
     void readinessRolesRlsAndSchemaGateFailClosed() throws Exception {
-        assertTrue(new PostgresReadinessCheck(dataSource, "12", "0.8.4").check().ready());
+        assertTrue(new PostgresReadinessCheck(dataSource, "18", "0.8.4").check().ready());
         assertEquals("FLYWAY_VERSION_MISMATCH",
                 new PostgresReadinessCheck(dataSource, "99", "0.8.4").check().reason());
         assertEquals("PGVECTOR_VERSION_MISMATCH",
-                new PostgresReadinessCheck(dataSource, "12", "99").check().reason());
+                new PostgresReadinessCheck(dataSource, "18", "99").check().reason());
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             assertFalse(queryBoolean(statement, """
@@ -515,6 +526,379 @@ final class PostgresPhase3AdapterTest {
         Files.createDirectories(root.resolve("orphan"));
         Files.writeString(root.resolve("orphan/object"), "orphan");
         assertTrue(artifacts.reconcile().stream().anyMatch(issue -> issue.type() == IssueType.OBJECT_WITHOUT_METADATA));
+    }
+
+    @Test
+    void a2aAttemptRepositoryPersistsBeforeBindingAndRejectsStaleOrCrossAttemptUpdates()
+            throws Exception {
+        UUID incidentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        UUID stepId = UUID.randomUUID();
+        insertIncidentRun(incidentId, runId);
+        execute("""
+                INSERT INTO opspilot.incident_step
+                    (step_id,run_id,step_type,status,ordinal,version)
+                VALUES ('%s','%s','A2A_TEST','PENDING',0,0);
+                INSERT INTO opspilot.agent_endpoint (server_agent_id,endpoint_uri,state)
+                VALUES ('diagnosis-agent','https://diagnosis.example/a2a','READY')
+                ON CONFLICT (server_agent_id) DO NOTHING
+                """.formatted(stepId, runId));
+        var repository = new PostgresA2aAttemptRepository(dataSource);
+        UUID firstId = UUID.randomUUID();
+        var first = repository.create(new AttemptDraft(
+                firstId, runId, stepId, 1, "message-1", "a".repeat(64),
+                "diagnosis-agent", "diagnosis:attempt-1", NOW));
+        assertEquals(StepAttemptState.DISPATCHING, first.status());
+        assertFalse(first.bound());
+
+        first = repository.bind(firstId, 0,
+                new RemoteBinding("diagnosis-agent", "remote-task-1", A2aTaskState.SUBMITTED));
+        assertEquals(StepAttemptState.QUEUED, first.status());
+        assertThrows(AttemptConflict.class, () -> repository.observe(
+                firstId, 0, "remote-task-1", A2aTaskState.WORKING, 0));
+        first = repository.observe(
+                firstId, first.version(), "remote-task-1", A2aTaskState.WORKING, 1);
+        assertEquals(StepAttemptState.RUNNING, first.status());
+        var failed = repository.observe(
+                firstId, first.version(), "remote-task-1", A2aTaskState.FAILED, 2);
+        assertEquals(StepAttemptState.FAILED, failed.status());
+
+        UUID secondId = UUID.randomUUID();
+        repository.create(new AttemptDraft(
+                secondId, runId, stepId, 2, "message-2", "b".repeat(64),
+                "diagnosis-agent", "diagnosis:attempt-2", NOW.plusSeconds(1)));
+        assertThrows(AttemptConflict.class, () -> repository.observe(
+                firstId, failed.version(), "remote-task-2", A2aTaskState.COMPLETED, 3));
+        assertEquals(StepAttemptState.DISPATCHING, repository.find(secondId).orElseThrow().status());
+
+        var claimed = repository.claimRecoverable(
+                "supervisor-restart", NOW.plusSeconds(60), 10, NOW.plusSeconds(2));
+        assertTrue(claimed.stream().anyMatch(value -> value.attemptId().equals(secondId)));
+        assertEquals(StepAttemptState.RECONCILING,
+                repository.find(secondId).orElseThrow().status());
+    }
+
+    @Test
+    void productApiIdempotencyOwnershipAndSseReplayAreDurable() throws Exception {
+        PostgresProductApiRepository repository = new PostgresProductApiRepository(dataSource);
+        String principal = "tenant-a";
+        String key = "create-incident-0001";
+        String hash = "a".repeat(64);
+        UUID incidentId = UUID.randomUUID();
+        AtomicInteger sideEffects = new AtomicInteger();
+
+        var first = repository.executeIdempotent(principal, "createIncident", key, hash, connection -> {
+            sideEffects.incrementAndGet();
+            repository.createIncident(connection, principal, incidentId, "api-target", List.of("service:a"),
+                    null, "API incident", "HIGH", "{}", List.of(), NOW);
+            return new PostgresProductApiRepository.StoredResponse(201,
+                    Map.of("Content-Type", "application/json"),
+                    ("{\"incidentId\":\"" + incidentId + "\"}").getBytes(StandardCharsets.UTF_8));
+        });
+        var replay = repository.executeIdempotent(principal, "createIncident", key, hash,
+                ignored -> { throw new AssertionError("replay must not repeat the side effect"); });
+
+        assertEquals(201, replay.status());
+        assertArrayEquals(first.body(), replay.body());
+        assertEquals(1, sideEffects.get());
+        assertEquals(1, count("opspilot.incident", "incident_id", incidentId));
+        assertThrows(PostgresProductApiRepository.Conflict.class,
+                () -> repository.executeIdempotent(principal, "createIncident", key,
+                        "b".repeat(64), ignored -> first));
+
+        UUID rolledBackIncident = UUID.randomUUID();
+        assertThrows(IllegalStateException.class, () -> repository.executeIdempotent(
+                principal, "createIncident", "failed-recovery-01", "c".repeat(64), connection -> {
+                    repository.createIncident(connection, principal, rolledBackIncident, "rollback-target",
+                            List.of(), null, "Rollback", "LOW", "{}", List.of(), NOW);
+                    throw new IllegalStateException("injected");
+                }));
+        assertEquals(0, count("opspilot.incident", "incident_id", rolledBackIncident));
+        repository.executeIdempotent(principal, "createIncident", "failed-recovery-01",
+                "c".repeat(64), connection -> {
+                    repository.createIncident(connection, principal, rolledBackIncident, "rollback-target",
+                            List.of(), null, "Recovered", "LOW", "{}", List.of(), NOW);
+                    return new PostgresProductApiRepository.StoredResponse(201, Map.of(), new byte[0]);
+                });
+        assertEquals(1, count("opspilot.incident", "incident_id", rolledBackIncident));
+
+        UUID concurrentIncident = UUID.randomUUID();
+        AtomicInteger concurrentEffects = new AtomicInteger();
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var left = executor.submit(() -> {
+                start.await();
+                return repository.executeIdempotent(principal, "createIncident", "concurrent-key-01",
+                        "d".repeat(64), connection -> {
+                            concurrentEffects.incrementAndGet();
+                            repository.createIncident(connection, principal, concurrentIncident,
+                                    "concurrent-target", List.of(), null, "Concurrent", "MEDIUM",
+                                    "{}", List.of(), NOW);
+                            return new PostgresProductApiRepository.StoredResponse(201, Map.of(), new byte[0]);
+                        });
+            });
+            var right = executor.submit(() -> {
+                start.await();
+                return repository.executeIdempotent(principal, "createIncident", "concurrent-key-01",
+                        "d".repeat(64), connection -> {
+                            concurrentEffects.incrementAndGet();
+                            repository.createIncident(connection, principal, concurrentIncident,
+                                    "concurrent-target", List.of(), null, "Concurrent", "MEDIUM",
+                                    "{}", List.of(), NOW);
+                            return new PostgresProductApiRepository.StoredResponse(201, Map.of(), new byte[0]);
+                        });
+            });
+            start.countDown();
+            assertEquals(201, left.get().status());
+            assertEquals(201, right.get().status());
+        }
+        assertEquals(1, concurrentEffects.get());
+
+        UUID runId = UUID.randomUUID();
+        repository.executeIdempotent(principal, "startIncidentRun", "start-run-key-0001",
+                "e".repeat(64), connection -> {
+                    repository.startRun(connection, principal, incidentId, runId,
+                            "models-v1", "mvp-v1", 1_000L, 600);
+                    return new PostgresProductApiRepository.StoredResponse(202, Map.of(), new byte[0]);
+                });
+        assertTrue(repository.findRun(principal, incidentId, runId).isPresent());
+        assertTrue(repository.findRun("tenant-b", incidentId, runId).isEmpty());
+        assertThrows(PostgresProductApiRepository.NotFound.class,
+                () -> repository.toolCalls("tenant-b", incidentId, runId, 100));
+        assertThrows(PostgresProductApiRepository.ReportNotReady.class,
+                () -> repository.report(principal, incidentId, runId));
+
+        execute("INSERT INTO opspilot.sse_event (event_id,run_id,sequence_no,event_type,payload_json) "
+                + "VALUES ('%s','%s',101,'RUN_STARTED','{\"schemaVersion\":\"1.0.0\"}'),"
+                .formatted(UUID.randomUUID(), runId)
+                + "('%s','%s',102,'STEP_STARTED','{\"schemaVersion\":\"1.0.0\"}')"
+                .formatted(UUID.randomUUID(), runId));
+        assertEquals(List.of(102L), repository.eventsAfter(principal, incidentId, runId, 101, 100)
+                .stream().map(PostgresProductApiRepository.EventSnapshot::sequence).toList());
+
+        UUID otherIncident = UUID.randomUUID();
+        UUID otherRun = UUID.randomUUID();
+        repository.executeIdempotent(principal, "createIncident", "other-incident-001",
+                "f".repeat(64), connection -> {
+                    repository.createIncident(connection, principal, otherIncident, "other-target",
+                            List.of(), null, "Other", "LOW", "{}", List.of(), NOW);
+                    return new PostgresProductApiRepository.StoredResponse(201, Map.of(), new byte[0]);
+                });
+        repository.executeIdempotent(principal, "startIncidentRun", "other-start-run-01",
+                "0".repeat(64), connection -> {
+                    repository.startRun(connection, principal, otherIncident, otherRun,
+                            "models-v1", "mvp-v1", null, 600);
+                    return new PostgresProductApiRepository.StoredResponse(202, Map.of(), new byte[0]);
+                });
+        assertThrows(PostgresProductApiRepository.NotFound.class,
+                () -> repository.eventsAfter(principal, otherIncident, otherRun, 101, 100));
+    }
+
+    @Test
+    void correlationAuditIsCompleteAppendOnlyRedactedAndOwnershipChecked(@TempDir Path root)
+            throws Exception {
+        String principal = "correlation-tenant";
+        UUID incidentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        PostgresProductApiRepository product = new PostgresProductApiRepository(dataSource);
+        product.executeIdempotent(principal, "createIncident", "correlation-create-01",
+                "1".repeat(64), connection -> {
+                    product.createIncident(connection, principal, incidentId, "correlation-target",
+                            List.of(), null, "Correlation", "HIGH", "{}", List.of(), NOW);
+                    return new PostgresProductApiRepository.StoredResponse(201, Map.of(), new byte[0]);
+                });
+        product.executeIdempotent(principal, "startIncidentRun", "correlation-start-001",
+                "2".repeat(64), connection -> {
+                    product.startRun(connection, principal, incidentId, runId,
+                            "models-v1", "mvp-v1", 1_000L, 600);
+                    return new PostgresProductApiRepository.StoredResponse(202, Map.of(), new byte[0]);
+                });
+
+        CorrelationContext context = CorrelationContext.ingress(principal)
+                .withIncident(incidentId).withRun(runId).withStep(UUID.randomUUID())
+                .withA2aTask("a2a-correlation-task").withInvocation(UUID.randomUUID());
+        LocalVolumeArtifactAccessService artifactService =
+                new LocalVolumeArtifactAccessService(dataSource, root, 32_768);
+        PostgresCorrelationAuditRepository audit =
+                new PostgresCorrelationAuditRepository(dataSource, artifactService);
+        UUID parent = null;
+        UUID logArtifactId = null;
+        List<String> boundaries = List.of("REST", "SUPERVISOR", "A2A", "AGENT_RUNTIME",
+                "TOOL", "PROVIDER", "ARTIFACT", "EVIDENCE", "ANALYSIS_SEAL", "RCA", "SSE");
+        for (int index = 0; index < boundaries.size(); index++) {
+            String boundary = boundaries.get(index);
+            String rawLog = "TOOL".equals(boundary)
+                    ? "authorization=Bearer-secret prompt=private diagnostic payload" : null;
+            var event = audit.append(new PostgresCorrelationAuditRepository.AuditDraft(
+                    parent, context, boundary, "a".repeat(64),
+                    Map.of("decision", "allowed"),
+                    "ARTIFACT".equals(boundary) ? "REJECTED" : "SUCCEEDED",
+                    "ARTIFACT".equals(boundary) ? "ARTIFACT_HASH_MISMATCH" : null,
+                    boundary + " boundary outcome", NOW.plusSeconds(index)), rawLog);
+            parent = event.auditId();
+            if (event.logArtifactId() != null) logArtifactId = event.logArtifactId();
+        }
+
+        List<PostgresCorrelationAuditRepository.AuditEvent> chain =
+                audit.findOwnedChain(principal, incidentId, context.requestId());
+        assertEquals(boundaries, chain.stream().map(
+                PostgresCorrelationAuditRepository.AuditEvent::boundary).toList());
+        assertTrue(chain.stream().allMatch(event -> event.context().traceId().equals(context.traceId())));
+        assertTrue(chain.stream().noneMatch(event -> event.summary().contains("Bearer-secret")));
+        assertTrue(logArtifactId != null);
+        assertTrue(new String(audit.readOwnedLog(principal, incidentId, runId, logArtifactId),
+                StandardCharsets.UTF_8).contains("Bearer-secret"));
+        UUID controlledLogId = logArtifactId;
+        assertThrows(PostgresCorrelationAuditRepository.AuditNotFound.class,
+                () -> audit.readOwnedLog("other-tenant", incidentId, runId, controlledLogId));
+        assertTrue(audit.findOwnedChain("other-tenant", incidentId, context.requestId()).isEmpty());
+        assertThrows(PostgresCorrelationAuditRepository.AuditNotFound.class,
+                () -> audit.append(new PostgresCorrelationAuditRepository.AuditDraft(
+                        null, new CorrelationContext("other-tenant", context.requestId(), context.traceId(),
+                                incidentId, runId, null, null, null), "REST", "b".repeat(64),
+                        Map.of(), "REJECTED", "RESOURCE_NOT_FOUND", "not found", NOW), null));
+        assertThrows(SQLException.class, () -> execute(
+                "UPDATE opspilot.correlation_audit SET summary='mutated' WHERE audit_id='"
+                        + chain.getFirst().auditId() + "'"));
+
+        CorrelationContext failureContext = CorrelationContext.ingress(principal)
+                .withIncident(incidentId).withRun(runId).withStep(UUID.randomUUID());
+        List<String> artifactErrors = List.of(
+                "ARTIFACT_MEDIA_TYPE_INVALID", "ARTIFACT_SCHEMA_MAJOR_UNSUPPORTED",
+                "ARTIFACT_SCHEMA_INVALID", "ARTIFACT_SOURCE_WRONG_RUN",
+                "ARTIFACT_OWNERSHIP_INVALID", "ARTIFACT_HASH_MISMATCH",
+                "ARTIFACT_REFERENCE_FORBIDDEN", "ARTIFACT_DOMAIN_INVALID");
+        UUID failureParent = null;
+        for (int index = 0; index < artifactErrors.size(); index++) {
+            var event = audit.append(new PostgresCorrelationAuditRepository.AuditDraft(
+                    failureParent, failureContext, "ARTIFACT", "c".repeat(64),
+                    Map.of("decision", "denied"), "REJECTED", artifactErrors.get(index),
+                    "Artifact validation rejected at layer " + (index + 1),
+                    NOW.plusSeconds(100 + index)), null);
+            failureParent = event.auditId();
+        }
+        for (String resultCode : List.of("FAILED", "CANCELLED")) {
+            var event = audit.append(new PostgresCorrelationAuditRepository.AuditDraft(
+                    failureParent, failureContext, "A2A", "d".repeat(64),
+                    Map.of("decision", "allowed"), resultCode,
+                    resultCode + "_BY_POLICY", "Stable " + resultCode.toLowerCase() + " outcome",
+                    NOW.plusSeconds(110)), null);
+            failureParent = event.auditId();
+        }
+        List<PostgresCorrelationAuditRepository.AuditEvent> failureChain =
+                audit.findOwnedChain(principal, incidentId, failureContext.requestId());
+        assertEquals(10, failureChain.size());
+        assertEquals(artifactErrors, failureChain.stream().limit(8)
+                .map(PostgresCorrelationAuditRepository.AuditEvent::errorCode).toList());
+        assertTrue(failureChain.stream().allMatch(event -> event.logArtifactId() == null));
+        assertEquals(java.util.Set.of("FAILED", "CANCELLED"), failureChain.stream().skip(8)
+                .map(PostgresCorrelationAuditRepository.AuditEvent::resultCode).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Test
+    void supervisorDelegationArtifactReceptionSealAndConsistentReadAreDurable() throws Exception {
+        UUID incidentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        UUID stepId = UUID.randomUUID();
+        UUID inputEvidenceId = UUID.randomUUID();
+        UUID inputArtifactId = UUID.randomUUID();
+        insertIncidentRun(incidentId, runId);
+        execute("""
+                INSERT INTO opspilot.artifact
+                    (artifact_id,run_id,uri,sha256,media_type,access_level,object_key,size_bytes)
+                VALUES ('%s','%s','artifact://input','%s','application/json','RUN_PRIVATE','input/%s',0);
+                INSERT INTO opspilot.evidence
+                    (evidence_id,run_id,summary,artifact_id,attributes)
+                VALUES ('%s','%s','input fact','%s','{"schemaVersion":"1.0.0"}')
+                """.formatted(inputArtifactId, runId, "a".repeat(64), inputArtifactId,
+                inputEvidenceId, runId, inputArtifactId));
+
+        PostgresSupervisorEvidenceStore store = new PostgresSupervisorEvidenceStore(dataSource);
+        var delegation = new SupervisorOrchestrationService.DelegationRecord(
+                new RunId(runId), new StepId(stepId), 1, UUID.randomUUID().toString(),
+                "evidence-agent", "collect-runtime-evidence",
+                List.of(new EvidenceId(inputEvidenceId)), List.of(new ArtifactId(inputArtifactId)),
+                new SupervisorOrchestrationService.RemainingBudget(2, 3, 4, 500, 600),
+                NOW.plusSeconds(300), "capability-digest", NOW);
+        store.commitBeforeNetwork(delegation);
+        assertEquals("collect-runtime-evidence", queryString(
+                "SELECT target_skill FROM opspilot.step_attempt WHERE step_id='" + stepId + "'"));
+        assertEquals("capability-digest", queryString(
+                "SELECT capability_snapshot_json->>'digest' FROM opspilot.step_attempt WHERE step_id='"
+                        + stepId + "'"));
+        assertEquals(1, queryInt("SELECT cardinality(input_evidence_ids) FROM opspilot.step_attempt WHERE step_id='"
+                + stepId + "'"));
+
+        UUID taskId = UUID.randomUUID();
+        execute("""
+                INSERT INTO opspilot.task
+                    (task_id,run_id,task_type,status,max_attempts,idempotency_key,payload_json)
+                VALUES ('%s','%s','A2A_RESULT','COMPLETED',1,'artifact-task',
+                        '{"schemaVersion":"1.0.0"}')
+                """.formatted(taskId, runId));
+        UUID artifactId = UUID.randomUUID();
+        UUID evidenceId = UUID.randomUUID();
+        UUID hypothesisId = UUID.randomUUID();
+        byte[] payload = "{\"schemaVersion\":\"1.0.0\"}".getBytes(StandardCharsets.UTF_8);
+        var invalidMutation = new ArtifactReceiver.ReceptionMutation(
+                new ArtifactId(artifactId), new RunId(runId),
+                List.of(new ArtifactReceiver.EvidenceWrite(new EvidenceId(evidenceId), "remote fact")),
+                List.of(new ArtifactReceiver.HypothesisWrite(
+                        new HypothesisId(hypothesisId), "root cause", List.of(new EvidenceId(evidenceId)))),
+                List.of(new ArtifactReceiver.RelationWrite(
+                        new HypothesisId(hypothesisId), new EvidenceId(UUID.randomUUID()), "SUPPORTS")),
+                List.of(), List.of(ArtifactReceiver.RawFactKind.EVIDENCE), UUID.randomUUID());
+        var invalid = ArtifactReceiver.RemoteArtifact.json(
+                new ArtifactId(artifactId), new RunId(runId), taskId, payload,
+                List.of(new EvidenceId(evidenceId)), invalidMutation);
+        assertThrows(IllegalStateException.class, () -> store.commit(invalid));
+        assertEquals(0, count("opspilot.artifact", "artifact_id", artifactId));
+        assertEquals(0, count("opspilot.evidence", "evidence_id", evidenceId));
+        assertEquals(0, count("opspilot.hypothesis", "hypothesis_id", hypothesisId));
+
+        UUID verificationId = UUID.randomUUID();
+        var validMutation = new ArtifactReceiver.ReceptionMutation(
+                new ArtifactId(artifactId), new RunId(runId), invalidMutation.evidence(),
+                invalidMutation.hypotheses(), List.of(new ArtifactReceiver.RelationWrite(
+                        new HypothesisId(hypothesisId), new EvidenceId(evidenceId), "SUPPORTS")),
+                List.of(new ArtifactReceiver.VerificationWrite(
+                        verificationId, new HypothesisId(hypothesisId), new EvidenceId(evidenceId),
+                        "CONFIRMED", "checked")),
+                List.of(ArtifactReceiver.RawFactKind.EVIDENCE), UUID.randomUUID());
+        var valid = ArtifactReceiver.RemoteArtifact.json(
+                new ArtifactId(artifactId), new RunId(runId), taskId, payload,
+                List.of(new EvidenceId(evidenceId)), validMutation);
+        store.commit(valid);
+        store.commit(valid);
+        assertEquals(1, count("opspilot.artifact_reception", "artifact_id", artifactId));
+        assertEquals(1, count("opspilot.evidence", "evidence_id", evidenceId));
+        assertEquals(1, count("opspilot.hypothesis", "hypothesis_id", hypothesisId));
+        assertEquals(1, count("opspilot.hypothesis_verification", "verification_id", verificationId));
+
+        execute("UPDATE opspilot.step_attempt SET status='COMPLETED' WHERE step_id='" + stepId + "'");
+        var sealed = store.sealAtomically(new RunId(runId), 0, NOW.plusSeconds(1), List.of());
+        assertEquals(1, sealed.runVersion());
+        var reportInput = store.inReadOnlyTransaction(new RunId(runId), 1);
+        assertEquals(List.of(new EvidenceId(inputEvidenceId), new EvidenceId(evidenceId)).stream().sorted(
+                        java.util.Comparator.comparing(EvidenceId::wire)).toList(),
+                reportInput.evidence().stream().map(value -> value.evidenceId()).toList());
+        assertEquals(1, reportInput.hypotheses().size());
+        assertEquals(1, reportInput.relations().size());
+        assertEquals(1, reportInput.verifications().size());
+
+        UUID lateArtifactId = UUID.randomUUID();
+        UUID lateEvidenceId = UUID.randomUUID();
+        var lateMutation = new ArtifactReceiver.ReceptionMutation(
+                new ArtifactId(lateArtifactId), new RunId(runId),
+                List.of(new ArtifactReceiver.EvidenceWrite(new EvidenceId(lateEvidenceId), "late")),
+                List.of(), List.of(), List.of(), List.of(ArtifactReceiver.RawFactKind.EVIDENCE), UUID.randomUUID());
+        var late = ArtifactReceiver.RemoteArtifact.json(
+                new ArtifactId(lateArtifactId), new RunId(runId), taskId, payload,
+                List.of(new EvidenceId(lateEvidenceId)), lateMutation);
+        assertThrows(IllegalStateException.class, () -> store.commit(late));
+        assertEquals(0, count("opspilot.artifact", "artifact_id", lateArtifactId));
+        assertEquals("1", queryString(
+                "SELECT run_version::text FROM opspilot.incident_run WHERE run_id='" + runId + "'"));
     }
 
     private static boolean saveAfter(

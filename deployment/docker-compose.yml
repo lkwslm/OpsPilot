@@ -7,14 +7,10 @@ x-runtime-environment: &runtime-environment
   RERANK_MODEL_ID: reranker-bge-v2-m3
   SOURCE_COMMIT: 60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b
   JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
-  EXPECTED_FLYWAY_VERSION: "12"
+  EXPECTED_FLYWAY_VERSION: "18"
   EXPECTED_PGVECTOR_VERSION: "0.8.4"
 
 x-process-common: &process-common
-  image: opspilot-phase0:0.1.0
-  build:
-    context: ..
-    dockerfile: deployment/Dockerfile.phase0
   restart: unless-stopped
   tmpfs:
     - /tmp:size=16m,noexec,nosuid
@@ -29,6 +25,10 @@ x-process-common: &process-common
     - type: bind
       source: ./agent-input
       target: /datasets/input
+      read_only: true
+    - type: bind
+      source: ./agents/agent-directory.yaml
+      target: /app/config/agent-directory.yaml
       read_only: true
   healthcheck:
     test: ["CMD-SHELL", "java -XX:-UsePerfData -cp '/app/opspilot-server.jar:/app/lib/*' io.github.opspilot.server.Phase0Process probe http://127.0.0.1:$${SERVER_PORT}/actuator/health/readiness"]
@@ -77,6 +77,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/Dockerfile.phase0
+      target: ops-runtime
     command: ["migrate"]
     restart: "no"
     read_only: true
@@ -109,6 +110,11 @@ services:
 
   opspilot-server:
     <<: *process-common
+    image: opspilot-product:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: product-runtime
     networks:
       - opspilot-backend
       - opspilot-frontend
@@ -119,18 +125,23 @@ services:
       <<: *runtime-environment
       AGENT_ID: supervisor
       AGENT_SKILL: supervise-incident
+      SERVICE_IDENTITY: svc:opspilot-server
       SERVER_PORT: "8080"
       DB_ROLE: opspilot_app_role
       DB_USERNAME: opspilot_app_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://opspilot-server:8080
       SERVICE_TOKEN_FILE: /run/secrets/supervisor-service-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
       EVIDENCE_AGENT_TOKEN_FILE: /run/secrets/evidence-agent-token
+      CHAT_MODEL_BASE_URL: https://api.deepseek.com
+      CHAT_MODEL_API_KEY_FILE: /run/secrets/deepseek-api-key
       READINESS_URLS: http://evidence-agent:8081/.well-known/agent-card.json,http://code-agent:8082/.well-known/agent-card.json,http://knowledge-agent:8083/.well-known/agent-card.json,http://diagnosis-agent:8084/.well-known/agent-card.json,http://remediation-agent:8085/.well-known/agent-card.json
     secrets:
       - supervisor-service-token
       - evidence-agent-token
       - runtime-db-password
+      - deepseek-api-key
     volumes:
       - type: bind
         source: ./agent-input
@@ -143,78 +154,113 @@ services:
 
   evidence-agent:
     <<: *process-common
+    image: opspilot-agent:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: agent-runtime
     expose: ["8081"]
     environment:
       <<: *runtime-environment
       AGENT_ID: evidence-collector
       AGENT_SKILL: collect-observability-evidence
+      SERVICE_IDENTITY: svc:evidence-agent
       SERVER_PORT: "8081"
       DB_ROLE: evidence_agent_role
       DB_USERNAME: evidence_agent_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://evidence-agent:8081
       SERVICE_TOKEN_FILE: /run/secrets/evidence-agent-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
       SOURCE_PATH: /datasets/input/observability.jsonl
     secrets: [evidence-agent-token, runtime-db-password]
 
   code-agent:
     <<: *process-common
+    image: opspilot-agent:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: agent-runtime
     expose: ["8082"]
     environment:
       <<: *runtime-environment
       AGENT_ID: code-analysis
       AGENT_SKILL: analyze-code-location
+      SERVICE_IDENTITY: svc:code-agent
       SERVER_PORT: "8082"
       DB_ROLE: code_agent_role
       DB_USERNAME: code_agent_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://code-agent:8082
       SERVICE_TOKEN_FILE: /run/secrets/code-agent-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
     secrets: [code-agent-token, runtime-db-password]
 
   knowledge-agent:
     <<: *process-common
+    image: opspilot-agent:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: agent-runtime
     expose: ["8083"]
     environment:
       <<: *runtime-environment
       AGENT_ID: knowledge
       AGENT_SKILL: retrieve-incident-knowledge
+      SERVICE_IDENTITY: svc:knowledge-agent
       SERVER_PORT: "8083"
       DB_ROLE: knowledge_agent_role
       DB_USERNAME: knowledge_agent_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://knowledge-agent:8083
       SERVICE_TOKEN_FILE: /run/secrets/knowledge-agent-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
     secrets: [knowledge-agent-token, runtime-db-password]
 
   diagnosis-agent:
     <<: *process-common
+    image: opspilot-agent:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: agent-runtime
     expose: ["8084"]
     environment:
       <<: *runtime-environment
       AGENT_ID: diagnosis
       AGENT_SKILL: generate-and-verify-hypotheses
+      SERVICE_IDENTITY: svc:diagnosis-agent
       SERVER_PORT: "8084"
       DB_ROLE: diagnosis_agent_role
       DB_USERNAME: diagnosis_agent_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://diagnosis-agent:8084
       SERVICE_TOKEN_FILE: /run/secrets/diagnosis-agent-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
     secrets: [diagnosis-agent-token, runtime-db-password]
 
   remediation-agent:
     <<: *process-common
+    image: opspilot-agent:0.1.0
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: agent-runtime
     expose: ["8085"]
     environment:
       <<: *runtime-environment
       AGENT_ID: remediation
       AGENT_SKILL: propose-remediation
+      SERVICE_IDENTITY: svc:remediation-agent
       SERVER_PORT: "8085"
       DB_ROLE: remediation_agent_role
       DB_USERNAME: remediation_agent_login
       DB_PASSWORD_FILE: /run/secrets/runtime-db-password
       A2A_BASE_URL: http://remediation-agent:8085
       SERVICE_TOKEN_FILE: /run/secrets/remediation-agent-token
+      DIRECTORY_PATH: /app/config/agent-directory.yaml
     secrets: [remediation-agent-token, runtime-db-password]
 
   jaeger-v1:
@@ -444,6 +490,8 @@ secrets:
     file: ../.tmp/secrets/diagnosis-agent-token.txt
   remediation-agent-token:
     file: ../.tmp/secrets/remediation-agent-token.txt
+  deepseek-api-key:
+    file: ../.tmp/secrets/deepseek-api-key.txt
 
 volumes:
   opspilot-postgres-data:

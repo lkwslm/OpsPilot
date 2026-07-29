@@ -1,0 +1,154 @@
+{
+  "workPackage": "06-WP08",
+  "status": "PASS",
+  "capturedAt": "2026-07-28T15:57:37.702063390Z",
+  "composeProject": "opspilot-wp08",
+  "schemaAssertions": {
+    "schemaVersion": "1.0",
+    "utcTimestamps": true,
+    "stableIdentityFields": [
+      "agentId",
+      "configVersion",
+      "directoryDigest",
+      "cardDigest"
+    ],
+    "allowedCapabilityStates": [
+      "UP",
+      "DOWN"
+    ],
+    "degradedStateObserved": false,
+    "secretMaterialObserved": false
+  },
+  "directoryDigest": "10c366855497b18e7640584c7d3f2d54f045398660cd9bc2f9b165234f9f7353",
+  "processes": [
+    {
+      "service": "opspilot-server",
+      "agentId": "supervisor",
+      "cardDigest": "5807c5e957bc99d824b270a6c52f15e724a931aa117c96581b9e8a9eebb4d329",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 13,
+      "knowledgeDataState": "NOT_APPLICABLE"
+    },
+    {
+      "service": "evidence-agent",
+      "agentId": "evidence-collector",
+      "cardDigest": "15d9af26921e06ae3b1a5c632523dad7cd478e9e8986aced22c3e2505626b2a3",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 10,
+      "knowledgeDataState": "NOT_APPLICABLE"
+    },
+    {
+      "service": "code-agent",
+      "agentId": "code-analysis",
+      "cardDigest": "be069ac25582f333abf2e1eebe1dd2cd1a4b77f9ed74890a2586195fdbb6a45d",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 10,
+      "knowledgeDataState": "NOT_APPLICABLE"
+    },
+    {
+      "service": "knowledge-agent",
+      "agentId": "knowledge",
+      "cardDigest": "9ef5c244fcf85575c5ca95e36418123d8a6bcb201586a2bd7d9e446f0da34f21",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 10,
+      "knowledgeDataState": "KB_EMPTY",
+      "requiredModelProbesCompleted": [
+        "llm",
+        "embedding",
+        "rerank"
+      ]
+    },
+    {
+      "service": "diagnosis-agent",
+      "agentId": "diagnosis",
+      "cardDigest": "6a0e5e2880de8bbf264a6da09c72e69d07a15c12bea0202c12600d6d71a66f2b",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 10,
+      "knowledgeDataState": "NOT_APPLICABLE"
+    },
+    {
+      "service": "remediation-agent",
+      "agentId": "remediation",
+      "cardDigest": "428671c47103c90d4f18bd86da4e9aba04a04e6b910d6e0794c97645934e027a",
+      "httpStatus": {
+        "liveness": 200,
+        "readiness": 200,
+        "models": 200,
+        "capabilities": 200
+      },
+      "requiredCapabilityCount": 10,
+      "knowledgeDataState": "NOT_APPLICABLE"
+    }
+  ],
+  "disconnectRecovery": [
+    {
+      "dependency": "code-agent",
+      "whileDisconnected": {
+        "supervisorLiveness": 200,
+        "supervisorReadiness": 503,
+        "supervisorCapabilities": 503,
+        "newA2aTask": 503
+      },
+      "afterRecovery": {
+        "codeAgentHealth": "healthy",
+        "supervisorReadiness": 200
+      }
+    },
+    {
+      "dependency": "postgres",
+      "whileDisconnected": {
+        "supervisorLiveness": 200,
+        "supervisorReadiness": 503,
+        "newA2aTask": 503
+      },
+      "afterRecovery": {
+        "postgresHealth": "healthy",
+        "supervisorReadiness": 200
+      }
+    }
+  ],
+  "automatedCoverage": {
+    "supervisorDependencies": [
+      "database",
+      "agent-state-store",
+      "model:llm",
+      "model:embedding",
+      "model:rerank",
+      "agent-runtime",
+      "skill:collect-observability-evidence",
+      "skill:analyze-code-location",
+      "skill:retrieve-incident-knowledge",
+      "skill:generate-and-verify-hypotheses",
+      "skill:propose-remediation"
+    ],
+    "professionalDependencyProfiles": true,
+    "snapshotFreshnessAndVersionMismatch": true,
+    "timeoutKeepsLivenessUp": true,
+    "testLog": "outputs/phase6/06-WP08/health-tests.log"
+  }
+}

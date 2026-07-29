@@ -14,6 +14,8 @@ import io.github.opspilot.core.application.provider.EmbeddingProviderRegistry;
 import io.github.opspilot.core.application.provider.ProviderRegistryContracts.ProviderCapabilityKey;
 import io.github.opspilot.core.application.provider.ProviderRegistryContracts.ProviderRequirement;
 import io.github.opspilot.core.application.provider.RerankProviderRegistry;
+import io.github.opspilot.core.application.profile.AgentProfileRegistry;
+import io.github.opspilot.core.application.profile.ProfileCapabilityClosure.CapabilityCatalog;
 import io.github.opspilot.core.port.agent.ChatPort;
 import io.github.opspilot.core.port.observability.ObservabilityQueryPort;
 import io.github.opspilot.core.port.provider.EmbeddingPort;
@@ -33,6 +35,7 @@ import java.util.Objects;
 import io.github.opspilot.tools.defaults.*;
 import io.github.opspilot.tools.defaults.ObservabilityToolContracts.ToolAuditSink;
 import io.github.opspilot.tools.defaults.ObservabilityToolContracts.ToolAuthorizationPort;
+import io.github.opspilot.runtime.agentscope.BundledAgentProfiles;
 
 /** The only production entry point allowed to construct concrete OpsPilot components. */
 public final class OpsPilotCompositionRoot {
@@ -75,6 +78,13 @@ public final class OpsPilotCompositionRoot {
         return new ModelProviderRegistries(chat, embedding, rerank);
     }
 
+    /** The built-in profile list is explicit and becomes immutable only after capability closure succeeds. */
+    public static AgentProfileRegistry composeAgentProfiles(CapabilityCatalog catalog) {
+        AgentProfileRegistry registry = new BundledAgentProfiles().registerAll();
+        registry.validateAndFreeze(Objects.requireNonNull(catalog, "catalog"));
+        return registry;
+    }
+
     /** Production persistence is PostgreSQL-only and never substitutes an in-memory adapter. */
     public static PersistenceComponents composePersistence(
             DataSource dataSource, Path artifactRoot, long maxArtifactBytes) {
@@ -85,7 +95,7 @@ public final class OpsPilotCompositionRoot {
                 new DurableTaskRepository(dataSource),
                 new SseEventRepository(dataSource),
                 new LocalVolumeArtifactAccessService(dataSource, artifactRoot, maxArtifactBytes),
-                new PostgresReadinessCheck(dataSource, "10", "0.8.4"));
+                new PostgresReadinessCheck(dataSource, "18", "0.8.4"));
     }
 
     /** Adapter implementations are explicitly enumerated here; no classpath discovery is used. */

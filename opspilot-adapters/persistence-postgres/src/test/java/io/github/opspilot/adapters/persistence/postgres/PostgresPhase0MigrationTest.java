@@ -78,7 +78,7 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-            assertEquals("12", queryString(connection,
+              assertEquals("18", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
@@ -189,7 +189,7 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("12", queryString(connection,
+            assertEquals("18", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
@@ -203,7 +203,23 @@ final class PostgresPhase0MigrationTest {
                     "SELECT effective_model_configuration_json ->> 'legacy' = 'true' "
                             + "FROM opspilot.incident_run WHERE run_id = '" + legacyRun + "'"));
 
+            statement.executeUpdate("""
+                    INSERT INTO opspilot_a2a.task
+                        (task_id,server_agent_id,message_id,request_hash,state,payload_json)
+                    VALUES
+                        ('evidence-scope-task','evidence-collector','evidence-message','hash-e','SUBMITTED','{"schemaVersion":"1.0.0"}'),
+                        ('code-scope-task','code-analysis','code-message','hash-c','SUBMITTED','{"schemaVersion":"1.0.0"}')
+                    """);
+
             statement.execute("SET ROLE evidence_agent_role");
+            assertEquals(1, queryInt(connection, "SELECT count(*) FROM opspilot_a2a.task"));
+            PSQLException crossSkillDenied = assertThrows(PSQLException.class,
+                    () -> statement.executeUpdate("""
+                            INSERT INTO opspilot_a2a.task
+                                (task_id,server_agent_id,message_id,request_hash,state,payload_json)
+                            VALUES ('cross-skill-task','code-analysis','cross-message','hash-x','SUBMITTED','{"schemaVersion":"1.0.0"}')
+                            """));
+            assertEquals("42501", crossSkillDenied.getSQLState());
             PSQLException domainDenied = assertThrows(PSQLException.class, () -> statement.executeUpdate(
                     "INSERT INTO opspilot.incident (incident_id,target_system_id,status) VALUES ('"
                             + UUID.randomUUID() + "','forbidden','OPEN')"));
@@ -240,11 +256,17 @@ final class PostgresPhase0MigrationTest {
                 "secretRef":"env:OPENAI_API_KEY","fieldSources":{"MAX_CALLS":{
                 "layer":"TASK_OVERRIDE","sourceRef":"task-v3"}}}}}
                 """);
-        ObjectNode knowledgeV1 = (ObjectNode) JSON.readTree("""
-                {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-1"}
-                """);
-        RunConfigurationSnapshot frozenV1 = new RunConfigurationSnapshot(
-                "model-v1", "knowledge-v1", modelV1, knowledgeV1);
+          ObjectNode knowledgeV1 = (ObjectNode) JSON.readTree("""
+                  {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-1"}
+                  """);
+          ObjectNode agentV1 = (ObjectNode) JSON.readTree("""
+                  {"schemaVersion":"1.0.0","profileId":"diagnosis-default","profileVersion":"1.0.0",
+                  "promptVersion":"1.0.0","modelProfileRef":"reasoning-high",
+                  "capabilityClosureDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "taskConstraints":["run:current"]}
+                  """);
+         RunConfigurationSnapshot frozenV1 = new RunConfigurationSnapshot(
+                  "model-v1", "knowledge-v1", "agent-profile-v1", modelV1, knowledgeV1, agentV1);
         ((ObjectNode) modelV1.at("/roles/DIAGNOSIS")).put("maxCalls", 999);
 
         try (Connection connection = connection(database); Statement statement = connection.createStatement()) {
@@ -265,11 +287,16 @@ final class PostgresPhase0MigrationTest {
                     + "'{\"schemaVersion\":\"1.0.0\",\"model\":\"v2\"}' WHERE profile_id = '" + profileId + "'");
             ObjectNode modelV2 = (ObjectNode) frozenV1.effectiveModelConfiguration();
             ((ObjectNode) modelV2.at("/roles/DIAGNOSIS")).put("maxCalls", 9);
-            repository.createActiveRun(connection, secondIncident, secondRun,
-                    new RunConfigurationSnapshot("model-v2", "knowledge-v2", modelV2,
-                            (ObjectNode) JSON.readTree("""
-                                    {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-2"}
-                                    """)));
+              repository.createActiveRun(connection, secondIncident, secondRun,
+                     new RunConfigurationSnapshot("model-v2", "knowledge-v2", "agent-profile-v2", modelV2,
+                             (ObjectNode) JSON.readTree("""
+                                     {"schemaVersion":"1.0.0","collectionRef":"operations","activeRevision":"revision-2"}
+                                     """), (ObjectNode) JSON.readTree("""
+                                     {"schemaVersion":"1.0.0","profileId":"diagnosis-default","profileVersion":"2.0.0",
+                                     "promptVersion":"2.0.0","modelProfileRef":"reasoning-high",
+                                     "capabilityClosureDigest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                                     "taskConstraints":["run:current"]}
+                                     """)));
 
             RunConfigurationSnapshot storedV1 = repository.findConfigurationSnapshot(connection, firstRun);
             RunConfigurationSnapshot storedV2 = repository.findConfigurationSnapshot(connection, secondRun);
@@ -281,8 +308,14 @@ final class PostgresPhase0MigrationTest {
                     .at("/activeRevision").textValue());
             assertEquals(9, storedV2.effectiveModelConfiguration()
                     .at("/roles/DIAGNOSIS/maxCalls").intValue());
-            assertEquals("model-v1", storedV1.modelConfigurationVersion());
-            assertEquals("model-v2", storedV2.modelConfigurationVersion());
+             assertEquals("model-v1", storedV1.modelConfigurationVersion());
+             assertEquals("model-v2", storedV2.modelConfigurationVersion());
+             assertEquals("1.0.0", storedV1.effectiveAgentProfileConfiguration()
+                     .at("/profileVersion").textValue());
+             assertEquals("2.0.0", storedV2.effectiveAgentProfileConfiguration()
+                     .at("/profileVersion").textValue());
+             assertEquals("agent-profile-v1", storedV1.agentProfileConfigurationVersion());
+             assertEquals("agent-profile-v2", storedV2.agentProfileConfigurationVersion());
 
             ObjectNode illegal = JSON.createObjectNode()
                     .put("schemaVersion", "1.0.0")

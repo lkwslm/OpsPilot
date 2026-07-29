@@ -30,6 +30,21 @@ instances:
   - path: examples/agent-profiles/diagnosis.json
     schema: schemas/agent-profile.schema.json
     category: AGENT_PROFILE
+  - path: examples/agent-profiles/supervisor.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
+  - path: examples/agent-profiles/evidence-collector.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
+  - path: examples/agent-profiles/code-analysis.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
+  - path: examples/agent-profiles/knowledge.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
+  - path: examples/agent-profiles/remediation.json
+    schema: schemas/agent-profile.schema.json
+    category: AGENT_PROFILE
   - path: examples/observability/prometheus-observation-batch.json
     schema: schemas/observation-batch.schema.json
     category: OBSERVATION

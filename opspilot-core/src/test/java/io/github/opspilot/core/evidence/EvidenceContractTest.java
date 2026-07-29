@@ -70,36 +70,36 @@ class EvidenceContractTest {
 
     @Test
     void codeSourceMaterializesOneImmutableSnapshotTypeForRestrictedAnalyzer() {
-        CodeSnapshot snapshot = new CodeSnapshot(
-                "repository-1", "abc123", "sha256:" + "a".repeat(64), new ArtifactId(uuid(10)),
-                "artifact://code-snapshots/abc123", NOW);
+        String commit = "a".repeat(40);
+        CodeSnapshot snapshot = codeSnapshot(commit);
         CodeSourcePort github = request -> snapshot;
         CodeSourcePort gitlab = request -> snapshot;
         CodeAnalysisPort analyzer = (materialized, deadline) -> List.of(new CodeFinding(
                 "finding-1", "null-check", "possible null dereference", "src/Main.java",
-                "sha256:" + "b".repeat(64), List.of(new ArtifactId(uuid(11)))));
+                "sha256:" + "b".repeat(64), 1, 1, "repository-1", commit,
+                new ArtifactId(uuid(10)), "java-semantic-v1", "1.0.0", List.of(new ArtifactId(uuid(10)))));
 
         CodeSnapshot fromGitHub = github.materialize(new CodeSourcePort.CodeSourceRequest(
-                "repository-1", "abc123", "credential://github/repo-1", NOW.plusSeconds(5)));
+                "repository-1", commit, "secret://github/repo-1", NOW.plusSeconds(5)));
         CodeSnapshot fromGitLab = gitlab.materialize(new CodeSourcePort.CodeSourceRequest(
-                "repository-1", "abc123", "credential://gitlab/repo-1", NOW.plusSeconds(5)));
+                "repository-1", commit, "secret://gitlab/repo-1", NOW.plusSeconds(5)));
         assertEquals(fromGitHub, fromGitLab);
         assertEquals("finding-1", analyzer.analyze(fromGitHub, NOW.plusSeconds(5)).getFirst().findingId());
         assertFalse(CodeAnalysisPort.class.getMethods()[0].toGenericString().contains("credential"));
         assertThrows(IllegalArgumentException.class, () -> new CodeSnapshot(
-                "repository-1", "abc123", "sha256:" + "a".repeat(64), new ArtifactId(uuid(10)),
+                "repository-1", commit, "sha256:" + "a".repeat(64), new ArtifactId(uuid(10)),
                 "C:\\host\\workspace", NOW));
     }
 
     @Test
     void runtimeCodeAndKnowledgeShareOneImmutableEvidenceBoundary() {
         RuntimeEvidenceNormalizer normalizer = new RuntimeEvidenceNormalizer();
-        CodeSnapshot snapshot = new CodeSnapshot(
-                "repository-1", "abc123", "sha256:" + "a".repeat(64), new ArtifactId(uuid(10)),
-                "artifact://code-snapshots/abc123", NOW);
+        String commit = "a".repeat(40);
+        CodeSnapshot snapshot = codeSnapshot(commit);
         var code = normalizer.normalizeCode(snapshot, List.of(new CodeFinding(
                 "finding-1", "null-check", "possible null dereference", "src/Main.java",
-                "sha256:" + "b".repeat(64), List.of(new ArtifactId(uuid(11))))), CONTEXT);
+                "sha256:" + "b".repeat(64), 1, 1, "repository-1", commit,
+                new ArtifactId(uuid(10)), "java-semantic-v1", "1.0.0", List.of(new ArtifactId(uuid(10))))), CONTEXT);
         var knowledge = normalizer.normalizeKnowledge(List.of(new KnowledgeResult(
                 "result-1", "kb-1", "rev-1", "runbook match", List.of(new ArtifactId(uuid(12))))), CONTEXT);
 
@@ -109,6 +109,17 @@ class EvidenceContractTest {
                 () -> code.evidence().add(knowledge.evidence().getFirst()));
         assertEquals(EvidenceNormalizer.class,
                 RuntimeEvidenceNormalizer.class.getInterfaces()[0].getDeclaredMethods()[0].getDeclaringClass());
+    }
+
+    private static CodeSnapshot codeSnapshot(String commit) {
+        return new CodeSnapshot("snapshot-1", "source-1",
+                io.github.opspilot.core.port.code.CodeContracts.SourceKind.GITHUB,
+                "github-code-source", "1.0.0", "repository-1", commit,
+                "sha256:" + "a".repeat(64), new ArtifactId(uuid(10)),
+                "sha256:" + "c".repeat(64),
+                new io.github.opspilot.core.port.code.CodeContracts.ReadOnlyWorkspaceHandle(
+                        "artifact://code-workspace/snapshot-1", true),
+                Map.of("src/Main.java", "sha256:" + "b".repeat(64)), NOW);
     }
 
     @Test

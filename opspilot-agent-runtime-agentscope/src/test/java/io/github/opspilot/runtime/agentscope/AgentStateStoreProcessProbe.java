@@ -1,7 +1,11 @@
 package io.github.opspilot.runtime.agentscope;
 
 import io.agentscope.core.state.State;
+import io.github.opspilot.core.port.agent.AgentExecutionService.ExecutionUsage;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Child-JVM probe used to prove state survives a process boundary. */
@@ -20,7 +24,15 @@ public final class AgentStateStoreProcessProbe {
             if ("save".equals(mode)) {
                 store.save("user-1", "session-a", "checkpoint", new CheckpointState("checkpoint-a", 3));
                 store.save("user-1", "session-b", "checkpoint", new CheckpointState("checkpoint-b", 7));
-                System.out.println("SAVED:session-a,session-b");
+                store.save("opspilot-system", "diagnosis:task-1", "opspilot.execution.checkpoint",
+                        new AgentScopeExecutionService.ExecutionJournalState(
+                                "sha256:journal", "execution-1", "diagnosis", "diagnosis:task-1",
+                                1, "COMPLETED", null, "bounded decision",
+                                new ExecutionUsage(2, 2, 1, 20, 5, 0),
+                                List.of(new AgentScopeExecutionService.JournalEvent(
+                                        1, "MODEL_COMPLETED", null, Map.of("status", "SUCCEEDED"))),
+                                Instant.parse("2026-07-28T00:00:00Z")));
+                System.out.println("SAVED:session-a,session-b,journal");
                 return;
             }
             if ("verify".equals(mode)) {
@@ -38,7 +50,16 @@ public final class AgentStateStoreProcessProbe {
                 if (otherAgent.exists("user-1", "session-a")) {
                     throw new IllegalStateException("serverAgentId isolation failed");
                 }
-                System.out.println("RESTORED:session-a=checkpoint-a,session-b=checkpoint-b;ISOLATED:true");
+                AgentScopeExecutionService.ExecutionJournalState journal = required(store.get(
+                        "opspilot-system", "diagnosis:task-1", "opspilot.execution.checkpoint",
+                        AgentScopeExecutionService.ExecutionJournalState.class));
+                if (!"bounded decision".equals(journal.decisionSummary())
+                        || journal.usage().totalTokens() != 25
+                        || journal.events().size() != 1) {
+                    throw new IllegalStateException("Execution journal changed after restart");
+                }
+                System.out.println("RESTORED:session-a=checkpoint-a,session-b=checkpoint-b;"
+                        + "JOURNAL:usage-and-events;ISOLATED:true");
                 return;
             }
             throw new IllegalArgumentException("Unknown mode: " + mode);

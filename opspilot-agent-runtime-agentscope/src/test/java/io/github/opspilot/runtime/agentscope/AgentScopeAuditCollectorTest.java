@@ -1,13 +1,13 @@
 package io.github.opspilot.runtime.agentscope;
 
-import io.github.opspilot.core.port.agent.ChatPort;
 import io.github.opspilot.core.port.agent.RuntimeAuditSink;
-import io.github.opspilot.core.port.agent.ToolPort;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,64 +19,31 @@ final class AgentScopeAuditCollectorTest {
     @Test
     void capturesOrderedBoundedAuditAndRedactsSensitiveFields() {
         List<RuntimeAuditSink.AuditEvent> events = new ArrayList<>();
-        int[] call = {0};
-        ChatPort chatPort = request -> {
-            call[0]++;
-            if (call[0] == 1) {
-                return new ChatPort.ChatResponse(
-                        "decision", "", List.of(new ChatPort.ToolCall(
-                        "call-1", "MetricQueryTool", Map.of(
-                        "query", "pool_active",
-                        "apiKey", "top-secret",
-                        "hiddenReasoning", "must-not-be-stored"))),
-                        new ChatPort.TokenUsage(11, 3, 1), "tool_calls");
-            }
-            return new ChatPort.ChatResponse(
-                    "result",
-                    """
-                    {"schemaVersion":"1.0.0","outcome":"CONCLUSIVE","summary":"Pool exhausted.",
-                     "evidenceIds":["10000000-0000-4000-8000-000000000001"]}
-                    """,
-                    List.of(), new ChatPort.TokenUsage(20, 9, 0), "stop");
-        };
-        ToolPort toolPort = new ToolPort() {
-            public String name() { return "MetricQueryTool"; }
-            public String description() { return "query metrics"; }
-            public Map<String, Object> inputSchema() {
-                return Map.of("type", "object", "additionalProperties", true);
-            }
-            public ToolResult execute(Map<String, Object> input) {
-                return new ToolResult(true, "active=20,max=20");
-            }
-        };
-        StructuredDecisionRunner runner = new StructuredDecisionRunner(
-                "chat-fixed", chatPort, List.of(toolPort), ignored -> { }, events::add);
+        AgentScopeAuditCollector collector = new AgentScopeAuditCollector(events::add);
+        Map<String, Object> arguments = Map.of(
+                "query", "pool_active",
+                "apiKey", "top-secret",
+                "hiddenReasoning", "must-not-be-stored");
+        String fingerprint = collector.actionFingerprint("CALL_TOOL", "MetricQueryTool", arguments);
 
-        StructuredDecisionRunner.RunResult result = runner.run("diagnose", () -> false);
+        collector.event("MODEL_COMPLETED", 1, null, 11, 3, null, false, Map.of());
+        collector.event("ACTION_SELECTED", 1, fingerprint, null, null, null, false,
+                Map.of("toolName", "MetricQueryTool", "arguments", arguments));
+        collector.event("CHECKPOINT", 1, fingerprint, null, null,
+                collector.checkpoint("call-1:SUCCEEDED"), false, Map.of());
 
-        assertTrue(result.success());
-        assertEquals(List.of(
-                        "CANCEL_SIGNAL",
-                        "ROUND_STARTED",
-                        "MODEL_COMPLETED",
-                        "ACTION_SELECTED",
-                        "TOOL_STARTED",
-                        "TOOL_COMPLETED",
-                        "CHECKPOINT",
-                        "ROUND_STARTED",
-                        "MODEL_COMPLETED",
-                        "CHECKPOINT"),
+        assertEquals(List.of("MODEL_COMPLETED", "ACTION_SELECTED", "CHECKPOINT"),
                 events.stream().map(RuntimeAuditSink.AuditEvent::type).toList());
         for (int index = 0; index < events.size(); index++) {
             assertEquals(index + 1L, events.get(index).sequence());
         }
-        RuntimeAuditSink.AuditEvent action = events.get(3);
+        RuntimeAuditSink.AuditEvent action = events.get(1);
         assertEquals(64, action.actionFingerprint().length());
         assertEquals("[REDACTED]", ((Map<?, ?>) action.attributes().get("arguments")).get("apiKey"));
         assertFalse(((Map<?, ?>) action.attributes().get("arguments")).containsKey("hiddenReasoning"));
-        assertEquals(11, events.get(2).inputTokens());
-        assertEquals(3, events.get(2).outputTokens());
-        assertNotNull(events.get(6).checkpointId());
+        assertEquals(11, events.getFirst().inputTokens());
+        assertEquals(3, events.getFirst().outputTokens());
+        assertNotNull(events.get(2).checkpointId());
         String persistedAudit = events.toString();
         assertFalse(persistedAudit.contains("top-secret"));
         assertFalse(persistedAudit.contains("must-not-be-stored"));
@@ -84,20 +51,21 @@ final class AgentScopeAuditCollectorTest {
 
     @Test
     void capturesCancellationBeforeAnyModelOrToolCall() {
-        int[] modelCalls = {0};
+        AtomicInteger modelCalls = new AtomicInteger();
         List<RuntimeAuditSink.AuditEvent> events = new ArrayList<>();
-        ChatPort chatPort = request -> {
-            modelCalls[0]++;
-            throw new AssertionError("model must not be called");
-        };
-        StructuredDecisionRunner runner = new StructuredDecisionRunner(
-                "chat-fixed", chatPort, List.of(), ignored -> { }, events::add);
+        AgentScopeExecutionGuard guard = new AgentScopeExecutionGuard(
+                new AgentScopeExecutionGuard.Limits(2, Instant.now().plusSeconds(5), 2),
+                () -> true,
+                events::add);
 
-        StructuredDecisionRunner.RunResult result = runner.run("diagnose", () -> true);
+        AgentScopeExecutionGuard.StopDecision result = guard.beforeModelCall(1);
+        if (result.permitted()) {
+            modelCalls.incrementAndGet();
+        }
 
-        assertFalse(result.success());
+        assertFalse(result.permitted());
         assertEquals("EXTERNAL_CANCELLED", result.reasonCode());
-        assertEquals(0, modelCalls[0]);
+        assertEquals(0, modelCalls.get());
         assertEquals(1, events.size());
         assertEquals(Boolean.TRUE, events.getFirst().cancelled());
     }

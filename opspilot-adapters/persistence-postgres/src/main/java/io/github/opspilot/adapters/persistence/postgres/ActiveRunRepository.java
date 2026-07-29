@@ -29,15 +29,19 @@ public final class ActiveRunRepository {
                 INSERT INTO opspilot.incident_run (
                     run_id, incident_id, status,
                     model_configuration_version, knowledge_configuration_version,
-                    effective_model_configuration_json, effective_knowledge_configuration_json)
-                VALUES (?, ?, 'CREATED', ?, ?, ?::jsonb, ?::jsonb)
+                    agent_profile_configuration_version,
+                    effective_model_configuration_json, effective_knowledge_configuration_json,
+                    effective_agent_profile_configuration_json)
+                VALUES (?, ?, 'CREATED', ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb)
                 """)) {
             statement.setObject(1, runId);
             statement.setObject(2, incidentId);
             statement.setString(3, configuration.modelConfigurationVersion());
             statement.setString(4, configuration.knowledgeConfigurationVersion());
-            statement.setString(5, configuration.effectiveModelConfiguration().toString());
-            statement.setString(6, configuration.effectiveKnowledgeConfiguration().toString());
+            statement.setString(5, configuration.agentProfileConfigurationVersion());
+            statement.setString(6, configuration.effectiveModelConfiguration().toString());
+            statement.setString(7, configuration.effectiveKnowledgeConfiguration().toString());
+            statement.setString(8, configuration.effectiveAgentProfileConfiguration().toString());
             statement.executeUpdate();
         } catch (SQLException exception) {
             String constraint = exception instanceof PSQLException postgresException
@@ -56,7 +60,9 @@ public final class ActiveRunRepository {
     public RunConfigurationSnapshot findConfigurationSnapshot(Connection connection, UUID runId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT model_configuration_version, knowledge_configuration_version,
-                       effective_model_configuration_json, effective_knowledge_configuration_json
+                       agent_profile_configuration_version,
+                       effective_model_configuration_json, effective_knowledge_configuration_json,
+                       effective_agent_profile_configuration_json
                 FROM opspilot.incident_run
                 WHERE run_id = ?
                 """)) {
@@ -68,8 +74,10 @@ public final class ActiveRunRepository {
                 return new RunConfigurationSnapshot(
                         result.getString(1),
                         result.getString(2),
-                        parseJson(result.getString(3)),
-                        parseJson(result.getString(4)));
+                        result.getString(3),
+                        parseJson(result.getString(4)),
+                        parseJson(result.getString(5)),
+                        parseJson(result.getString(6)));
             }
         }
     }

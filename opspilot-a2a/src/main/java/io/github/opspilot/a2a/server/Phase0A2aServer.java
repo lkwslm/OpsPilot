@@ -3,6 +3,9 @@ package io.github.opspilot.a2a.server;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.github.opspilot.a2a.contract.A2aJson;
+import io.github.opspilot.a2a.contract.A2aCapabilityPolicy;
+import io.github.opspilot.a2a.contract.A2aProtocol;
+import io.github.opspilot.a2a.contract.A2aProtocolException;
 import io.github.opspilot.a2a.contract.A2aSendRequest;
 import io.github.opspilot.a2a.contract.A2aTask;
 import io.github.opspilot.a2a.contract.A2aTaskEvent;
@@ -22,14 +25,24 @@ public final class Phase0A2aServer implements AutoCloseable {
     private final PostgresA2aTaskStore store;
     private final HttpServer server;
     private final Consumer<String> auditSink;
+    private final A2aCapabilityPolicy capabilityPolicy;
 
     public Phase0A2aServer(PostgresA2aTaskStore store, int port) {
-        this(store, port, ignored -> { });
+        this(store, port, ignored -> { }, A2aCapabilityPolicy.supervisor());
     }
 
     public Phase0A2aServer(PostgresA2aTaskStore store, int port, Consumer<String> auditSink) {
+        this(store, port, auditSink, A2aCapabilityPolicy.supervisor());
+    }
+
+    public Phase0A2aServer(
+            PostgresA2aTaskStore store,
+            int port,
+            Consumer<String> auditSink,
+            A2aCapabilityPolicy capabilityPolicy) {
         this.store = store;
         this.auditSink = auditSink;
+        this.capabilityPolicy = capabilityPolicy;
         try {
             server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         } catch (IOException exception) {
@@ -56,16 +69,20 @@ public final class Phase0A2aServer implements AutoCloseable {
         auditSink.accept("HTTP_EXCHANGE processId=" + ProcessHandle.current().pid()
                 + " method=" + exchange.getRequestMethod()
                 + " path=" + exchange.getRequestURI().getPath()
-                + " contentType=" + exchange.getRequestHeaders().getFirst("Content-Type"));
+                + " contentType=" + exchange.getRequestHeaders().getFirst("Content-Type")
+                + " a2aVersion=" + exchange.getRequestHeaders().getFirst(A2aProtocol.VERSION_HEADER));
         try {
+            validateBinding(exchange);
+            capabilityPolicy.validateCaller(
+                    exchange.getRequestHeaders().getFirst(A2aProtocol.SERVICE_ID_HEADER));
             String path = exchange.getRequestURI().getPath();
             if ("POST".equals(exchange.getRequestMethod()) && path.equals(ROOT + "/messages:send")) {
-                A2aTask task = process(readRequest(exchange));
+                A2aTask task = process(validatedRequest(exchange));
                 writeJson(exchange, 200, task);
                 return;
             }
             if ("POST".equals(exchange.getRequestMethod()) && path.equals(ROOT + "/messages:stream")) {
-                A2aTask task = process(readRequest(exchange));
+                A2aTask task = process(validatedRequest(exchange));
                 writeEvents(exchange, store.eventsAfter(task.taskId(), 0));
                 return;
             }
@@ -76,6 +93,8 @@ public final class Phase0A2aServer implements AutoCloseable {
             writeJson(exchange, 404, new ErrorResponse("NOT_FOUND"));
         } catch (IllegalArgumentException exception) {
             writeJson(exchange, 404, new ErrorResponse(exception.getMessage()));
+        } catch (A2aProtocolException exception) {
+            writeJson(exchange, exception.status(), new ErrorResponse(exception.code()));
         } catch (IllegalStateException exception) {
             writeJson(exchange, 409, new ErrorResponse(exception.getMessage()));
         } finally {
@@ -113,7 +132,27 @@ public final class Phase0A2aServer implements AutoCloseable {
             return task;
         }
         store.markWorking(task.taskId());
-        return store.complete(task.taskId(), request.text());
+        return store.complete(task.taskId(), request.text(), request.outputMediaType());
+    }
+
+    private A2aSendRequest validatedRequest(HttpExchange exchange) throws IOException {
+        A2aSendRequest request = readRequest(exchange);
+        capabilityPolicy.validate(request,
+                exchange.getRequestHeaders().getFirst(A2aProtocol.SERVICE_ID_HEADER));
+        return request;
+    }
+
+    private static void validateBinding(HttpExchange exchange) {
+        String version = exchange.getRequestHeaders().getFirst(A2aProtocol.VERSION_HEADER);
+        if (!A2aProtocol.VERSION.equals(version)) {
+            throw new A2aProtocolException(426, "A2A_VERSION_NOT_SUPPORTED");
+        }
+        if ("POST".equals(exchange.getRequestMethod())) {
+            String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+            if (contentType == null || !contentType.toLowerCase().startsWith(A2aProtocol.MEDIA_TYPE)) {
+                throw new A2aProtocolException(415, "A2A_CONTENT_TYPE_NOT_SUPPORTED");
+            }
+        }
     }
 
     private static A2aSendRequest readRequest(HttpExchange exchange) throws IOException {
@@ -131,7 +170,8 @@ public final class Phase0A2aServer implements AutoCloseable {
 
     private static void writeJson(HttpExchange exchange, int status, Object value) throws IOException {
         byte[] body = A2aJson.write(value).getBytes(StandardCharsets.UTF_8);
-        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        exchange.getResponseHeaders().set("Content-Type", A2aProtocol.MEDIA_TYPE + "; charset=utf-8");
+        exchange.getResponseHeaders().set(A2aProtocol.VERSION_HEADER, A2aProtocol.VERSION);
         exchange.sendResponseHeaders(status, body.length);
         exchange.getResponseBody().write(body);
     }

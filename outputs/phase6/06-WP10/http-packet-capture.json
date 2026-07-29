@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0.0",
+  "packets": [
+    {
+      "hop": "REST create",
+      "status": 201,
+      "requestId": "94241926-f1bf-4c94-a6f9-f5039047cdd9",
+      "traceId": "ff27984e-be60-42a5-9aa4-986ca95f7701",
+      "body": {
+        "requestId": "94241926-f1bf-4c94-a6f9-f5039047cdd9",
+        "incidentId": "818c9ff3-dda3-4226-b543-105add5450aa",
+        "targetSystemId": "sample-system",
+        "resourceIds": [
+          "service:sample-system"
+        ],
+        "title": "Phase 6 correlation vertical",
+        "severity": "HIGH",
+        "status": "OPEN",
+        "activeRunId": null,
+        "createdAt": "2026-07-28T17:06:24.850194016Z"
+      }
+    },
+    {
+      "hop": "REST start",
+      "status": 202,
+      "requestId": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "traceId": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "incidentId": "818c9ff3-dda3-4226-b543-105add5450aa",
+      "runId": "0f84a100-f183-4a18-b61a-aefeca63a628",
+      "body": {
+        "requestId": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+        "incidentId": "818c9ff3-dda3-4226-b543-105add5450aa",
+        "runId": "0f84a100-f183-4a18-b61a-aefeca63a628",
+        "status": "QUEUED",
+        "outcome": null,
+        "version": 0,
+        "error": null
+      }
+    },
+    {
+      "hop": "Supervisor -> professional A2A -> Tool/Provider",
+      "status": 200,
+      "requestId": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+      "traceId": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+      "body": {
+        "taskId": "d2dcde92-89cb-421c-aa0f-6ba157bb9f7a",
+        "state": "COMPLETED",
+        "requestId": "0e90bbb6-f906-418d-aa10-f6f1733ebfbf",
+        "traceId": "ad5dcdf8-6797-4692-9b49-879648f52b51",
+        "runId": "0f84a100-f183-4a18-b61a-aefeca63a628",
+        "stepId": "1106b565-71af-401c-801b-573ddb1ac7f5",
+        "invocationId": "3f1aba0f-19b3-410d-b32c-17c7e95255e0",
+        "sourceId": "phase0-jsonl",
+        "sourceAdapter": "jsonl-log:1.0.0",
+        "batchId": "370a2c3c-34dd-4672-885a-87a18d8728a3",
+        "observationId": "a9bc5102-c249-4563-956c-0ce5c9890ffa",
+        "artifactId": "6a88bd96-3d5b-4c95-8b2c-22cec6576f3e",
+        "artifactSha256": "sha256:0801a5b605870b4ccb5c18149b467ccb27da4cb23d27e7cc5d775e2fe64e2688",
+        "evidenceId": "e3990889-2c07-455d-a635-ffa9e1ec4652",
+        "claim": "checkout database pool exhausted active=20 max=20 password=[REDACTED]",
+        "commit": "60e76fb30ef84d2d0b1bc714c3e56ca60fb0ed1b",
+        "chatModelId": "deepseek-v4-flash"
+      }
+    },
+    {
+      "hop": "Evidence -> RCA",
+      "status": 200,
+      "body": {
+        "outcome": "CONCLUSIVE",
+        "conclusion": "The evidence confirms that the checkout database connection pool has reached its maximum capacity of 20 active connections, causing exhaustion.",
+        "evidenceIds": [
+          "e3990889-2c07-455d-a635-ffa9e1ec4652"
+        ],
+        "schemaVersion": "1.0.0"
+      }
+    },
+    {
+      "hop": "RCA -> SSE",
+      "status": 200,
+      "body": "id: 1\nevent: RCA_COMPLETED\ndata: {\"reportId\": \"7967682c-0174-4256-93a5-52654443ad4f\", \"schemaVersion\": \"1.0.0\"}\n\n"
+    }
+  ]
+}

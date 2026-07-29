@@ -1,0 +1,85 @@
+{
+  "workPackage": "06-WP09",
+  "status": "PASS",
+  "openapi": {
+    "path": "docs/design/contracts/openapi/opspilot-v1.yaml",
+    "sha256": "973007c68f2716b0801c752576736f26957d6210dfcf5019d9360073422d358e",
+    "generatedContract": "opspilot-server/src/main/java/io/github/opspilot/server/generated/ProductApiContract.java",
+    "operationCoverage": {
+      "createIncident": 201,
+      "getIncident": 200,
+      "startIncidentRun": 202,
+      "resumeIncidentRun": 202,
+      "cancelIncidentRun": 202,
+      "getIncidentState": 200,
+      "getIncidentReport": 409,
+      "streamIncidentEvents": 200,
+      "listToolCalls": 200,
+      "decideApproval": 202
+    },
+    "unmappedOperations": []
+  },
+  "idempotency": {
+    "scope": [
+      "principal",
+      "operation",
+      "Idempotency-Key"
+    ],
+    "requestHashPersisted": true,
+    "processingStatusPersisted": true,
+    "originalStatusHeadersBodyPersisted": true,
+    "sameRequestReplay": "PASS",
+    "differentRequestConflict": "PASS",
+    "concurrentSingleSideEffect": "PASS",
+    "failedTransactionRecovery": "PASS"
+  },
+  "authorization": {
+    "principalIncidentOwnership": "PASS",
+    "principalRunOwnership": "PASS",
+    "approvalRunOwnership": "PASS",
+    "reportRunOwnership": "PASS",
+    "toolCallRunOwnership": "PASS",
+    "crossPrincipalResponse": 404,
+    "crossRunMutationResponse": 404
+  },
+  "errors": {
+    "mediaType": "application/problem+json",
+    "stableRequestId": true,
+    "invalidUuid": 400,
+    "unknownEnum": 400,
+    "missingIdempotencyKey": 400,
+    "reportNotReady": 409,
+    "internalBodyOrStackObserved": false
+  },
+  "sse": {
+    "mediaType": "text/event-stream",
+    "committedPersistentSource": "opspilot.sse_event",
+    "orderedReplay": "PASS",
+    "lastEventIdExclusive": "PASS",
+    "foreignCursorRejected": "PASS",
+    "heartbeat": true,
+    "maxEventsPerResponse": 100,
+    "maxBufferedBytes": 262144,
+    "coreTransactionHeldDuringWrite": false
+  },
+  "migration": {
+    "version": "17",
+    "name": "create product api contract state",
+    "freshAndUpgradeValidation": "PASS"
+  },
+  "tests": {
+    "log": "outputs/phase6/06-WP09/product-api-tests.log",
+    "modules": {
+      "opspilot-core": 130,
+      "opspilot-tools-default": 5,
+      "opspilot-adapter-persistence-postgres": 18,
+      "opspilot-agent-runtime-agentscope": 24,
+      "opspilot-adapter-observability": 9,
+      "opspilot-server": 22
+    },
+    "total": 208,
+    "failures": 0,
+    "errors": 0,
+    "build": "SUCCESS"
+  }
+}

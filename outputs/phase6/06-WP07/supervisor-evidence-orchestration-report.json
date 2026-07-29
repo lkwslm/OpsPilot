@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "06-WP07",
+  "status": "PASS",
+  "verifiedAt": "2026-07-28T23:48:00+08:00",
+  "gates": [
+    {
+      "name": "required-reactor",
+      "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-a2a,opspilot-server -am test",
+      "status": "PASS",
+      "tests": 214,
+      "failures": 0,
+      "errors": 0,
+      "log": "supervisor-evidence-tests.log"
+    },
+    {
+      "name": "postgres-clean-transaction-gate",
+      "command": ".\\mvnw.cmd -pl opspilot-adapters/persistence-postgres -am clean test",
+      "status": "PASS",
+      "coreTests": 130,
+      "persistenceTests": 17,
+      "failures": 0,
+      "errors": 0,
+      "flywayVersion": "16",
+      "log": "persistence-tests.log"
+    }
+  ],
+  "delegation": {
+    "order": [
+      "EvidenceCollector",
+      "CodeAnalysis (explicitly skippable only without applicable revision)",
+      "Knowledge",
+      "Diagnosis",
+      "Remediation"
+    ],
+    "checkpointBeforeNetwork": true,
+    "persistedFields": [
+      "runId",
+      "stepId",
+      "attempt",
+      "messageId",
+      "targetAgent",
+      "targetSkill",
+      "inputEvidenceIds",
+      "inputArtifactIds",
+      "remainingBudget",
+      "deadline",
+      "capabilitySnapshot"
+    ],
+    "professionalPeerDelegation": "FORBIDDEN",
+    "noProgressCreatesAttempt": false
+  },
+  "artifactValidationOrder": [
+    {"layer": "MEDIA_TYPE", "errorCode": "ARTIFACT_MEDIA_TYPE_INVALID", "fixture": "PASS"},
+    {"layer": "SCHEMA_MAJOR", "errorCode": "ARTIFACT_SCHEMA_MAJOR_UNSUPPORTED", "fixture": "PASS"},
+    {"layer": "JSON_SCHEMA", "errorCode": "ARTIFACT_SCHEMA_INVALID", "fixture": "PASS"},
+    {"layer": "SOURCE_OWNERSHIP", "errorCode": "ARTIFACT_SOURCE_WRONG_RUN", "fixture": "PASS"},
+    {"layer": "RESOURCE_TASK_RUN_OWNERSHIP", "errorCode": "ARTIFACT_OWNERSHIP_INVALID", "fixture": "PASS"},
+    {"layer": "ARTIFACT_SHA256", "errorCode": "ARTIFACT_HASH_MISMATCH", "fixture": "PASS"},
+    {"layer": "REFERENCE_PERMISSION", "errorCode": "ARTIFACT_REFERENCE_FORBIDDEN", "fixture": "PASS"},
+    {"layer": "DOMAIN_INVARIANT", "errorCode": "ARTIFACT_DOMAIN_INVALID", "fixture": "PASS"}
+  ],
+  "atomicReception": {
+    "writes": [
+      "artifact",
+      "evidence",
+      "hypothesis",
+      "hypothesis_evidence",
+      "hypothesis_verification",
+      "artifact_reception",
+      "outbox_event"
+    ],
+    "rollbackOnRelationFailure": "PASS",
+    "idempotentRetry": "PASS",
+    "unnormalizedFactRejected": "PASS",
+    "crossRunEvidenceRejected": "PASS"
+  },
+  "analysisSeal": {
+    "requiresTerminalOrMissingAttempts": true,
+    "requiresNoPendingReception": true,
+    "atomicRunVersionIncrement": "PASS",
+    "analysisSealedAt": "PASS",
+    "lateFactRejected": "PASS",
+    "sealedInputUnchanged": "PASS"
+  },
+  "rca": {
+    "readKey": "runId + runVersion",
+    "transaction": "short read-only repeatable-read",
+    "modelInsideTransaction": false,
+    "secondInputSnapshotTable": false,
+    "rootCauseCodeValidation": "PASS",
+    "evidenceReferenceValidation": "PASS",
+    "sameObjectJsonMarkdown": "PASS",
+    "sameInputDigestOnRetry": "PASS"
+  },
+  "knowledgeOutcomeMatrix": {
+    "KB_EMPTY": "SUCCESS_EMPTY_CONTINUE",
+    "NO_MATCH": "SUCCESS_EMPTY_CONTINUE",
+    "TECHNICAL_FAILURE": "FAILED_OR_EXPLICIT_MISSING_EVIDENCE"
+  }
+}

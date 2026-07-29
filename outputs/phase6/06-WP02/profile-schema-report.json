@@ -1,0 +1,186 @@
+{
+  "status": "PASS",
+  "mapping": "instance-map.yaml",
+  "mappingSha256": "17cc91efd30d64c0efc6667a316453aa549bf4089921866302e1d11ff1f69ff2",
+  "formalInstanceCount": 19,
+  "mappedInstanceCount": 19,
+  "unmappedInstanceCount": 0,
+  "requiredCategories": [
+    "AGENT_PROFILE",
+    "EVALUATION",
+    "EVIDENCE",
+    "GROUND_TRUTH",
+    "OBSERVATION",
+    "RCA",
+    "RELEASE_MANIFEST",
+    "SCENARIO"
+  ],
+  "coveredCategories": [
+    "AGENT_PROFILE",
+    "CODE_FINDINGS",
+    "EVALUATION",
+    "EVIDENCE",
+    "GROUND_TRUTH",
+    "OBSERVATION",
+    "RCA",
+    "RELEASE_MANIFEST",
+    "SCENARIO",
+    "TOOL_CONTRACT"
+  ],
+  "results": [
+    {
+      "path": "examples/scenarios/database-pool-exhausted-order.yaml",
+      "schema": "schemas/scenario.schema.json",
+      "category": "SCENARIO",
+      "instanceSha256": "a7f32aa5c61ad70e81c857f80cfb89e72efe6f7a96aaa8343d48408072396d77",
+      "schemaSha256": "d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/scenarios/dependency-latency-inventory.yaml",
+      "schema": "schemas/scenario.schema.json",
+      "category": "SCENARIO",
+      "instanceSha256": "bcc6ddf4f59943a24d884499c4b2d06e8d716a923cb3ed30035fee73667d36c2",
+      "schemaSha256": "d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/scenarios/service-instance-stopped-inventory.yaml",
+      "schema": "schemas/scenario.schema.json",
+      "category": "SCENARIO",
+      "instanceSha256": "e4a0e5f8a77705318f891089a02d2607230eca4797b61af8648e4ea61de52cfa",
+      "schemaSha256": "d9b1d97e6311a08a10c2f7b827553b8ee772120178f21778fd1190c259d2dde5",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/ground-truth/database-pool-exhausted-order.json",
+      "schema": "schemas/ground-truth.schema.json",
+      "category": "GROUND_TRUTH",
+      "instanceSha256": "a20a9094493eba5e6d965cd8301cacf6d6b0c49f7e31c6291e75e1c1e1e255c5",
+      "schemaSha256": "e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/ground-truth/dependency-latency-inventory.json",
+      "schema": "schemas/ground-truth.schema.json",
+      "category": "GROUND_TRUTH",
+      "instanceSha256": "98fc1eb5222d8cce9f63391bb072bcdea6a94cebb93ecff3f67da6d0f37c9c4f",
+      "schemaSha256": "e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/ground-truth/service-instance-stopped-inventory.json",
+      "schema": "schemas/ground-truth.schema.json",
+      "category": "GROUND_TRUTH",
+      "instanceSha256": "6232a850b47348aa61ad655b554d95f419aa6f2e8d3109ccd9889c17f80f6c41",
+      "schemaSha256": "e1573da98f9ff03f0883146dd5fddf584381c3fc53c3b11adc111b26f936dee3",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/diagnosis.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "f113d81934e0af9ebe39c2a3708ca8df3b758caccf9bb5c0b8c2b8f3fcdc75ac",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/supervisor.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "69945eb829478adda9f92839adf0f08d3c7f303c5ed55cb641f9da31676f85b0",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/evidence-collector.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "0ad1f7d6e4ea688da22b0037a660de6cea4b985e60ba315aca265fa85dbd6ee9",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/code-analysis.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "f877102e7b9956a5ee951326d3a138c4907cb64893552b918317f8bfe50aeb9f",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/knowledge.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "7e52ca28b581672f941526f6c8971af8661b4a2d1a0d212ae8453aaac39d6d88",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/agent-profiles/remediation.json",
+      "schema": "schemas/agent-profile.schema.json",
+      "category": "AGENT_PROFILE",
+      "instanceSha256": "f4bd6fa663a892129605a3630f47ed770dafeec283b1b634d656f35f483c232c",
+      "schemaSha256": "ed5af88b5d0e14dcf1230a0699e9413a9db5d9d5021bc163d72ac346560ccf80",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/observability/prometheus-observation-batch.json",
+      "schema": "schemas/observation-batch.schema.json",
+      "category": "OBSERVATION",
+      "instanceSha256": "502bad9e90bc9823276ef48045b34b94831fbde0a7e8cf4b9cc81728ccd8f350",
+      "schemaSha256": "a54a0073057ef8f0f9b65fc62802ea9a921c83d5882a247d5d8301699b57c9b8",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/observability/evidence-bundle.json",
+      "schema": "schemas/evidence-bundle.schema.json",
+      "category": "EVIDENCE",
+      "instanceSha256": "9e50a9b50cb003b862dff133a57e2e1546ca6652a1a4885bd549edb9873a5eb8",
+      "schemaSha256": "cdcbe514d93b27c6a8f3fa3cc51c65d0414f7222bac79102e2b28af44cb9e353",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/rca/inconclusive.json",
+      "schema": "schemas/rca.schema.json",
+      "category": "RCA",
+      "instanceSha256": "de26b06e2a45e8a3ee8dee72c9825660b89c6e71437eaf061bc26c1a62b8be89",
+      "schemaSha256": "afae75897d7b78567384eac03ac95163f207444a299236468815ddc171479b35",
+      "status": "PASS"
+    },
+    {
+      "path": "profiles/mvp-v1.yaml",
+      "schema": "schemas/evaluation-profile.schema.json",
+      "category": "EVALUATION",
+      "instanceSha256": "42ae109d6d60a4077af7305e0e9d2e47a033d1d38c7dfbf3c8382e2094cda55f",
+      "schemaSha256": "0bf0845135dc962c26fd3a035f567b29bbc5f1da37d6f64add139f4596382f9a",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/release-manifest/opspilot-0.1.0-rc.1.json",
+      "schema": "schemas/release-manifest.schema.json",
+      "category": "RELEASE_MANIFEST",
+      "instanceSha256": "66c1df3b3a626091f0afb31bbc3d92ddd964fd2240de992e4ed4fd1131dd2390",
+      "schemaSha256": "c72f4725b5ca6b65c946588699779657586a5c3093837103dc641963d8221594",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/code-analysis/code-findings.json",
+      "schema": "schemas/code-findings.schema.json",
+      "category": "CODE_FINDINGS",
+      "instanceSha256": "5e7844287010095b4d8603c19c0bf5cb248bee81227d4464dd88fe6712acfa21",
+      "schemaSha256": "244504b8ea9e3082aa73d222ac0711ca02f7be353b6453102e85c1e03b603152",
+      "status": "PASS"
+    },
+    {
+      "path": "examples/tools/metric-query.json",
+      "schema": "schemas/tool-contracts.schema.json",
+      "category": "TOOL_CONTRACT",
+      "instanceSha256": "8e9c8b5a2f92a426958ef5c68224a4b020d05f85d474e89d9d892510a01c9d0f",
+      "schemaSha256": "b5a719bf2b481eacc7870956a7b8b311508325518e68db96f69ffca34025a2f4",
+      "status": "PASS"
+    }
+  ],
+  "errorCount": 0,
+  "errors": []
+}
