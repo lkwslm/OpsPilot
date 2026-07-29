@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "cases": {
+    "relativeTraversal": "CODE_PATH_ESCAPE",
+    "absolutePath": "CODE_PATH_ESCAPE",
+    "symbolicLink": "CODE_SYMLINK_DENIED",
+    "submodule": "CODE_SUBMODULE_DENIED",
+    "lfsPointer": "CODE_LFS_DENIED",
+    "gitHook": "CODE_FILE_TYPE_DENIED",
+    "disallowedFileType": "CODE_FILE_TYPE_DENIED",
+    "fileCountLimit": "CODE_ARCHIVE_FILE_LIMIT",
+    "archiveSizeLimit": "CODE_ARCHIVE_SIZE_LIMIT"
+  },
+  "cleanup": "failed workspaces are removed before publication; successful workspaces require explicit deterministic destroy",
+  "test": "CodeSourceContractTest.archiveEscapeSymlinkSubmoduleLfsTypeAndLimitsFailBeforeWorkspacePublication"
+}

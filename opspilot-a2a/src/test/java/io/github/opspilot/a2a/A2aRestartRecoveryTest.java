@@ -47,7 +47,9 @@ final class A2aRestartRecoveryTest {
                     A2aTask recovered = restartedClient.get(taskId);
                     assertEquals(A2aTaskState.COMPLETED, recovered.state());
                     assertNotNull(recovered.artifact());
-                    assertEquals("application/json", recovered.artifact().mediaType());
+                    assertEquals(
+                            "application/vnd.opspilot.incident-investigation.result+json;v=1",
+                            recovered.artifact().mediaType());
                     assertEquals("{\"result\":\"recovered\"}", recovered.artifact().payload());
 
                     List<A2aTaskEvent> replay = restartedClient.subscribe(taskId, 1);

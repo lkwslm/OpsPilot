@@ -1,0 +1,46 @@
+{
+  "workPackage": "06-WP02",
+  "status": "PASS",
+  "executedAt": "2026-07-28T22:13:00+08:00",
+  "maven": {
+    "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-agent-runtime-agentscope,opspilot-server -am test",
+    "status": "PASS",
+    "tests": 176,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "modules": {
+      "opspilot-core": 115,
+      "opspilot-tools-default": 3,
+      "opspilot-adapter-persistence-postgres": 15,
+      "opspilot-agent-runtime-agentscope": 24,
+      "opspilot-adapter-observability": 9,
+      "opspilot-server": 10
+    },
+    "log": "outputs/phase6/06-WP02/profile-capability-tests.log"
+  },
+  "schemaValidation": {
+    "status": "PASS",
+    "formalInstances": 19,
+    "mappedInstances": 19,
+    "unmappedInstances": 0,
+    "report": "outputs/phase6/06-WP02/profile-schema-report.json"
+  },
+  "profileSecretScan": {
+    "status": "PASS",
+    "profiles": 6,
+    "findings": 0,
+    "report": "outputs/phase6/06-WP02/profile-secret-scan.json"
+  },
+  "verifiedAssertions": [
+    "Exactly the six built-in role and skill pairs are loaded from explicit versioned resources",
+    "Versioned role prompts and system policy prompts exist for every profile reference",
+    "Registry duplicate, incomplete-set, pre-freeze use, and post-freeze mutation paths fail closed",
+    "Model, tool contract major, A2A skill, schema, sandbox runner, security policy, identity tool/skill, and resource scope closure is validated",
+    "Effective authorization is the strict intersection of platform, service identity, profile, task, and approval layers",
+    "High-risk and code-mutation requests remain denied even with an active approval layer",
+    "Sensitive and unknown profile fields are rejected without echoing their values",
+    "Run configuration persists immutable, secret-free agent profile snapshots through PostgreSQL migration V13",
+    "A profile update creates a new snapshot without changing an existing run interpretation"
+  ]
+}

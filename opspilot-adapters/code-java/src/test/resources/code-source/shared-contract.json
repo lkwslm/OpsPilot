@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "platforms": ["GITHUB", "GITLAB"],
+  "pages": [
+    [{"path": "pom.xml", "content": "<project/>"}],
+    [{"path": "src/main/java/example/Client.java", "content": "class Client { int timeout = 3000; }"}]
+  ]
+}

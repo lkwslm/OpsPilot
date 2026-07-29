@@ -1,0 +1,21 @@
+{
+  "workPackage": "06-WP03",
+  "status": "PASS",
+  "executedAt": "2026-07-28T22:28:00+08:00",
+  "command": ".\\mvnw.cmd -pl opspilot-tools-default,opspilot-adapters/code-java,opspilot-adapters/sandbox-maven -am test",
+  "tests": {"total": 129, "failures": 0, "errors": 0, "skipped": 0},
+  "modules": {
+    "opspilot-core": 115,
+    "opspilot-tools-default": 5,
+    "opspilot-adapter-code-java": 5,
+    "opspilot-adapter-sandbox-maven": 4
+  },
+  "evidence": [
+    "outputs/phase6/06-WP03/github-gitlab-shared-contract.json",
+    "outputs/phase6/06-WP03/multi-repository-provenance.json",
+    "outputs/phase6/06-WP03/archive-security-matrix.json",
+    "outputs/phase6/06-WP03/nine-tool-state-matrix.json",
+    "outputs/phase6/06-WP03/sandbox-security-matrix.json",
+    "outputs/phase6/06-WP03/tool-code-sandbox-tests.log"
+  ]
+}

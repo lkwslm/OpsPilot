@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "invariants": [
+    "one workspace per repository and full commit SHA",
+    "different repositories have different opaque handles and manifest artifacts",
+    "snapshot manifest and every file carry SHA-256",
+    "CodeFinding carries repository, commit, root artifact, location, file hash, analyzer ID, and analyzer version",
+    "a finding with another repository or commit cannot be normalized into Evidence"
+  ],
+  "test": "CodeSourceContractTest.repositoriesAndCommitsRemainIndependentAndProvenanceMismatchCannotNormalize"
+}

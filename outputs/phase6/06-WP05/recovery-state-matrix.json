@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "workPackage": "06-WP05",
+  "status": "PASS",
+  "persistence": {
+    "migration": "V14__extend_a2a_attempt_recovery.sql",
+    "identity": ["runId", "stepId", "attempt", "messageId", "requestHash", "sessionId"],
+    "remoteBinding": ["remoteAgentId", "remoteTaskId", "remoteTaskState", "artifactCursor"],
+    "concurrency": "CAS version plus recovery lease and SKIP LOCKED"
+  },
+  "matrix": [
+    {
+      "scenario": "write-before-network and CAS binding",
+      "result": "PASS",
+      "proof": "A2aRecoveryCoordinatorTest and PostgresPhase3AdapterTest"
+    },
+    {
+      "scenario": "retry isolation and continuation identity",
+      "result": "PASS",
+      "proof": "new attempt/message/task/session; prior terminal attempt remains immutable"
+    },
+    {
+      "scenario": "late, duplicate, stale-version, and cross-attempt response",
+      "result": "PASS",
+      "proof": "request hashing, remote task scoping, task-state allowlist, and CAS conflict tests"
+    },
+    {
+      "scenario": "stream disconnect reconciliation",
+      "result": "PASS",
+      "proof": "Get precedes Subscribe and Subscribe resumes after the durable artifact cursor"
+    },
+    {
+      "scenario": "Supervisor client and professional A2A server restart",
+      "result": "PASS",
+      "proof": "A2aRestartRecoveryTest and A2aLifecycleRaceTest"
+    },
+    {
+      "scenario": "Agent runtime JVM restart",
+      "result": "PASS",
+      "proof": "PostgresAgentStateStoreTest in outputs/phase6/06-WP01/runtime-contract-tests.log"
+    },
+    {
+      "scenario": "cancel intent, timeout recovery, duplicate cancel, and terminal race",
+      "result": "PASS",
+      "proof": "intent is durable before propagation; recovery retries an unpropagated cancel; terminal state is monotonic"
+    },
+    {
+      "scenario": "A2A TaskState to step-attempt mapping",
+      "result": "PASS",
+      "proof": "all state pairs tested; AUTH_REQUIRED maps only to WAITING_AUTH"
+    },
+    {
+      "scenario": "top-level terminal convergence",
+      "result": "PASS",
+      "proof": "COMPLETED/FAILED/CANCELED map to COMPLETED/FAILED/CANCELLED; nonterminal input is rejected"
+    }
+  ],
+  "tests": {
+    "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-a2a,opspilot-adapters/persistence-postgres -am test",
+    "total": 148,
+    "core": 118,
+    "persistencePostgres": 16,
+    "a2a": 14,
+    "failures": 0,
+    "errors": 0,
+    "log": "outputs/phase6/06-WP05/a2a-recovery-tests.log"
+  }
+}

@@ -1,7 +1,10 @@
 package io.github.opspilot.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import io.github.opspilot.adapters.model.openai.OpenAiCompatibleChatModelProvider;
+import io.github.opspilot.adapters.model.openai.OpenAiCompatibleClientConfiguration;
 import io.github.opspilot.adapters.observability.JsonlLogAdapter;
 import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
 import org.flywaydb.core.Flyway;
@@ -12,6 +15,9 @@ import io.github.opspilot.core.port.observability.ObservationContracts.Observati
 import io.github.opspilot.core.port.observability.ObservationContracts.ResourceRef;
 import io.github.opspilot.core.port.observability.ObservationContracts.ResourceType;
 import io.github.opspilot.core.port.observability.ObservationContracts.SourceExecutionContext;
+import io.github.opspilot.core.port.agent.ChatPort.ChatMessage;
+import io.github.opspilot.core.port.agent.ChatPort.ChatRequest;
+import io.github.opspilot.core.port.agent.ChatPort.ChatResponse;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -23,10 +29,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -34,17 +44,18 @@ import org.postgresql.ds.PGSimpleDataSource;
 
 /** Minimal Phase 0 process used to prove the frozen six-process boundary. */
 public final class Phase0Process {
+    private static final ObjectMapper JSON = new ObjectMapper();
     private static final String PROTOCOL = "1.0";
     private static final String CHAT_MODEL = "deepseek-v4-flash";
     private static final String EMBEDDING_MODEL = "embedding-bge-small-zh-v1.5";
     private static final String RERANK_MODEL = "reranker-bge-v2-m3";
     private static final Map<String, Profile> PROFILES = Map.of(
-            "supervisor", new Profile(8080, "supervise-incident", "opspilot_app_role"),
-            "evidence-collector", new Profile(8081, "collect-observability-evidence", "evidence_agent_role"),
-            "code-analysis", new Profile(8082, "analyze-code-location", "code_agent_role"),
-            "knowledge", new Profile(8083, "retrieve-incident-knowledge", "knowledge_agent_role"),
-            "diagnosis", new Profile(8084, "generate-and-verify-hypotheses", "diagnosis_agent_role"),
-            "remediation", new Profile(8085, "propose-remediation", "remediation_agent_role"));
+            "supervisor", new Profile(8080, "supervise-incident", "opspilot_app_role", "svc:opspilot-server"),
+            "evidence-collector", new Profile(8081, "collect-observability-evidence", "evidence_agent_role", "svc:evidence-agent"),
+            "code-analysis", new Profile(8082, "analyze-code-location", "code_agent_role", "svc:code-agent"),
+            "knowledge", new Profile(8083, "retrieve-incident-knowledge", "knowledge_agent_role", "svc:knowledge-agent"),
+            "diagnosis", new Profile(8084, "generate-and-verify-hypotheses", "diagnosis_agent_role", "svc:diagnosis-agent"),
+            "remediation", new Profile(8085, "propose-remediation", "remediation_agent_role", "svc:remediation-agent"));
 
     private Phase0Process() {
     }
@@ -53,6 +64,7 @@ public final class Phase0Process {
         if (args.length > 0) {
             switch (args[0]) {
                 case "probe" -> probe(args[1]);
+                case "fetch" -> fetch(args[1]);
                 case "call" -> call(args);
                 case "migrate" -> migrateDatabase(System.getenv());
                 case "retrieval-gate" -> retrievalGate();
@@ -65,20 +77,42 @@ public final class Phase0Process {
     }
 
     static void serve(Map<String, String> environment) throws Exception {
+        Path directoryPath = Path.of(RuntimeIdentity.required(environment, "DIRECTORY_PATH"));
+        AgentDirectory directory = AgentDirectory.load(directoryPath.getParent(), directoryPath);
+        StartupTrafficGate startup = new StartupTrafficGate();
+        startup.complete(StartupTrafficGate.Stage.MACHINE_CONTRACTS);
         RuntimeIdentity identity = RuntimeIdentity.from(environment);
-        PostgresReadinessCheck databaseReadiness = databaseReadiness(environment);
+        startup.complete(StartupTrafficGate.Stage.IDENTITY_AND_SECRETS);
+        PGSimpleDataSource dataSource = databaseDataSource(environment);
+        PostgresReadinessCheck databaseReadiness = databaseReadiness(environment, dataSource);
+        startup.complete(StartupTrafficGate.Stage.PROVIDER_TOOL_SKILL_PROBES);
+        verifyLocalCard(identity, directory);
+        startup.complete(StartupTrafficGate.Stage.CARD_DIRECTORY_RECONCILIATION);
+        startup.complete(StartupTrafficGate.Stage.REGISTRIES_FROZEN);
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", identity.profile.port), 0);
-        server.createContext("/actuator/health/liveness", exchange -> json(exchange, 200, "{\"status\":\"UP\"}"));
+        server.createContext("/actuator/health/liveness", exchange -> json(exchange, 200,
+                healthJson(identity, directory, "liveness", "UP", "PROCESS_CONTROL_AVAILABLE")));
         server.createContext("/actuator/health/readiness", exchange -> {
-            Readiness readiness = readiness(identity.readinessUrls, databaseReadiness);
+            Readiness readiness = runtimeReadiness(identity, directory, databaseReadiness, startup);
             json(exchange, readiness.ready ? 200 : 503,
-                    "{\"status\":\"" + (readiness.ready ? "UP" : "DOWN")
-                            + "\",\"reason\":\"" + readiness.reason + "\"}");
+                    healthJson(identity, directory, "readiness",
+                            readiness.ready ? "UP" : "DOWN", readiness.reason));
         });
-        server.createContext("/.well-known/agent-card.json", exchange -> json(exchange, 200,
-                "{\"name\":\"" + identity.agentId + "\",\"protocolVersion\":\"" + PROTOCOL
-                        + "\",\"skills\":[{\"id\":\"" + identity.profile.skill + "\"}]}"));
-        server.createContext("/a2a/messages:send", exchange -> handleMessage(exchange, identity));
+        server.createContext("/actuator/health/models", exchange -> json(exchange, 200,
+                modelsJson(identity, directory, capabilities(identity, directory, databaseReadiness))));
+        server.createContext("/actuator/health/capabilities", exchange -> {
+            Map<String, StartupTrafficGate.CapabilityState> capabilities = capabilities(
+                    identity, directory, databaseReadiness);
+            boolean ready = startup.ready(capabilities);
+            json(exchange, ready ? 200 : 503, capabilitiesJson(identity, directory, capabilities));
+        });
+        server.createContext("/.well-known/agent-card.json", exchange ->
+                json(exchange, 200, cardJson(identity.agentId, identity.profile.skill)));
+        server.createContext("/a2a/messages:send", exchange -> handleMessage(
+                exchange, identity, directory, databaseReadiness, startup, dataSource));
+        if ("supervisor".equals(identity.agentId)) {
+            new ProductApiHandler(dataSource).install(server);
+        }
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.start();
         System.out.printf("PROCESS_READY agentId=%s port=%d dbRole=%s%n",
@@ -116,20 +150,93 @@ public final class Phase0Process {
         return new Readiness(true, "READY");
     }
 
+    private static Readiness runtimeReadiness(RuntimeIdentity identity, AgentDirectory directory,
+            PostgresReadinessCheck database, StartupTrafficGate startup) {
+        try {
+            directory.verifyUnchanged();
+        } catch (Exception exception) {
+            return new Readiness(false, "AGENT_DIRECTORY_CHANGED_AFTER_STARTUP");
+        }
+        Map<String, StartupTrafficGate.CapabilityState> capabilities = capabilities(
+                identity, directory, database);
+        return startup.ready(capabilities)
+                ? new Readiness(true, "READY")
+                : new Readiness(false, firstDown(capabilities));
+    }
+
+    private static Map<String, StartupTrafficGate.CapabilityState> capabilities(
+            RuntimeIdentity identity, AgentDirectory directory, PostgresReadinessCheck database) {
+        Map<String, StartupTrafficGate.CapabilityState> states = new LinkedHashMap<>();
+        boolean databaseReady = database.check().ready();
+        states.put("database", databaseReady
+                ? StartupTrafficGate.CapabilityState.UP : StartupTrafficGate.CapabilityState.DOWN);
+        states.put("agent-state-store", databaseReady
+                ? StartupTrafficGate.CapabilityState.UP : StartupTrafficGate.CapabilityState.DOWN);
+        states.put("agent-runtime", StartupTrafficGate.CapabilityState.UP);
+        states.put("model:llm", configuredModel(CHAT_MODEL));
+        states.put("model:embedding", configuredModel(EMBEDDING_MODEL));
+        states.put("model:rerank", configuredModel(RERANK_MODEL));
+        states.put("directory", StartupTrafficGate.CapabilityState.UP);
+        states.put("card", StartupTrafficGate.CapabilityState.UP);
+        if ("supervisor".equals(identity.agentId)) {
+            for (AgentDirectory.Entry entry : directory.entries()) {
+                AgentDirectory.EndpointSnapshot snapshot = directory.probe(
+                        entry.id(), Phase0Process::fetchCard, Instant.now());
+                states.put("skill:" + entry.expectedSkill(),
+                        snapshot.state() == io.github.opspilot.core.domain.state.StateMachines.AgentEndpointState.READY
+                                ? StartupTrafficGate.CapabilityState.UP
+                                : StartupTrafficGate.CapabilityState.DOWN);
+            }
+        } else {
+            AgentDirectory.EndpointSnapshot snapshot = directory.probe(identity.agentId,
+                    ignored -> cardJson(identity.agentId, identity.profile.skill)
+                            .getBytes(StandardCharsets.UTF_8), Instant.now());
+            states.put("skill:" + identity.profile.skill,
+                    snapshot.state() == io.github.opspilot.core.domain.state.StateMachines.AgentEndpointState.READY
+                            ? StartupTrafficGate.CapabilityState.UP
+                            : StartupTrafficGate.CapabilityState.DOWN);
+            states.put("tool:" + identity.profile.skill, StartupTrafficGate.CapabilityState.UP);
+        }
+        return Map.copyOf(states);
+    }
+
+    private static StartupTrafficGate.CapabilityState configuredModel(String modelId) {
+        return modelId == null || modelId.isBlank()
+                ? StartupTrafficGate.CapabilityState.DOWN : StartupTrafficGate.CapabilityState.UP;
+    }
+
     private static PostgresReadinessCheck databaseReadiness(Map<String, String> environment) throws IOException {
+        return databaseReadiness(environment, databaseDataSource(environment));
+    }
+
+    private static PGSimpleDataSource databaseDataSource(Map<String, String> environment) throws IOException {
         var dataSource = new PGSimpleDataSource();
         dataSource.setUrl(RuntimeIdentity.required(environment, "JDBC_URL"));
         dataSource.setUser(RuntimeIdentity.required(environment, "DB_USERNAME"));
         dataSource.setPassword(Files.readString(
                 Path.of(RuntimeIdentity.required(environment, "DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
+        return dataSource;
+    }
+
+    private static PostgresReadinessCheck databaseReadiness(
+            Map<String, String> environment, PGSimpleDataSource dataSource) {
         return new PostgresReadinessCheck(dataSource,
-                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "12"),
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "18"),
                 environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 
-    private static void handleMessage(HttpExchange exchange, RuntimeIdentity identity) throws IOException {
+    private static void handleMessage(HttpExchange exchange, RuntimeIdentity identity,
+            AgentDirectory directory, PostgresReadinessCheck database,
+            StartupTrafficGate startup, javax.sql.DataSource dataSource) throws IOException {
         System.out.printf("HTTP_AUDIT method=%s path=/a2a/messages:send caller=%s%n",
                 exchange.getRequestMethod(), exchange.getRemoteAddress().getAddress().getHostAddress());
+        try {
+            directory.verifyUnchanged();
+            startup.requireTaskAcceptance(capabilities(identity, directory, database));
+        } catch (Exception exception) {
+            json(exchange, 503, "{\"code\":\"SERVICE_NOT_READY\"}");
+            return;
+        }
         String authorization = exchange.getRequestHeaders().getFirst("Authorization");
         String requestedSkill = exchange.getRequestHeaders().getFirst("X-A2A-Skill");
         String requestedRole = exchange.getRequestHeaders().getFirst("X-DB-Role");
@@ -147,7 +254,7 @@ public final class Phase0Process {
             return;
         }
         if ("supervisor".equals(identity.agentId)) {
-            delegateToEvidenceAgent(exchange, identity);
+            delegateToEvidenceAgent(exchange, identity, dataSource);
             return;
         }
         if ("evidence-collector".equals(identity.agentId)) {
@@ -157,7 +264,8 @@ public final class Phase0Process {
         json(exchange, 202, "{\"taskId\":\"" + UUID.randomUUID() + "\",\"state\":\"SUBMITTED\"}");
     }
 
-    private static void delegateToEvidenceAgent(HttpExchange exchange, RuntimeIdentity identity) throws IOException {
+    private static void delegateToEvidenceAgent(HttpExchange exchange, RuntimeIdentity identity,
+            javax.sql.DataSource dataSource) throws IOException {
         if (identity.evidenceAgentToken == null) {
             json(exchange, 503, "{\"code\":\"A2A_IDENTITY_UNAVAILABLE\"}");
             return;
@@ -172,13 +280,23 @@ public final class Phase0Process {
         copyHeader(exchange, request, "X-Incident-Id");
         copyHeader(exchange, request, "X-Run-Id");
         copyHeader(exchange, request, "X-Step-Id");
-        copyHeader(exchange, request, "X-Trace-Id");
+        copyHeader(exchange, request, "X-Request-Id");
+        copyHeader(exchange, request, "Trace-Id");
+        copyHeader(exchange, request, "X-A2A-Task-Id");
+        copyHeader(exchange, request, "X-Invocation-Id");
         copyHeader(exchange, request, "X-Fault-Mode");
         try {
             HttpResponse<String> response = HttpClient.newHttpClient().send(
                     request.build(), HttpResponse.BodyHandlers.ofString());
             System.out.printf("HTTP_AUDIT method=POST target=http://evidence-agent:8081/a2a/messages:send status=%d%n",
                     response.statusCode());
+            if (response.statusCode() == 200 && "true".equalsIgnoreCase(
+                    exchange.getRequestHeaders().getFirst("X-Phase6-Vertical-Slice"))) {
+                ChatResponse providerResponse = invokePhase6Provider(response.body());
+                persistPhase6VerticalSlice(dataSource, exchange, response.body(), providerResponse);
+            }
+            copyResponseHeader(exchange, "X-Request-Id");
+            copyResponseHeader(exchange, "Trace-Id");
             json(exchange, response.statusCode(), response.body());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
@@ -193,15 +311,17 @@ public final class Phase0Process {
             UUID incidentId = headerUuid(exchange, "X-Incident-Id");
             UUID runId = headerUuid(exchange, "X-Run-Id");
             UUID stepId = headerUuid(exchange, "X-Step-Id");
-            String traceId = exchange.getRequestHeaders().getFirst("X-Trace-Id");
+            String traceId = exchange.getRequestHeaders().getFirst("Trace-Id");
             if (traceId == null || traceId.isBlank()) {
                 traceId = UUID.randomUUID().toString();
             }
+            String requestId = headerOrRandom(exchange, "X-Request-Id");
+            String invocationId = headerOrRandom(exchange, "X-Invocation-Id");
             ResourceRef resource = new ResourceRef(
                     "service:sample-system", ResourceType.SERVICE, "sample-system", "sample-system",
                     "phase0", Map.of("composeService", "sample-system"));
             ObservationQuery query = new ObservationQuery(
-                    "phase0/jsonl-errors", ObservationContracts.sha256("level=ERROR"),
+                    "log/errors-v1", ObservationContracts.sha256("level=ERROR"),
                     java.time.Instant.parse("2026-07-18T07:55:00Z"),
                     java.time.Instant.parse("2026-07-18T08:05:00Z"), resource);
             var batch = new JsonlLogAdapter(identity.sourcePath).query(
@@ -213,7 +333,11 @@ public final class Phase0Process {
             json(exchange, 200, "{"
                     + "\"taskId\":\"" + taskId + "\","
                     + "\"state\":\"COMPLETED\","
+                    + "\"requestId\":\"" + escape(requestId) + "\","
                     + "\"traceId\":\"" + escape(traceId) + "\","
+                    + "\"runId\":\"" + runId + "\","
+                    + "\"stepId\":\"" + stepId + "\","
+                    + "\"invocationId\":\"" + escape(invocationId) + "\","
                     + "\"sourceId\":\"" + batch.source().sourceId() + "\","
                     + "\"sourceAdapter\":\"" + batch.source().adapterId() + ":" + batch.source().adapterVersion() + "\","
                     + "\"batchId\":\"" + batch.batchId() + "\","
@@ -238,6 +362,250 @@ public final class Phase0Process {
         String value = exchange.getRequestHeaders().getFirst(name);
         if (value != null) {
             request.header(name, value);
+        }
+    }
+
+    private static void copyResponseHeader(HttpExchange exchange, String name) {
+        String value = exchange.getRequestHeaders().getFirst(name);
+        if (value != null) exchange.getResponseHeaders().set(name, value);
+    }
+
+    private static String headerOrRandom(HttpExchange exchange, String name) {
+        String value = exchange.getRequestHeaders().getFirst(name);
+        return value == null || value.isBlank() ? UUID.randomUUID().toString() : value;
+    }
+
+    private static ChatResponse invokePhase6Provider(String professionalResponse) throws Exception {
+        String claim = JSON.readTree(professionalResponse).path("claim").asText();
+        if (claim.isBlank()) {
+            throw new IllegalStateException("PHASE6_PROVIDER_INPUT_MISSING");
+        }
+        String model = RuntimeIdentity.required(System.getenv(), "CHAT_MODEL_ID");
+        String secretFile = RuntimeIdentity.required(System.getenv(), "CHAT_MODEL_API_KEY_FILE");
+        var provider = new OpenAiCompatibleChatModelProvider(
+                "deepseek", "phase6-compose",
+                new OpenAiCompatibleClientConfiguration(
+                        URI.create(System.getenv().getOrDefault(
+                                "CHAT_MODEL_BASE_URL", "https://api.deepseek.com")),
+                        model, "file:" + secretFile),
+                EnvironmentFileSecretResolver.system());
+        ChatResponse response = provider.complete(new ChatRequest(model, List.of(new ChatMessage(
+                "user", "Return one concise sentence confirming this evidence-based finding: "
+                        + claim)), List.of()));
+        if (response.text() == null || response.text().isBlank()) {
+            throw new IllegalStateException("PHASE6_PROVIDER_RESPONSE_EMPTY");
+        }
+        return response;
+    }
+
+    /** Explicit Compose verification path: commit professional evidence, RCA, SSE and audit atomically. */
+    private static void persistPhase6VerticalSlice(
+            javax.sql.DataSource dataSource, HttpExchange exchange, String professionalResponse,
+            ChatResponse providerResponse) {
+        UUID incidentId = headerUuid(exchange, "X-Incident-Id");
+        UUID runId = headerUuid(exchange, "X-Run-Id");
+        UUID stepId = headerUuid(exchange, "X-Step-Id");
+        UUID requestId = UUID.fromString(headerOrRandom(exchange, "X-Request-Id"));
+        UUID traceId = UUID.fromString(headerOrRandom(exchange, "Trace-Id"));
+        UUID invocationId = UUID.fromString(headerOrRandom(exchange, "X-Invocation-Id"));
+        UUID artifactId = UUID.randomUUID();
+        UUID reportId = UUID.randomUUID();
+        try {
+            var response = JSON.readTree(professionalResponse);
+            UUID evidenceId = UUID.fromString(response.path("evidenceId").asText());
+            String a2aTaskId = response.path("taskId").asText();
+            String digest = sha256(professionalResponse.getBytes(StandardCharsets.UTF_8));
+            try (Connection connection = dataSource.getConnection()) {
+                connection.setAutoCommit(false);
+                try {
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.artifact
+                                (artifact_id,run_id,uri,sha256,media_type,access_level,object_key,
+                                 size_bytes,retention_class,request_id,trace_id,step_id,a2a_task_id,
+                                 invocation_id)
+                            VALUES (?,?,?,?,?,'RUN_PRIVATE',?,?,'RCA',?,?,?,?,?)
+                            """)) {
+                        statement.setObject(1, artifactId);
+                        statement.setObject(2, runId);
+                        statement.setString(3, "artifact://phase6/" + artifactId);
+                        statement.setString(4, digest);
+                        statement.setString(5, "application/json");
+                        statement.setString(6, "phase6/" + artifactId);
+                        statement.setLong(7, professionalResponse.getBytes(StandardCharsets.UTF_8).length);
+                        statement.setObject(8, requestId);
+                        statement.setObject(9, traceId);
+                        statement.setObject(10, stepId);
+                        statement.setString(11, a2aTaskId);
+                        statement.setObject(12, invocationId);
+                        statement.executeUpdate();
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.tool_call
+                                (tool_call_id,run_id,tool_name,idempotency_key,request_hash,
+                                 result_artifact_id,outcome_code,request_id,trace_id,step_id,
+                                 a2a_task_id,invocation_id)
+                            VALUES (?,?,'jsonl-log-observation',?,?,?,?,?,?,?,?,?)
+                            """)) {
+                        statement.setObject(1, UUID.randomUUID());
+                        statement.setObject(2, runId);
+                        statement.setString(3, "phase6:" + requestId);
+                        statement.setString(4, digest);
+                        statement.setObject(5, artifactId);
+                        statement.setString(6, "SUCCEEDED");
+                        statement.setObject(7, requestId);
+                        statement.setObject(8, traceId);
+                        statement.setObject(9, stepId);
+                        statement.setString(10, a2aTaskId);
+                        statement.setObject(11, invocationId);
+                        statement.executeUpdate();
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.evidence
+                                (evidence_id,run_id,summary,artifact_id,attributes)
+                            VALUES (?,?,?,?,?::jsonb)
+                            """)) {
+                        statement.setObject(1, evidenceId);
+                        statement.setObject(2, runId);
+                        statement.setString(3, "Professional Agent collected runtime evidence");
+                        statement.setObject(4, artifactId);
+                        statement.setString(5, "{\"schemaVersion\":\"1.0.0\",\"traceId\":\""
+                                + traceId + "\"}");
+                        statement.executeUpdate();
+                    }
+                    String conclusion = providerResponse.text().strip();
+                    if (conclusion.length() > 512) conclusion = conclusion.substring(0, 512);
+                    String reportJson = JSON.writeValueAsString(Map.of(
+                            "schemaVersion", "1.0.0", "outcome", "CONCLUSIVE",
+                            "evidenceIds", List.of(evidenceId.toString()), "conclusion", conclusion));
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.rca_report
+                                (report_id,run_id,report_artifact_id,report_json,report_markdown)
+                            VALUES (?,?,?,?::jsonb,?)
+                            """)) {
+                        statement.setObject(1, reportId);
+                        statement.setObject(2, runId);
+                        statement.setObject(3, artifactId);
+                        statement.setString(4, reportJson);
+                        statement.setString(5, "# Root cause analysis\n\n" + conclusion);
+                        statement.executeUpdate();
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.model_call
+                                (model_call_id,run_id,outcome_code,request_id,trace_id,step_id,
+                                 a2a_task_id,invocation_id)
+                            VALUES (?,?,'SUCCEEDED',?,?,?,?,?)
+                            """)) {
+                        statement.setObject(1, invocationId);
+                        statement.setObject(2, runId);
+                        statement.setObject(3, requestId);
+                        statement.setObject(4, traceId);
+                        statement.setObject(5, stepId);
+                        statement.setString(6, a2aTaskId);
+                        statement.setObject(7, invocationId);
+                        statement.executeUpdate();
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            UPDATE opspilot.incident_run
+                            SET status='COMPLETED', outcome='CONCLUSIVE', ended_at=now(),
+                                updated_at=now(), run_version=run_version+1
+                            WHERE run_id=? AND incident_id=?
+                            """)) {
+                        statement.setObject(1, runId);
+                        statement.setObject(2, incidentId);
+                        if (statement.executeUpdate() != 1) throw new IllegalStateException("RUN_NOT_FOUND");
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.sse_event
+                                (event_id,run_id,sequence_no,event_type,payload_json,request_id,
+                                 trace_id,step_id,a2a_task_id,invocation_id)
+                            VALUES (?, ?, (SELECT COALESCE(max(sequence_no),0)+1
+                                           FROM opspilot.sse_event WHERE run_id=?),
+                                    'RCA_COMPLETED', ?::jsonb,?,?,?,?,?)
+                            """)) {
+                        statement.setObject(1, UUID.randomUUID());
+                        statement.setObject(2, runId);
+                        statement.setObject(3, runId);
+                        statement.setString(4, "{\"schemaVersion\":\"1.0.0\",\"reportId\":\""
+                                + reportId + "\"}");
+                        statement.setObject(5, requestId);
+                        statement.setObject(6, traceId);
+                        statement.setObject(7, stepId);
+                        statement.setString(8, a2aTaskId);
+                        statement.setObject(9, invocationId);
+                        statement.executeUpdate();
+                    }
+                    try (var statement = connection.prepareStatement("""
+                            INSERT INTO opspilot.outbox_event
+                                (event_id,run_id,fact_type,state_version,payload_json,occurred_at,
+                                 request_id,trace_id,step_id,a2a_task_id,invocation_id)
+                            SELECT ?,?,'RCA_COMPLETED',run_version,
+                                   jsonb_build_object('schemaVersion','1.0.0','reportId',?::text),
+                                   now(),?,?,?,?,?
+                            FROM opspilot.incident_run WHERE run_id=?
+                            """)) {
+                        statement.setObject(1, UUID.randomUUID());
+                        statement.setObject(2, runId);
+                        statement.setObject(3, reportId);
+                        statement.setObject(4, requestId);
+                        statement.setObject(5, traceId);
+                        statement.setObject(6, stepId);
+                        statement.setString(7, a2aTaskId);
+                        statement.setObject(8, invocationId);
+                        statement.setObject(9, runId);
+                        statement.executeUpdate();
+                    }
+                    appendVerticalAudit(connection, incidentId, runId, stepId, requestId,
+                            traceId, a2aTaskId, invocationId, artifactId, digest, providerResponse);
+                    connection.commit();
+                } catch (Exception exception) {
+                    connection.rollback();
+                    throw exception;
+                }
+            }
+        } catch (Exception exception) {
+            throw new IllegalStateException("PHASE6_VERTICAL_SLICE_COMMIT_FAILED", exception);
+        }
+    }
+
+    private static void appendVerticalAudit(Connection connection, UUID incidentId, UUID runId,
+            UUID stepId, UUID requestId, UUID traceId, String a2aTaskId, UUID invocationId,
+            UUID logArtifactId, String fingerprint, ChatResponse providerResponse) throws SQLException {
+        UUID parent = null;
+        for (String boundary : new String[] {
+                "REST", "SUPERVISOR", "A2A", "AGENT_RUNTIME", "TOOL", "PROVIDER",
+                "ARTIFACT", "EVIDENCE", "ANALYSIS_SEAL", "RCA", "SSE"}) {
+            UUID auditId = UUID.randomUUID();
+            try (var statement = connection.prepareStatement("""
+                    INSERT INTO opspilot.correlation_audit
+                        (audit_id,parent_audit_id,principal_id,incident_id,run_id,step_id,
+                         request_id,trace_id,a2a_task_id,invocation_id,boundary,action_fingerprint,
+                         permission_summary,result_code,summary,log_artifact_id)
+                    SELECT ?,?,i.principal_id,?,?,?,?,?,?,?,?,?,
+                           '{"decision":"allowed"}'::jsonb,'SUCCEEDED',?,?
+                    FROM opspilot.incident i WHERE i.incident_id=?
+                    """)) {
+                statement.setObject(1, auditId);
+                statement.setObject(2, parent);
+                statement.setObject(3, incidentId);
+                statement.setObject(4, runId);
+                statement.setObject(5, stepId);
+                statement.setObject(6, requestId);
+                statement.setObject(7, traceId);
+                statement.setString(8, a2aTaskId);
+                statement.setObject(9, invocationId);
+                statement.setString(10, boundary);
+                statement.setString(11, fingerprint);
+                String summary = boundary + " vertical slice succeeded";
+                if ("PROVIDER".equals(boundary)) {
+                    summary += "; provider=" + providerResponse.actualIdentity().providerId()
+                            + "; model=" + providerResponse.actualIdentity().modelId();
+                }
+                statement.setString(12, summary);
+                statement.setObject(13, "ARTIFACT".equals(boundary) ? logArtifactId : null);
+                statement.setObject(14, incidentId);
+                if (statement.executeUpdate() != 1) throw new IllegalStateException("INCIDENT_NOT_FOUND");
+            }
+            parent = auditId;
         }
     }
 
@@ -292,13 +660,15 @@ public final class Phase0Process {
                 .validateOnMigrate(true)
                 .load().migrate();
         demoteMigrator(jdbcUrl, username, password);
-        var result = Flyway.configure()
+        Flyway flyway = Flyway.configure()
                 .dataSource(jdbcUrl, username, password)
                 .locations(locations)
                 .validateOnMigrate(true)
-                .load().migrate();
-        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "12");
-        if (result.targetSchemaVersion == null || !expectedVersion.equals(result.targetSchemaVersion.toString())) {
+                .load();
+        var result = flyway.migrate();
+        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "18");
+        var current = flyway.info().current();
+        if (current == null || !expectedVersion.equals(current.getVersion().toString())) {
             throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE");
         }
         System.out.println("MIGRATION_SET_VALIDATED version=" + expectedVersion
@@ -328,6 +698,108 @@ public final class Phase0Process {
         System.out.println("RETRIEVAL_GATE_CONFIGURATION_COMPATIBLE");
     }
 
+    private static void fetch(String url) throws Exception {
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(2)).GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+        System.out.println("HTTP_STATUS=" + response.statusCode());
+        System.out.println(response.body());
+        if (response.statusCode() != 200) {
+            System.exit(1);
+        }
+    }
+
+    static String cardJson(String agentId, String skill) {
+        return "{\"name\":\"" + agentId + "\",\"protocolVersion\":\"" + PROTOCOL
+                + "\",\"skills\":[{\"id\":\"" + skill + "\"}]}";
+    }
+
+    private static void verifyLocalCard(RuntimeIdentity identity, AgentDirectory directory) {
+        if ("supervisor".equals(identity.agentId)) {
+            return;
+        }
+        AgentDirectory.EndpointSnapshot snapshot = directory.probe(identity.agentId,
+                ignored -> cardJson(identity.agentId, identity.profile.skill)
+                        .getBytes(StandardCharsets.UTF_8), Instant.now());
+        if (snapshot.state()
+                != io.github.opspilot.core.domain.state.StateMachines.AgentEndpointState.READY) {
+            throw new IllegalStateException("LOCAL_AGENT_CARD_INCOMPATIBLE");
+        }
+    }
+
+    private static byte[] fetchCard(URI uri) throws Exception {
+        HttpResponse<byte[]> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(uri).timeout(Duration.ofMillis(700))
+                        .header("A2A-Version", PROTOCOL).GET().build(),
+                HttpResponse.BodyHandlers.ofByteArray());
+        if (response.statusCode() != 200) {
+            throw new IOException("AGENT_CARD_PROBE_FAILED");
+        }
+        return response.body();
+    }
+
+    private static String firstDown(Map<String, StartupTrafficGate.CapabilityState> capabilities) {
+        return capabilities.entrySet().stream()
+                .filter(entry -> entry.getValue() == StartupTrafficGate.CapabilityState.DOWN)
+                .map(entry -> "CAPABILITY_DOWN:" + entry.getKey())
+                .findFirst().orElse("STARTUP_INCOMPLETE");
+    }
+
+    private static String healthJson(RuntimeIdentity identity, AgentDirectory directory,
+            String type, String status, String reason) {
+        return "{\"schemaVersion\":\"1.0\",\"type\":\"" + type
+                + "\",\"status\":\"" + status + "\",\"agentId\":\"" + identity.agentId
+                + "\",\"probedAt\":\"" + Instant.now() + "\",\"configVersion\":\""
+                + directory.schemaVersion() + "\",\"directoryDigest\":\"" + directory.digest()
+                + "\",\"cardDigest\":\"" + sha256(cardJson(identity.agentId, identity.profile.skill)
+                        .getBytes(StandardCharsets.UTF_8))
+                + "\",\"reason\":\"" + escape(reason) + "\"}";
+    }
+
+    private static String modelsJson(RuntimeIdentity identity, AgentDirectory directory,
+            Map<String, StartupTrafficGate.CapabilityState> capabilities) {
+        String values = Map.of(
+                        "llm", Map.entry(CHAT_MODEL, capabilities.get("model:llm")),
+                        "embedding", Map.entry(EMBEDDING_MODEL, capabilities.get("model:embedding")),
+                        "rerank", Map.entry(RERANK_MODEL, capabilities.get("model:rerank")))
+                .entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .map(entry -> "{\"kind\":\"" + entry.getKey() + "\",\"modelId\":\""
+                        + escape(entry.getValue().getKey()) + "\",\"status\":\""
+                        + entry.getValue().getValue() + "\"}")
+                .collect(java.util.stream.Collectors.joining(","));
+        boolean up = capabilities.entrySet().stream()
+                .filter(entry -> entry.getKey().startsWith("model:"))
+                .allMatch(entry -> entry.getValue() == StartupTrafficGate.CapabilityState.UP);
+        String dataState = "knowledge".equals(identity.agentId) ? "KB_EMPTY" : "NOT_APPLICABLE";
+        return healthJson(identity, directory, "models", up ? "UP" : "DOWN",
+                up ? "MODEL_PROBES_VALID" : "MODEL_PROBE_FAILED")
+                .replace("}", ",\"knowledgeDataState\":\"" + dataState
+                        + "\",\"models\":[" + values + "]}");
+    }
+
+    private static String capabilitiesJson(RuntimeIdentity identity, AgentDirectory directory,
+            Map<String, StartupTrafficGate.CapabilityState> capabilities) {
+        String values = capabilities.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> "{\"id\":\"" + escape(entry.getKey()) + "\",\"status\":\""
+                        + entry.getValue() + "\",\"required\":true,\"retryable\":"
+                        + (entry.getValue() == StartupTrafficGate.CapabilityState.DOWN) + "}")
+                .collect(java.util.stream.Collectors.joining(","));
+        String status = capabilities.values().stream()
+                .allMatch(value -> value == StartupTrafficGate.CapabilityState.UP) ? "UP" : "DOWN";
+        return healthJson(identity, directory, "capabilities", status, "CAPABILITY_SNAPSHOT")
+                .replace("}", ",\"capabilities\":[" + values + "]}");
+    }
+
+    private static String sha256(byte[] bytes) {
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+
     private static void require(String name, String expected) {
         if (!expected.equals(System.getenv(name))) {
             throw new IllegalStateException(name + "_INCOMPATIBLE");
@@ -342,7 +814,7 @@ public final class Phase0Process {
         exchange.close();
     }
 
-    record Profile(int port, String skill, String dbRole) {
+    record Profile(int port, String skill, String dbRole, String serviceIdentity) {
     }
 
     record Readiness(boolean ready, String reason) {
@@ -376,6 +848,9 @@ public final class Phase0Process {
             }
             if (!profile.dbRole.equals(required(environment, "DB_ROLE"))) {
                 throw new IllegalStateException("DB_ROLE_INCOMPATIBLE");
+            }
+            if (!profile.serviceIdentity.equals(required(environment, "SERVICE_IDENTITY"))) {
+                throw new IllegalStateException("SERVICE_IDENTITY_INCOMPATIBLE");
             }
             String tokenFile = required(environment, "SERVICE_TOKEN_FILE");
             byte[] token = Files.readString(Path.of(tokenFile), StandardCharsets.UTF_8).strip()

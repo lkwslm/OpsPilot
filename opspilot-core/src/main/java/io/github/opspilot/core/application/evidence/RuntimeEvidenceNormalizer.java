@@ -97,6 +97,15 @@ public final class RuntimeEvidenceNormalizer implements EvidenceNormalizer {
     @Override
     public EvidenceBundle normalizeCode(
             CodeSnapshot snapshot, List<CodeFinding> findings, NormalizationContext context) {
+        findings.forEach(finding -> {
+            if (!snapshot.repositoryId().equals(finding.repositoryId())
+                    || !snapshot.commitSha().equals(finding.commitSha())
+                    || !snapshot.manifestArtifactId().equals(finding.rootArtifactId())
+                    || !finding.artifactIds().contains(finding.rootArtifactId())
+                    || !finding.fileSha256().equals(snapshot.fileHashes().get(finding.relativePath()))) {
+                throw new IllegalArgumentException("CODE_FINDING_PROVENANCE_INCOMPLETE");
+            }
+        });
         ResourceRef repository = new ResourceRef(
                 snapshot.repositoryId(), ResourceType.SYSTEM, snapshot.repositoryId(), null, null, java.util.Map.of());
         List<Evidence> evidence = findings.stream().map(finding -> new Evidence(

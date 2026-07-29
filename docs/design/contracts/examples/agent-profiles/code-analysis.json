@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "profileId": "code-analysis-default",
+  "profileVersion": "1.0.0",
+  "role": "CODE_ANALYSIS",
+  "skillId": "analyze-code-location",
+  "description": "Analyzes only the resolved immutable repository snapshot for evidence-linked locations.",
+  "prompt": {"templateId": "code-analysis-v1", "templateVersion": "1.0.0", "systemPolicyTemplateId": "opspilot-system-policy-v1"},
+  "model": {"modelProfileRef": "reasoning-standard", "requiredCapabilities": ["TOOL_CALLS", "STRUCTURED_OUTPUT"], "generation": {"temperature": 0.0, "maxOutputTokens": 3072, "timeoutMs": 60000}},
+  "inputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/codeRequest", "mediaType": "application/vnd.opspilot.analyze-code-location.request+json;v=1"},
+  "outputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/codeResult", "mediaType": "application/vnd.opspilot.analyze-code-location.result+json;v=1"},
+  "contextPolicy": {"allowedInputs": ["INCIDENT", "EVIDENCE", "ARTIFACT", "TASK_STATE"], "factsFromEvidenceOnly": true, "maxEvidenceItems": 500, "maxArtifactBytes": 52428800},
+  "toolPolicy": {"allowedTools": [{"toolId": "CodeSearchTool", "contractMajor": 1}], "maxPermission": "READ_ONLY", "maxCalls": 20, "dynamicDiscovery": false},
+  "a2aPolicy": {"allowedSkills": [], "maxDelegations": 0, "peerToPeerDelegation": false},
+  "budget": {"maxTurns": 12, "maxModelCalls": 12, "maxToolCalls": 20, "maxInputTokensPerCall": 20000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 50000, "deadlineSeconds": 900},
+  "sandboxPolicy": {"mode": "READ_ONLY", "runnerRef": "code-snapshot-readonly-v1", "requireApproval": false, "allowedTestSuiteIds": [], "networkAccess": "DENY", "writableRoots": [], "limits": {"maxDurationSeconds": 300, "maxCpu": 2, "maxMemoryMb": 2048}},
+  "securityPolicy": {"policyRef": "code-analysis-readonly-v1", "resourceScopes": ["incident:${incidentId}", "run:${runId}", "repository:${repositoryId}"], "maxDataClassification": "CONFIDENTIAL", "groundTruthAccess": false, "secretAccess": false, "arbitraryCommandExecution": false, "codeMutation": false},
+  "terminationPolicy": {"completionConditions": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"], "noProgressRounds": 2, "resultMapperRef": "code-analysis-result-mapper-v1"}
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "fixture": "opspilot-adapters/code-java/src/test/resources/code-source/shared-contract.json",
+  "adapters": ["github-code-source:1.0.0", "gitlab-code-source:1.0.0"],
+  "verified": [
+    "repository allowlist is checked before transport",
+    "only a preconfigured HTTPS origin on the host allowlist is accepted",
+    "authentication crosses the client boundary only as a secret:// connectionRef",
+    "all pages are collected under the parent deadline",
+    "platform DTOs map to the same CodeArchiveEntry and CodeSnapshot contracts",
+    "cancelled, expired, unauthorized, and unconfigured requests perform zero fetches"
+  ],
+  "test": "CodeSourceContractTest.githubAndGitlabSharePaginationSnapshotAndAnalyzerContract"
+}

@@ -1,0 +1,37 @@
+{
+  "workPackage": "06-WP01",
+  "status": "PASS",
+  "executedAt": "2026-07-28T21:55:51+08:00",
+  "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-agent-runtime-agentscope -am test",
+  "durationSeconds": 59.257,
+  "reactor": {
+    "opspilot-parent": "SUCCESS",
+    "opspilot-core": "SUCCESS",
+    "opspilot-adapter-persistence-postgres": "SUCCESS",
+    "opspilot-agent-runtime-agentscope": "SUCCESS"
+  },
+  "tests": {
+    "total": 148,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "modules": {
+      "opspilot-core": 115,
+      "opspilot-adapter-persistence-postgres": 15,
+      "opspilot-agent-runtime-agentscope": 18
+    }
+  },
+  "verifiedAssertions": [
+    "AgentExecutionService is a project-owned core port without AgentScope, Spring, or transport DTO dependencies",
+    "AgentScope adapter delegates execution to the official ReActAgent loop and no second production business loop remains",
+    "round, model, tool, token, deadline, cancellation, no-progress, and state-persistence guards are covered",
+    "supervisor and specialist session keys preserve continuation and isolate retry attempts",
+    "PostgreSQL AgentStateStore restores controlled execution journal state across a real child-process restart",
+    "persisted audit state excludes hidden reasoning, secrets, full prompts, and raw source bodies",
+    "architecture tests enforce the single execution-service implementation and core dependency boundary"
+  ],
+  "evidence": {
+    "testLog": "outputs/phase6/06-WP01/runtime-contract-tests.log",
+    "apiAudit": "outputs/phase6/06-WP01/agentscope-api-audit.md"
+  }
+}

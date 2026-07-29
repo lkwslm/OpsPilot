@@ -121,11 +121,14 @@ public final class PostgresCheckpointUnitOfWork implements CheckpointUnitOfWork,
         try (var statement = connection.prepareStatement("""
                 INSERT INTO opspilot.step_attempt
                     (attempt_id, step_id, attempt_number, status, remote_task_id,
-                     idempotency_key, request_hash, version)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     idempotency_key, request_hash, version, message_id,
+                     remote_agent_id, remote_task_state, session_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (attempt_id) DO UPDATE SET
                     status = EXCLUDED.status,
                     remote_task_id = EXCLUDED.remote_task_id,
+                    remote_agent_id = EXCLUDED.remote_agent_id,
+                    remote_task_state = EXCLUDED.remote_task_state,
                     version = EXCLUDED.version
                 WHERE step_attempt.step_id = EXCLUDED.step_id
                   AND step_attempt.attempt_number = EXCLUDED.attempt_number
@@ -142,6 +145,14 @@ public final class PostgresCheckpointUnitOfWork implements CheckpointUnitOfWork,
             statement.setString(6, attempt.idempotencyKey());
             statement.setString(7, attempt.requestHash());
             statement.setLong(8, attempt.version());
+            statement.setString(9, attempt.idempotencyKey());
+            statement.setString(10, attempt.remoteTaskId() == null
+                    ? null : attempt.remoteTaskId().remoteAgentId());
+            statement.setString(11, attempt.remoteTaskId() == null ? null : "SUBMITTED");
+            statement.setString(12, attempt.remoteTaskId() == null
+                    ? "attempt:" + attempt.attemptId()
+                    : attempt.remoteTaskId().remoteAgentId() + ":"
+                    + attempt.remoteTaskId().a2aTaskId().wire());
             if (statement.executeUpdate() != 1) {
                 throw new CheckpointConflict("ATTEMPT_IDEMPOTENCY_OR_VERSION_CONFLICT");
             }

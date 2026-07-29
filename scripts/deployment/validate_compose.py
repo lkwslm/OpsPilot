@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 from pathlib import Path
@@ -16,6 +17,15 @@ EXPECTED = {
     "knowledge-agent": ("knowledge", "8083", "knowledge_agent_role", "retrieve-incident-knowledge"),
     "diagnosis-agent": ("diagnosis", "8084", "diagnosis_agent_role", "generate-and-verify-hypotheses"),
     "remediation-agent": ("remediation", "8085", "remediation_agent_role", "propose-remediation"),
+}
+
+SERVICE_IDENTITIES = {
+    "opspilot-server": "svc:opspilot-server",
+    "evidence-agent": "svc:evidence-agent",
+    "code-agent": "svc:code-agent",
+    "knowledge-agent": "svc:knowledge-agent",
+    "diagnosis-agent": "svc:diagnosis-agent",
+    "remediation-agent": "svc:remediation-agent",
 }
 
 
@@ -43,7 +53,7 @@ def main() -> int:
     services = config.get("services", {})
     identities: set[str] = set()
     roles: set[str] = set()
-    secret_sources: set[str] = set()
+    service_token_refs: set[str] = set()
     for service, (agent_id, port, role, skill) in EXPECTED.items():
         definition = services.get(service)
         if not isinstance(definition, dict):
@@ -57,20 +67,24 @@ def main() -> int:
             "AGENT_SKILL": skill,
             "A2A_PROTOCOL": "1.0",
             "CHAT_MODEL_ID": "deepseek-v4-flash",
+            "SERVICE_IDENTITY": SERVICE_IDENTITIES[service],
         }.items():
             if str(environment.get(key)) != expected:
                 errors.append(f"{service}: {key} must be {expected}")
         identities.add(str(environment.get("AGENT_ID")))
         roles.add(str(environment.get("DB_ROLE")))
+        token_ref = str(environment.get("SERVICE_TOKEN_FILE", ""))
+        if not token_ref.startswith("/run/secrets/"):
+            errors.append(f"{service}: invalid SERVICE_TOKEN_FILE")
+        service_token_refs.add(token_ref)
         a2a_url = str(environment.get("A2A_BASE_URL", ""))
         if not a2a_url.startswith(f"http://{service}:{port}"):
             errors.append(f"{service}: invalid internal A2A_BASE_URL")
-        secrets = definition.get("secrets", [])
-        expected_secret_count = 2 if service == "opspilot-server" else 1
-        if len(secrets) != expected_secret_count:
-            errors.append(f"{service}: expected {expected_secret_count} scoped secret refs")
-        for secret in secrets:
-            secret_sources.add(str(secret.get("source")))
+        expected_target = "product-runtime" if service == "opspilot-server" else "agent-runtime"
+        if definition.get("build", {}).get("target") != expected_target:
+            errors.append(f"{service}: build target must be {expected_target}")
+        if environment.get("DIRECTORY_PATH") != "/app/config/agent-directory.yaml":
+            errors.append(f"{service}: immutable Directory path is required")
         dependency = definition.get("depends_on", {}).get("db-migrate", {})
         if dependency.get("condition") != "service_completed_successfully":
             errors.append(f"{service}: db-migrate must be a hard startup dependency")
@@ -78,6 +92,10 @@ def main() -> int:
         input_mounts = [item for item in volumes if item.get("target") == "/datasets/input"]
         if len(input_mounts) != 1 or not input_mounts[0].get("read_only"):
             errors.append(f"{service}: /datasets/input must be mounted read-only")
+        directory_mounts = [item for item in volumes
+                            if item.get("target") == "/app/config/agent-directory.yaml"]
+        if len(directory_mounts) != 1 or not directory_mounts[0].get("read_only"):
+            errors.append(f"{service}: Agent Directory must be mounted read-only")
         serialized = json.dumps(definition).lower()
         for forbidden in ("ground-truth", "ground_truth", "docker.sock", "/execution"):
             if forbidden in serialized:
@@ -94,8 +112,19 @@ def main() -> int:
         errors.append("AGENT_ID values are not unique")
     if len(roles) != 6:
         errors.append("DB_ROLE values are not unique")
-    if len(secret_sources) != 6:
+    if len(service_token_refs) != 6:
         errors.append("the six service Token refs are not unique")
+
+    directory = compose.parent / "agents" / "agent-directory.yaml"
+    directory_bytes = directory.read_bytes() if directory.is_file() else b""
+    directory_text = directory_bytes.decode("utf-8")
+    for service, (agent_id, port, _role, skill) in EXPECTED.items():
+        if service == "opspilot-server":
+            continue
+        for required in (agent_id, f"http://{service}:{port}/.well-known/agent-card.json", skill,
+                         "expected_card_sha256", "service_identity"):
+            if required not in directory_text:
+                errors.append(f"Agent Directory missing {service} contract: {required}")
 
     retrieval = services.get("retrieval-model-probe", {})
     if "phase0-gate" not in retrieval.get("profiles", []):
@@ -110,7 +139,8 @@ def main() -> int:
         "processCount": len(EXPECTED),
         "agentIdsUnique": len(identities) == 6,
         "databaseRolesUnique": len(roles) == 6,
-        "serviceTokenRefsUnique": len(secret_sources) == 6,
+        "serviceTokenRefsUnique": len(service_token_refs) == 6,
+        "directoryDigest": hashlib.sha256(directory_bytes).hexdigest(),
         "publishedPorts": {"opspilot-server": "127.0.0.1:8080"},
         "errorCount": len(errors),
         "errors": errors,

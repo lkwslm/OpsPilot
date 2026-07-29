@@ -1,6 +1,7 @@
 package io.github.opspilot.a2a.client;
 
 import io.github.opspilot.a2a.contract.A2aJson;
+import io.github.opspilot.a2a.contract.A2aProtocol;
 import io.github.opspilot.a2a.contract.A2aSendRequest;
 import io.github.opspilot.a2a.contract.A2aTask;
 import io.github.opspilot.a2a.contract.A2aTaskEvent;
@@ -18,9 +19,15 @@ public final class Phase0A2aClient implements AutoCloseable {
 
     private final URI endpoint;
     private final HttpClient httpClient;
+    private final String callerServiceId;
 
     public Phase0A2aClient(URI endpoint) {
+        this(endpoint, "opspilot-server");
+    }
+
+    public Phase0A2aClient(URI endpoint, String callerServiceId) {
         this.endpoint = endpoint;
+        this.callerServiceId = callerServiceId;
         this.httpClient = HttpClient.newHttpClient();
     }
 
@@ -29,26 +36,27 @@ public final class Phase0A2aClient implements AutoCloseable {
     }
 
     public List<A2aTaskEvent> stream(A2aSendRequest request, int maximumEvents) {
-        HttpRequest httpRequest = request("/messages:stream")
+        HttpRequest httpRequest = request("/messages:stream", request.callerServiceId())
                 .POST(HttpRequest.BodyPublishers.ofString(A2aJson.write(request)))
                 .build();
         return events(httpRequest, maximumEvents);
     }
 
     public A2aTask get(String taskId) {
-        HttpRequest request = request("/tasks/" + taskId).GET().build();
+        HttpRequest request = request("/tasks/" + taskId, callerServiceId).GET().build();
         return task(send(request));
     }
 
     public A2aTask cancel(String taskId) {
-        HttpRequest request = request("/tasks/" + taskId + ":cancel")
+        HttpRequest request = request("/tasks/" + taskId + ":cancel", callerServiceId)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         return task(send(request));
     }
 
     public List<A2aTaskEvent> subscribe(String taskId, long afterSequence) {
-        HttpRequest request = request("/tasks/" + taskId + ":subscribe?after=" + afterSequence)
+        HttpRequest request = request("/tasks/" + taskId + ":subscribe?after=" + afterSequence,
+                callerServiceId)
                 .GET()
                 .build();
         return events(request, Integer.MAX_VALUE);
@@ -60,16 +68,20 @@ public final class Phase0A2aClient implements AutoCloseable {
     }
 
     private HttpResponse<String> post(String path, Object body) {
-        HttpRequest request = request(path)
+        String requestCaller = body instanceof A2aSendRequest sendRequest
+                ? sendRequest.callerServiceId() : callerServiceId;
+        HttpRequest request = request(path, requestCaller)
                 .POST(HttpRequest.BodyPublishers.ofString(A2aJson.write(body)))
                 .build();
         return send(request);
     }
 
-    private HttpRequest.Builder request(String path) {
+    private HttpRequest.Builder request(String path, String serviceId) {
         return HttpRequest.newBuilder(endpoint.resolve("a2a" + path))
-                .header("Accept", "application/json, application/x-ndjson")
-                .header("Content-Type", "application/json");
+                .header("Accept", A2aProtocol.MEDIA_TYPE + ", application/x-ndjson")
+                .header("Content-Type", A2aProtocol.MEDIA_TYPE)
+                .header(A2aProtocol.VERSION_HEADER, A2aProtocol.VERSION)
+                .header(A2aProtocol.SERVICE_ID_HEADER, serviceId);
     }
 
     private HttpResponse<String> send(HttpRequest request) {

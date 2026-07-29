@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "tools": {
+    "LogQueryTool": "READ_ONLY",
+    "MetricQueryTool": "READ_ONLY",
+    "TraceQueryTool": "READ_ONLY",
+    "HealthQueryTool": "READ_ONLY",
+    "TopologyQueryTool": "READ_ONLY",
+    "ConfigReadTool": "READ_ONLY",
+    "CodeSearchTool": "READ_ONLY",
+    "KnowledgeSearchTool": "READ_ONLY",
+    "SandboxTestTool": "CONTROLLED_EXECUTION"
+  },
+  "resultStates": ["SUCCEEDED", "EMPTY", "DENIED", "FAILED"],
+  "registryChecks": ["duplicate", "required missing", "contract major incompatible", "frozen mutation"],
+  "tests": ["ObservabilityQueryToolsTest", "ToolRegistryTest"]
+}

@@ -1,9 +1,18 @@
-FROM eclipse-temurin@sha256:273396ed5998598ed1091e8d72711c2d36980a0e65103859c55a4e977a41ffd3
+FROM eclipse-temurin@sha256:273396ed5998598ed1091e8d72711c2d36980a0e65103859c55a4e977a41ffd3 AS runtime-base
 
 WORKDIR /app
 COPY opspilot-server/target/opspilot-server-0.1.0-SNAPSHOT.jar /app/opspilot-server.jar
 COPY opspilot-server/target/dependency/ /app/lib/
 COPY opspilot-adapters/persistence-postgres/src/main/resources/db/migration/ /app/migrations/
+COPY deployment/agents/agent-directory.yaml /app/config/agent-directory.yaml
 
 USER 10001:10001
+
+FROM runtime-base AS product-runtime
+ENTRYPOINT ["java", "-XX:-UsePerfData", "-cp", "/app/opspilot-server.jar:/app/lib/*", "io.github.opspilot.server.ProductServerProcess"]
+
+FROM runtime-base AS agent-runtime
+ENTRYPOINT ["java", "-XX:-UsePerfData", "-cp", "/app/opspilot-server.jar:/app/lib/*", "io.github.opspilot.server.ProfessionalAgentProcess"]
+
+FROM runtime-base AS ops-runtime
 ENTRYPOINT ["java", "-XX:-UsePerfData", "-cp", "/app/opspilot-server.jar:/app/lib/*", "io.github.opspilot.server.Phase0Process"]

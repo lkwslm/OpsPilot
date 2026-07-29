@@ -80,6 +80,48 @@ final class AgentScopeExecutionGuardTest {
         harness.assertStopped(stop, AgentScopeExecutionGuard.NO_PROGRESS, 2, 2);
     }
 
+    @Test
+    void enforcesModelToolAndTokenBudgetsIndependently() {
+        AgentScopeExecutionGuard modelBudget = guard(1, 2, 100);
+        assertTrue(modelBudget.beforeModelCall(1).permitted());
+        assertFalse(modelBudget.beforeModelCall(2).permitted());
+        assertEquals(AgentScopeExecutionGuard.MODEL_BUDGET_EXHAUSTED,
+                modelBudget.status().reasonCode());
+
+        AgentScopeExecutionGuard toolBudget = guard(2, 1, 100);
+        assertTrue(toolBudget.beforeToolCall("a").permitted());
+        assertFalse(toolBudget.beforeToolCall("b").permitted());
+        assertEquals(AgentScopeExecutionGuard.TOOL_BUDGET_EXHAUSTED,
+                toolBudget.status().reasonCode());
+
+        AgentScopeExecutionGuard tokenBudget = guard(2, 2, 10);
+        assertTrue(tokenBudget.beforeModelCall(1).permitted());
+        assertFalse(tokenBudget.afterModelCall(7, 4, 0).permitted());
+        assertEquals(AgentScopeExecutionGuard.TOKEN_BUDGET_EXHAUSTED,
+                tokenBudget.status().reasonCode());
+    }
+
+    @Test
+    void cancellationWinsWhenSeveralStopConditionsAreTrue() {
+        AgentScopeExecutionGuard guard = new AgentScopeExecutionGuard(
+                new AgentScopeExecutionGuard.Limits(1, 1, 0, 1, NOW, 1),
+                () -> true,
+                event -> { },
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertEquals(AgentScopeExecutionGuard.EXTERNAL_CANCELLED,
+                guard.beforeModelCall(2).reasonCode());
+    }
+
+    private AgentScopeExecutionGuard guard(int modelCalls, int toolCalls, int tokens) {
+        return new AgentScopeExecutionGuard(
+                new AgentScopeExecutionGuard.Limits(
+                        10, modelCalls, toolCalls, tokens, NOW.plusSeconds(60), 2),
+                () -> false,
+                event -> { },
+                Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
     private static final class Harness {
         private final AtomicInteger modelCalls = new AtomicInteger();
         private final AtomicInteger toolCalls = new AtomicInteger();

@@ -30,7 +30,7 @@ public final class PostgresAgentStateStore implements AgentStateStore, AutoClose
 
     public PostgresAgentStateStore(
             String serverAgentId, String jdbcUrl, String username, String password) {
-        this(serverAgentId, jdbcUrl, username, password, new ObjectMapper());
+        this(serverAgentId, jdbcUrl, username, password, new ObjectMapper().findAndRegisterModules());
     }
 
     PostgresAgentStateStore(

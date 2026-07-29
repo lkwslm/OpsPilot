@@ -8,4 +8,17 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <artifactId>opspilot-adapter-sandbox-maven</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "backendRequirements": ["network denied", "source read only"],
+  "preStartDenials": [
+    "HIGH_RISK_DENIED",
+    "CODE_MUTATION_DENIED",
+    "ARBITRARY_COMMAND_DENIED",
+    "SANDBOX_NETWORK_DENIED",
+    "SANDBOX_APPROVAL_REQUIRED",
+    "SANDBOX_CANCELLED",
+    "SANDBOX_TIMEOUT",
+    "SANDBOX_LIMIT_EXPANSION_DENIED",
+    "SANDBOX_SUITE_DENIED"
+  ],
+  "deniedBackendExecutions": 0,
+  "commandShape": ["test", "-DtestSuiteId=<approved stable ID>"],
+  "test": "MavenSandboxRunnerTest"
+}

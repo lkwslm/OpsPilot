@@ -4,6 +4,7 @@ import io.github.opspilot.a2a.client.Phase0A2aClient;
 import io.github.opspilot.a2a.contract.A2aSendRequest;
 import io.github.opspilot.a2a.contract.A2aTask;
 import io.github.opspilot.a2a.contract.A2aTaskState;
+import io.github.opspilot.a2a.contract.A2aProtocol;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -15,6 +16,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.DriverManager;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -49,6 +51,20 @@ final class A2aCrossProcessHttpTest {
                             "message-cross-process", "context-cross-process", "http-json", false));
                     assertEquals(A2aTaskState.COMPLETED, task.state());
                     assertEquals(task, client.get(task.taskId()));
+
+                    var required = new ArrayList<>(new A2aSendRequest(
+                            "template", "template", "template", false).requiredExtensions());
+                    required.add("urn:opspilot:test:unknown-required");
+                    A2aSendRequest rejected = new A2aSendRequest(
+                            "message-rejected", "context-rejected", "must-not-run", false,
+                            "opspilot-server", "supervisor", "incident-investigation",
+                            "application/vnd.opspilot.incident-investigation.request+json;v=1",
+                            "application/vnd.opspilot.incident-investigation.result+json;v=1",
+                            A2aProtocol.VERSION, required, List.of());
+                    IllegalStateException failure = assertThrows(
+                            IllegalStateException.class, () -> client.send(rejected));
+                    assertTrue(failure.getMessage().contains("A2A_REQUIRED_EXTENSION_UNSUPPORTED"));
+                    assertEquals(1, taskCount(postgres));
                 }
 
                 child.getOutputStream().close();
@@ -59,7 +75,8 @@ final class A2aCrossProcessHttpTest {
                 assertTrue(childOutput.stream().anyMatch(line ->
                         line.contains("method=POST")
                                 && line.contains("path=/a2a/messages:send")
-                                && line.contains("contentType=application/json")));
+                                && line.contains("contentType=" + A2aProtocol.MEDIA_TYPE)
+                                && line.contains("a2aVersion=" + A2aProtocol.VERSION)));
                 assertTrue(childOutput.stream().anyMatch(line ->
                         line.contains("method=GET") && line.contains("path=/a2a/tasks/")));
                 writeAuditEvidence(childOutput);
@@ -123,6 +140,16 @@ final class A2aCrossProcessHttpTest {
     private static int availablePort() throws IOException {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
+        }
+    }
+
+    private static long taskCount(PostgreSQLContainer postgres) throws Exception {
+        try (var connection = DriverManager.getConnection(
+                postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+             var statement = connection.createStatement();
+             var result = statement.executeQuery("SELECT count(*) FROM opspilot_a2a.task")) {
+            result.next();
+            return result.getLong(1);
         }
     }
 

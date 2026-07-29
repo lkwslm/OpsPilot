@@ -114,6 +114,14 @@ final class StateContractTest {
                 IncidentRunState.PLANNING, IncidentRunState.CANCELLING));
         assertTrue(StateMachines.INCIDENT_RUN.allows(
                 IncidentRunState.VERIFYING_HYPOTHESES, IncidentRunState.GENERATING_REPORT));
+        assertEquals(IncidentRunState.COMPLETED,
+                StateMachines.mapTopLevelTerminal(A2aTaskState.COMPLETED));
+        assertEquals(IncidentRunState.FAILED,
+                StateMachines.mapTopLevelTerminal(A2aTaskState.FAILED));
+        assertEquals(IncidentRunState.CANCELLED,
+                StateMachines.mapTopLevelTerminal(A2aTaskState.CANCELED));
+        assertThrows(IllegalArgumentException.class,
+                () -> StateMachines.mapTopLevelTerminal(A2aTaskState.WORKING));
     }
 
     private static <S extends Enum<S>> void verifyAllPairs(

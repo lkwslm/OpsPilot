@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "profileId": "evidence-collector-default",
+  "profileVersion": "1.0.0",
+  "role": "EVIDENCE_COLLECTOR",
+  "skillId": "collect-observability-evidence",
+  "description": "Collects and normalizes bounded observability evidence through read-only tools.",
+  "prompt": {"templateId": "evidence-collector-v1", "templateVersion": "1.0.0", "systemPolicyTemplateId": "opspilot-system-policy-v1"},
+  "model": {"modelProfileRef": "reasoning-standard", "requiredCapabilities": ["TOOL_CALLS", "STRUCTURED_OUTPUT"], "generation": {"temperature": 0.0, "maxOutputTokens": 3072, "timeoutMs": 60000}},
+  "inputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/evidenceRequest", "mediaType": "application/vnd.opspilot.collect-observability-evidence.request+json;v=1"},
+  "outputContract": {"schemaId": "https://opspilot.local/schemas/a2a-skills/1.0.0#/$defs/evidenceResult", "mediaType": "application/vnd.opspilot.collect-observability-evidence.result+json;v=1"},
+  "contextPolicy": {"allowedInputs": ["INCIDENT", "EVIDENCE", "TASK_STATE"], "factsFromEvidenceOnly": true, "maxEvidenceItems": 1000, "maxArtifactBytes": 20971520},
+  "toolPolicy": {"allowedTools": [{"toolId": "LogQueryTool", "contractMajor": 1}, {"toolId": "MetricQueryTool", "contractMajor": 1}, {"toolId": "TraceQueryTool", "contractMajor": 1}, {"toolId": "HealthQueryTool", "contractMajor": 1}, {"toolId": "TopologyQueryTool", "contractMajor": 1}, {"toolId": "ConfigReadTool", "contractMajor": 1}], "maxPermission": "READ_ONLY", "maxCalls": 30, "dynamicDiscovery": false},
+  "a2aPolicy": {"allowedSkills": [], "maxDelegations": 0, "peerToPeerDelegation": false},
+  "budget": {"maxTurns": 16, "maxModelCalls": 16, "maxToolCalls": 30, "maxInputTokensPerCall": 16000, "maxOutputTokensPerCall": 3072, "maxTaskTokens": 60000, "deadlineSeconds": 900},
+  "sandboxPolicy": {"mode": "DISABLED", "runnerRef": null, "requireApproval": false, "allowedTestSuiteIds": [], "networkAccess": "DENY", "writableRoots": [], "limits": null},
+  "securityPolicy": {"policyRef": "evidence-readonly-v1", "resourceScopes": ["incident:${incidentId}", "run:${runId}", "resource:${resourceId}"], "maxDataClassification": "CONFIDENTIAL", "groundTruthAccess": false, "secretAccess": false, "arbitraryCommandExecution": false, "codeMutation": false},
+  "terminationPolicy": {"completionConditions": ["RESULT_SCHEMA_VALID", "EVIDENCE_THRESHOLD_MET", "NO_PROGRESS", "BUDGET_EXHAUSTED", "INPUT_REQUIRED", "CANCELLED"], "noProgressRounds": 2, "resultMapperRef": "evidence-result-mapper-v1"}
+}
