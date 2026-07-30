@@ -442,6 +442,7 @@ services:
     build:
       context: ..
       dockerfile: deployment/Dockerfile.phase0
+      target: ops-runtime
     profiles: ["phase4-smoke"]
     command: ["phase4-smoke"]
     restart: "no"
