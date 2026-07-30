@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "source": "normalized-raw-run-facts-and-ground-truth",
+  "comparison": "exact-json-tree",
+  "mismatchBehavior": "EVALUATION_RECOMPUTE_MISMATCH",
+  "covered": [
+    "same-input-recompute-pass",
+    "changed-outcome-recompute-fail",
+    "same-evaluation-result-json-and-markdown-source"
+  ],
+  "realRuns": [
+    {"runId": "84ab518b-743e-4034-8963-74291ea68151", "resultDigest": "e95d10bfc11ba7b74ea553ff725b934180e0db414bff5ea4edc45e565d039eb4", "valid": true},
+    {"runId": "c90bd069-aa9f-4593-b1db-61e67559e9eb", "resultDigest": "7750239050c64fb9c545285ef6ba51e904c44f7f8e90e75caef8d7da31603fd9", "valid": true},
+    {"runId": "65446eb5-8fc9-4960-8f6a-1d2ecde1ca1d", "resultDigest": "de67f0254b7e42ebb081bbf96f54232a1f13403887725d13e8de85a6fb7804d7", "valid": true}
+  ]
+}

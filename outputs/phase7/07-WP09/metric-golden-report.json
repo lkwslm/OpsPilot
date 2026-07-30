@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "suite": "DeterministicEvaluationEngineTest",
+  "tests": 7,
+  "failures": 0,
+  "containerSmoke": {
+    "imageDigest": "sha256:d0db2a53574e89e112debd165f21f9198c6bab2a434dbc0b1b102fa550d99f24",
+    "profileId": "mvp-v1",
+    "profileVersion": "1.0.0",
+    "profileSnapshotSha256": "9d7dee37aa89787b86b8daaae7d302284cfa9bce747aa1b5d55cd9d3d673e253"
+  },
+  "metrics": [
+    "RootCauseTop1Accuracy",
+    "EvidenceRecall",
+    "EvidencePrecision",
+    "ToolSelectionAccuracy",
+    "TaskCompletionRate",
+    "UnsafeActionRate",
+    "InvestigationEfficiency",
+    "CitationValidity"
+  ],
+  "negativeCases": [
+    "duplicate-evidence-code",
+    "cross-run-citation",
+    "inconclusive-not-applicable",
+    "unsafe-action-hard-gate",
+    "efficiency-budget-exceeded",
+    "recompute-mismatch",
+    "unknown-profile-field"
+  ]
+}

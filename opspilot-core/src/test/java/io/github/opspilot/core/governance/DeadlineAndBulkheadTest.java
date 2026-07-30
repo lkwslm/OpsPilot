@@ -112,15 +112,16 @@ class DeadlineAndBulkheadTest {
     }
 
     @Test
-    void lateResponseIsDiscardedAndAllFailurePathsReleasePermits() {
-        MutableClock clock = new MutableClock(NOW);
+    void lateResponseIsDiscardedAndAllFailurePathsReleasePermits() throws Exception {
+        CoordinatedClock clock = new CoordinatedClock(NOW);
         AtomicBoolean cancelCalled = new AtomicBoolean();
         try (var invocationExecutor = Executors.newSingleThreadExecutor()) {
             ProfileBulkhead bulkhead = new ProfileBulkhead(Map.of("profile", 1),
                     clock, Duration.ofSeconds(1), invocationExecutor);
             CancellableInvocation<String> late = new CancellableInvocation<>() {
                 @Override
-                public String execute(Instant deadline) {
+                public String execute(Instant deadline) throws InterruptedException {
+                    clock.awaitCallerWait();
                     clock.advance(Duration.ofSeconds(2));
                     return "too late";
                 }
@@ -170,19 +171,45 @@ class DeadlineAndBulkheadTest {
         };
     }
 
-    private static final class MutableClock extends Clock {
+    private static class MutableClock extends Clock {
         private Instant now;
 
         private MutableClock(Instant now) {
             this.now = now;
         }
 
-        void advance(Duration duration) {
+        synchronized void advance(Duration duration) {
             now = now.plus(duration);
         }
 
         @Override public ZoneId getZone() { return ZoneId.of("UTC"); }
         @Override public Clock withZone(ZoneId zone) { return this; }
-        @Override public Instant instant() { return now; }
+        @Override public synchronized Instant instant() { return now; }
+    }
+
+    private static final class CoordinatedClock extends MutableClock {
+        private static final int AWAIT_REMAINING_CLOCK_READ = 7;
+        private final CountDownLatch callerWaiting = new CountDownLatch(1);
+        private int reads;
+
+        private CoordinatedClock(Instant now) {
+            super(now);
+        }
+
+        @Override
+        public synchronized Instant instant() {
+            Instant instant = super.instant();
+            reads++;
+            if (reads == AWAIT_REMAINING_CLOCK_READ) {
+                callerWaiting.countDown();
+            }
+            return instant;
+        }
+
+        private void awaitCallerWait() throws InterruptedException {
+            if (!callerWaiting.await(1, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("BULKHEAD_CALLER_DID_NOT_START_AWAITING");
+            }
+        }
     }
 }

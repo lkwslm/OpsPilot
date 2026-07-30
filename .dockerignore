@@ -1,6 +1,13 @@
 *
 !deployment/Dockerfile.phase0
+!deployment/Dockerfile.fault-lab
 !deployment/agents/agent-directory.yaml
+!fault-lab/pyproject.toml
+!fault-lab/uv.lock
+!fault-lab/src/**
+!docs/design/contracts/**
 !opspilot-server/target/opspilot-server-0.1.0-SNAPSHOT.jar
 !opspilot-server/target/dependency/*.jar
+!opspilot-evaluation/target/opspilot-evaluation-0.1.0-SNAPSHOT.jar
+!opspilot-evaluation/target/dependency/*.jar
 !opspilot-adapters/persistence-postgres/src/main/resources/db/migration/*.sql

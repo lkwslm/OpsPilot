@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "python": "3.11.13",
+  "lockFile": "fault-lab/uv.lock",
+  "cliSmoke": "uv run --python 3.11 fault-lab --help",
+  "containerBuild": {
+    "status": "PASS",
+    "image": "opspilot-fault-lab:phase7-test",
+    "digest": "sha256:c8588d4251de6d3abba387cb251076890ddfd66cf7b77c345c1137a45971adc9",
+    "scenarioValidation": "PASS"
+  },
+  "fullTestCommand": "uv run --project fault-lab --python 3.11 pytest fault-lab/tests",
+  "testsPassed": 37,
+  "registry": ["ScenarioLoader", "EnvironmentController", "HealthChecker", "LoadGenerator", "FaultInjector", "ArtifactCollector", "TicketGenerator", "GroundTruthGenerator", "DatasetWriter", "ScenarioValidator"]
+}

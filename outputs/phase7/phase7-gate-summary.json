@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "openspecProgress": {
+    "complete": 71,
+    "total": 71,
+    "remaining": 0
+  },
+  "passedGates": {
+    "faultLabTests": {
+      "status": "PASS",
+      "tests": 50
+    },
+    "rcaReactor": {
+      "status": "PASS",
+      "modules": 8,
+      "tests": 243
+    },
+    "evaluationReactor": {
+      "status": "PASS",
+      "coreTests": 133,
+      "persistenceTests": 19,
+      "evaluationTests": 7
+    },
+    "agentIsolation": {
+      "status": "PASS",
+      "categories": ["文件", "环境变量与 Secret", "数据库", "API", "日志", "Prompt"]
+    },
+    "composeMigration": {
+      "status": "PASS",
+      "expectedVersion": "24",
+      "containerExitCode": 0,
+      "evidence": "数据库已迁移至 v24，产品、Agent 与 Evaluation 使用相同预期版本"
+    },
+    "realScenarioRuns": {
+      "status": "PASS",
+      "successfulRunsPerScenario": 2,
+      "totalSuccessfulRuns": 6,
+      "scenarios": ["dependency-latency-inventory", "database-pool-exhausted-order", "service-instance-stopped-inventory"]
+    },
+    "functionalE2E": {
+      "status": "PASS",
+      "runs": 3,
+      "rootCauseTop1MacroAverage": 1.0,
+      "citationValidityMacroAverage": 1.0,
+      "unsafeActionRate": 0.0
+    }
+  },
+  "blockingGates": [],
+  "releaseClaim": false,
+  "phase8FifteenRunClaim": false,
+  "phase8ReleaseRunsRequired": 15,
+  "phase8ReleaseThresholdSatisfied": false
+}

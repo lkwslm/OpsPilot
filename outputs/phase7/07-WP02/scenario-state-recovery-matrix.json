@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "command": "uv run --project fault-lab --python 3.11 pytest -q fault-lab/tests/test_runner.py fault-lab/tests/test_compose_isolation.py",
+  "tests": 22,
+  "covered": [
+    "ordered-success-path",
+    "reset-failure",
+    "health-check-failure",
+    "baseline-failure-blocks-injection",
+    "injection-failure",
+    "load-failure",
+    "collection-failure",
+    "recovery-failure",
+    "validation-failure",
+    "checkpoint-before-side-effect",
+    "cancellation-recovery-and-propagation",
+    "primary-and-recovery-failure-separated",
+    "export-failure-auditable",
+    "repeated-reset-idempotent",
+    "docker-control-isolation"
+  ],
+  "residualFaultsAfterTests": 0
+}

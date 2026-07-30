@@ -7,7 +7,9 @@ $secretDirectory = Join-Path $repositoryRoot '.tmp\secrets'
 $secretNames = @(
     'postgres-bootstrap-password.txt',
     'migrator-db-password.txt',
-    'runtime-db-password.txt'
+    'runtime-db-password.txt',
+    'fault-lab-db-password.txt',
+    'evaluation-db-password.txt'
 )
 
 New-Item -ItemType Directory -Path $secretDirectory -Force | Out-Null

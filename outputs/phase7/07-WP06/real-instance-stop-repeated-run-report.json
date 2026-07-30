@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "scenarioId": "service-instance-stopped-inventory",
+  "scenarioVersion": "1.0.0",
+  "environment": "真实 Compose、Prometheus、inventory/order/gateway 业务环境",
+  "frozenParameters": {
+    "baselineSeconds": 60,
+    "loadSeconds": 240,
+    "stopSeconds": 90,
+    "removeVolume": false,
+    "requestsPerSecond": 5
+  },
+  "rejectedAttempt": {
+    "datasetRunId": "8ce54794-3ab7-4fed-baa4-a0cfe1a1eb9f",
+    "status": "FAILED",
+    "errorCode": "SCENARIO_OUTCOME_INVALID",
+    "reason": "docker start 后 readiness 尚未恢复时过早开启恢复窗口，恢复成功率未达到门禁；该尝试未发布为有效数据集。",
+    "resolution": "等待 inventory readiness=UP 后再开启恢复窗口，并新增不可达、503、200 顺序的回归测试。"
+  },
+  "successfulRuns": [
+    {
+      "datasetRunId": "edbf2045-fffd-49ba-9e01-37f90816295b",
+      "manifestSha256": "12094551e6cc61a02c7bcb812b0e14b375063d695327f8ffebc6bea2b26b6be6",
+      "baseline": {"requests": 298, "successRate": 1.0, "readiness": "UP", "target": "UP", "p95Ms": 33.01495499908924},
+      "fault": {"connectionFailures": 450, "readiness": "DOWN", "targetDownSeconds": 90},
+      "recovery": {"requests": 744, "successRate": 1.0, "readiness": "UP", "target": "UP", "p95Ms": 393.3126109986915, "dataPreserved": true}
+    },
+    {
+      "datasetRunId": "1d04d805-cd18-43d1-aa3b-ce266c51e3f3",
+      "manifestSha256": "114e2e7a990e3be7d4bab49179e04d6f830477131e3cd6bb02af6f937a2f9ca1",
+      "baseline": {"requests": 298, "successRate": 1.0, "readiness": "UP", "target": "UP", "p95Ms": 27.235997004027013},
+      "fault": {"connectionFailures": 450, "readiness": "DOWN", "targetDownSeconds": 90},
+      "recovery": {"requests": 744, "successRate": 1.0, "readiness": "UP", "target": "UP", "p95Ms": 112.62274899490876, "dataPreserved": true}
+    }
+  ],
+  "volumeIdentity": {
+    "beforeAndAfterDigest": "061799b96e6d05b70cf67461243cb48f83e5a6b938b5acc5b019b0f2ce870606",
+    "unchanged": true
+  },
+  "groundTruthSha256": "084c932dcd8f75832ea2192d6663913f98bca3c6913d5e04dd7265a665cb609d",
+  "assertions": {
+    "realContainerStopped": "PASS",
+    "prometheusTargetDownAtLeast30Seconds": "PASS",
+    "sameContainerConfigurationRecovered": "PASS",
+    "volumeAndDataPreserved": "PASS",
+    "readinessAndBusinessRecoveryStable": "PASS",
+    "datasetValidator": "PASS"
+  }
+}

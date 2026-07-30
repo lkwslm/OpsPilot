@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "command": "uv run --project fault-lab --python 3.11 pytest -q fault-lab/tests/contracts",
+  "testsPassed": 8,
+  "contracts": ["scenario", "ground-truth", "rca", "evaluation-profile"],
+  "negativeCoverage": ["missing-field", "unknown-field", "unknown-version", "invalid-format"]
+}

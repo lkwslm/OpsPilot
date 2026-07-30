@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "functionalAcceptance": {
+    "scenarioCount": 3,
+    "runCounts": [1, 1, 1],
+    "rootCauseTop1AccuracyByScenario": [1.0, 1.0, 1.0],
+    "macroAverage": 1.0
+  },
+  "regressionFixture": {
+    "scenarioCount": 2,
+    "runCounts": [2, 1],
+    "rootCauseTop1AccuracyByScenario": [1.0, 0.0],
+    "macroAverage": 0.5
+  },
+  "assertion": "场景聚合按场景等权，不按 Run 数量加权；功能验收不替代阶段 08 的 15 Run 发布统计。"
+}

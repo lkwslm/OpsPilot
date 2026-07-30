@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "implementedChecks": [
+    "analysis-seal-and-generating-report-gate",
+    "repeatable-read-by-run-id-and-run-version",
+    "model-call-outside-read-transaction",
+    "stable-input-and-object-digests",
+    "citation-object-run-access-hash-window-and-code-validation",
+    "conclusive-partial-inconclusive-invariants",
+    "single-object-json-and-markdown-rendering",
+    "idempotent-rca-metadata-persistence"
+  ],
+  "focusedTest": {
+    "suite": "SupervisorEvidenceOrchestrationTest",
+    "tests": 13,
+    "failures": 0,
+    "errors": 0
+  },
+  "migrationRegression": {
+    "tests": 19,
+    "failures": 0,
+    "latestVersion": "20"
+  },
+  "reactorGate": {
+    "status": "PASS",
+    "command": ".\\mvnw.cmd -pl opspilot-core,opspilot-adapters/persistence-postgres,opspilot-server -am test",
+    "modules": 8,
+    "tests": 235,
+    "failures": 0,
+    "errors": 0,
+    "notes": [
+      "AgentScopeExecutionServiceTest 的超时预算已按真实 AgentScope 启动时延调整，3 项测试通过",
+      "ProductApiContractTest 的 RCA 测试夹具已补齐 V19 非空元数据，2 项测试通过",
+      "服务模块及全部前置模块均通过完整 Reactor 门禁"
+    ]
+  }
+}

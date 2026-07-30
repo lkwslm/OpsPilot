@@ -8,6 +8,7 @@ import io.github.opspilot.core.application.incident.SupervisorOrchestrationServi
 import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
 import io.github.opspilot.core.domain.identity.DomainIds.EvidenceId;
 import io.github.opspilot.core.domain.identity.DomainIds.HypothesisId;
+import io.github.opspilot.core.domain.identity.DomainIds.IncidentId;
 import io.github.opspilot.core.domain.identity.DomainIds.RunId;
 import io.github.opspilot.core.domain.identity.DomainIds.StepId;
 import io.github.opspilot.core.domain.state.StateMachines.IncidentRunState;
@@ -191,12 +192,21 @@ class SupervisorEvidenceOrchestrationTest {
     @Test
     void reportUsesOneSealedReadAndCallsModelOutsideTransaction() {
         RunId runId = new RunId(UUID.randomUUID());
+        IncidentId incidentId = new IncidentId(UUID.randomUUID());
         EvidenceId evidenceId = new EvidenceId(UUID.randomUUID());
+        ArtifactId artifactId = new ArtifactId(UUID.randomUUID());
+        HypothesisId hypothesisId = new HypothesisId(UUID.randomUUID());
         AtomicBoolean inTransaction = new AtomicBoolean();
         AtomicInteger reads = new AtomicInteger();
         RcaReportService.SealedAnalysis input = new RcaReportService.SealedAnalysis(
-                runId, 4, List.of(new RcaReportService.EvidenceView(evidenceId, "fact")),
-                List.of(), List.of(), List.of(), List.of("trace unavailable"));
+                incidentId, runId, 4, "GENERATING_REPORT", DEADLINE,
+                DEADLINE.minusSeconds(60), DEADLINE.plusSeconds(60),
+                List.of(new RcaReportService.EvidenceView(evidenceId, "db.pool.wait.high", "fact",
+                        artifactId, "a".repeat(64), true, DEADLINE)),
+                List.of(new RcaReportService.HypothesisView(hypothesisId, "pool saturated", "SUPPORTED", 0.9)),
+                List.of(new RcaReportService.RelationView(hypothesisId, evidenceId, "SUPPORTS")),
+                List.of(new RcaReportService.VerificationView(hypothesisId, evidenceId, "CONFIRMED", "check")),
+                List.of("trace unavailable"));
         var service = new RcaReportService((id, version) -> {
             inTransaction.set(true);
             reads.incrementAndGet();
@@ -204,9 +214,8 @@ class SupervisorEvidenceOrchestrationTest {
             return input;
         }, sealed -> {
             assertFalse(inTransaction.get());
-            return new RcaReportService.StructuredRca("DB_POOL_EXHAUSTED", "pool saturated",
-                    List.of(evidenceId), "PARTIAL");
-        }, new ObjectMapper());
+            return validRca(input, evidenceId, artifactId, hypothesisId);
+        }, new ObjectMapper().findAndRegisterModules());
 
         var first = service.generate(runId, 4);
         var retry = service.generate(runId, 4);
@@ -214,28 +223,94 @@ class SupervisorEvidenceOrchestrationTest {
         assertEquals(first.inputDigest(), retry.inputDigest());
         assertEquals(2, reads.get());
         assertSame(first.rca(), first.rca());
-        assertTrue(first.jsonArtifact().contains("DB_POOL_EXHAUSTED"));
-        assertTrue(first.markdownArtifact().contains("DB_POOL_EXHAUSTED"));
+        assertTrue(first.jsonArtifact().contains("database.pool_exhausted"));
+        assertTrue(first.markdownArtifact().contains("database.pool_exhausted"));
         assertFalse(first.jsonArtifact().contains("markdown"));
     }
 
     @Test
     void reportRejectsInventedEvidenceAndMissingRootCauseCode() {
         RunId runId = new RunId(UUID.randomUUID());
+        IncidentId incidentId = new IncidentId(UUID.randomUUID());
         EvidenceId evidenceId = new EvidenceId(UUID.randomUUID());
-        var input = new RcaReportService.SealedAnalysis(runId, 1,
-                List.of(new RcaReportService.EvidenceView(evidenceId, "fact")),
-                List.of(), List.of(), List.of(), List.of());
+        ArtifactId artifactId = new ArtifactId(UUID.randomUUID());
+        HypothesisId hypothesisId = new HypothesisId(UUID.randomUUID());
+        var input = new RcaReportService.SealedAnalysis(
+                incidentId, runId, 1, "GENERATING_REPORT", DEADLINE,
+                DEADLINE.minusSeconds(60), DEADLINE.plusSeconds(60),
+                List.of(new RcaReportService.EvidenceView(evidenceId, "db.pool.wait.high", "fact",
+                        artifactId, "b".repeat(64), true, DEADLINE)),
+                List.of(new RcaReportService.HypothesisView(hypothesisId, "cause", "SUPPORTED", 0.8)),
+                List.of(), List.of(), List.of());
         var invented = new RcaReportService((id, version) -> input,
-                ignored -> new RcaReportService.StructuredRca("ROOT", "summary",
-                        List.of(new EvidenceId(UUID.randomUUID())), "CONCLUSIVE"), new ObjectMapper());
+                ignored -> {
+                    var valid = validRca(input, evidenceId, artifactId, hypothesisId);
+                    return new RcaReportService.StructuredRca(
+                            valid.schemaVersion(), valid.incidentId(), valid.runId(), valid.summary(),
+                            valid.severity(), valid.outcome(), valid.rootCause(), valid.evidenceAssessment(),
+                            valid.hypotheses(), valid.actions(), List.of(new RcaReportService.Citation(
+                                    "root", UUID.randomUUID().toString(), "db.pool.wait.high",
+                                    artifactId.wire())), valid.limitations(), valid.generatedAt());
+                }, new ObjectMapper().findAndRegisterModules());
         var noCode = new RcaReportService((id, version) -> input,
-                ignored -> new RcaReportService.StructuredRca("", "summary",
-                        List.of(evidenceId), "CONCLUSIVE"), new ObjectMapper());
-        assertEquals("RCA_EVIDENCE_REFERENCE_INVALID",
+                ignored -> {
+                    var valid = validRca(input, evidenceId, artifactId, hypothesisId);
+                    return new RcaReportService.StructuredRca(
+                            valid.schemaVersion(), valid.incidentId(), valid.runId(), valid.summary(),
+                            valid.severity(), valid.outcome(), new RcaReportService.RootCause(
+                                    "", "cause", "order", 0.8, List.of(evidenceId.wire()), List.of()),
+                            valid.evidenceAssessment(), valid.hypotheses(), valid.actions(), valid.citations(),
+                            valid.limitations(), valid.generatedAt());
+                }, new ObjectMapper().findAndRegisterModules());
+        assertEquals("RCA_CITATION_INVALID",
                 assertThrows(IllegalArgumentException.class, () -> invented.generate(runId, 1)).getMessage());
-        assertEquals("RCA_ROOT_CAUSE_CODE_REQUIRED",
+        assertEquals("RCA_ROOT_CAUSE_CODE_INVALID",
                 assertThrows(IllegalArgumentException.class, () -> noCode.generate(runId, 1)).getMessage());
+    }
+
+    @Test
+    void insufficientEvidenceAllowsInconclusiveWithoutInventingRootCause() {
+        RunId runId = new RunId(UUID.randomUUID());
+        IncidentId incidentId = new IncidentId(UUID.randomUUID());
+        HypothesisId hypothesisId = new HypothesisId(UUID.randomUUID());
+        var input = new RcaReportService.SealedAnalysis(
+                incidentId, runId, 2, "GENERATING_REPORT", DEADLINE,
+                DEADLINE.minusSeconds(60), DEADLINE.plusSeconds(60), List.of(),
+                List.of(new RcaReportService.HypothesisView(hypothesisId, "unknown", "UNVERIFIED", 0.1)),
+                List.of(), List.of(), List.of("trace.unavailable"));
+        var service = new RcaReportService((id, version) -> input, ignored ->
+                new RcaReportService.StructuredRca(
+                        "1.0.0", incidentId.wire(), runId.wire(), "insufficient evidence",
+                        "HIGH", "INCONCLUSIVE", null,
+                        new RcaReportService.EvidenceAssessment(0, List.of("trace.unavailable"), List.of("trace")),
+                        List.of(new RcaReportService.HypothesisResult(
+                                hypothesisId.wire(), "unknown", "UNVERIFIED", 0.1, List.of(), List.of())),
+                        java.util.Map.of(
+                                "immediate", List.of(), "longTerm", List.of(), "monitoring", List.of(),
+                                "tests", List.of(), "humanNextSteps", List.of(), "rollback", List.of()),
+                        List.of(), List.of("trace unavailable"), DEADLINE),
+                new ObjectMapper().findAndRegisterModules());
+        assertEquals("INCONCLUSIVE", service.generate(runId, 2).rca().outcome());
+    }
+
+    private static RcaReportService.StructuredRca validRca(
+            RcaReportService.SealedAnalysis input, EvidenceId evidenceId,
+            ArtifactId artifactId, HypothesisId hypothesisId) {
+        return new RcaReportService.StructuredRca(
+                "1.0.0", input.incidentId().wire(), input.runId().wire(), "pool saturated",
+                "HIGH", "PARTIAL", new RcaReportService.RootCause(
+                        "database.pool_exhausted", "pool saturated", "order", 0.9,
+                        List.of(evidenceId.wire()), List.of()),
+                new RcaReportService.EvidenceAssessment(0.8, input.missingEvidence(), List.of()),
+                List.of(new RcaReportService.HypothesisResult(
+                        hypothesisId.wire(), "pool saturated", "SUPPORTED", 0.9,
+                        List.of(evidenceId.wire()), List.of())),
+                java.util.Map.of(
+                        "immediate", List.of(), "longTerm", List.of(), "monitoring", List.of(),
+                        "tests", List.of(), "humanNextSteps", List.of(), "rollback", List.of()),
+                List.of(new RcaReportService.Citation(
+                        "root", evidenceId.wire(), "db.pool.wait.high", artifactId.wire())),
+                List.of("trace unavailable"), DEADLINE);
     }
 
     private static SupervisorOrchestrationService.RunSnapshot snapshot(

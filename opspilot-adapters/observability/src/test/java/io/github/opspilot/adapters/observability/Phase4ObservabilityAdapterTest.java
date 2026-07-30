@@ -77,6 +77,23 @@ final class Phase4ObservabilityAdapterTest {
     }
 
     @Test
+    void jsonlExportPreservesTheOriginalSignalTypeForToolSelection() throws Exception {
+        Path export = temporary.resolve("mixed-observability.jsonl");
+        Files.writeString(export, """
+                {"timestamp":"2026-07-30T00:00:00Z","message":"slow span",\
+                 "sourceType":"TRACE","evidenceCode":"trace.order.inventory_span_latency_high"}
+                {"timestamp":"2026-07-30T00:00:01Z","message":"high latency",\
+                 "sourceType":"METRIC","evidenceCode":"metric.gateway.request_latency_high"}
+                """);
+
+        ObservationBatch batch = new JsonlLogAdapter(export)
+                .query(query("log/errors-v1", SignalType.LOG), context());
+
+        assertEquals(java.util.List.of(SignalType.TRACE, SignalType.METRIC),
+                batch.observations().stream().map(ObservationRecord::signalType).toList());
+    }
+
+    @Test
     void connectionRefIsResolvedOnlyAtExecutionBoundaryAndFailsClosedAcrossTargets() throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/health", exchange -> {

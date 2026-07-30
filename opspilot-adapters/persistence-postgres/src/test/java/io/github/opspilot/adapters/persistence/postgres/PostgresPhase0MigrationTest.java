@@ -78,7 +78,7 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-              assertEquals("18", queryString(connection,
+              assertEquals("24", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
@@ -89,6 +89,8 @@ final class PostgresPhase0MigrationTest {
                     "SELECT has_schema_privilege('evidence_agent_role', 'opspilot_a2a', 'USAGE')"));
             assertFalse(queryBoolean(connection,
                     "SELECT has_schema_privilege('evidence_agent_role', 'opspilot', 'USAGE')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_table_privilege('evaluation_role', 'opspilot.model_usage', 'SELECT')"));
         }
         assertThrows(ClassNotFoundException.class, () -> Class.forName("org.h2.Driver"));
     }
@@ -108,7 +110,10 @@ final class PostgresPhase0MigrationTest {
             statement.executeUpdate("INSERT INTO opspilot.agent_state VALUES ('" + runId + "','1.0','{\"schemaVersion\":\"1.0\",\"version\":1}',1,now())");
             statement.executeUpdate("INSERT INTO opspilot.artifact (artifact_id,run_id,uri,sha256,media_type,access_level,object_key,size_bytes) VALUES ('" + artifactId + "','" + runId + "','artifact://phase0','" + "a".repeat(64) + "','application/json','INTERNAL','" + artifactId + "',0)");
             statement.executeUpdate("INSERT INTO opspilot.evidence (evidence_id,run_id,summary,artifact_id) VALUES ('" + UUID.randomUUID() + "','" + runId + "','phase0 evidence','" + artifactId + "')");
-            statement.executeUpdate("INSERT INTO opspilot.evaluation_result (evaluation_id,run_id,metrics_json) VALUES ('" + UUID.randomUUID() + "','" + runId + "','{\"schemaVersion\":\"1.0.0\",\"score\":1}')");
+            statement.executeUpdate("INSERT INTO opspilot.evaluation_result "
+                    + "(evaluation_id,run_id,metrics_json,profile_id,profile_version) VALUES ('"
+                    + UUID.randomUUID() + "','" + runId
+                    + "','{\"schemaVersion\":\"1.0.0\",\"score\":1}','mvp-v1','1.0.0')");
             statement.executeUpdate("INSERT INTO opspilot_a2a.task (task_id,server_agent_id,message_id,request_hash,state,payload_json) VALUES ('task-1','evidence-collector','message-1','hash-1','SUBMITTED','{\"schemaVersion\":\"1.0.0\"}')");
             statement.executeUpdate("INSERT INTO opspilot_a2a.task_event (task_id,server_agent_id,event_type,payload_json) VALUES ('task-1','evidence-collector','SUBMITTED','{\"schemaVersion\":\"1.0.0\"}')");
             statement.executeUpdate("INSERT INTO opspilot_a2a.agent_runtime_state VALUES ('evidence-collector','opspilot-system','evidence-agent:task-1','1.0','{\"schemaVersion\":\"1.0\"}',1,now())");
@@ -189,7 +194,7 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("18", queryString(connection,
+            assertEquals("24", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));

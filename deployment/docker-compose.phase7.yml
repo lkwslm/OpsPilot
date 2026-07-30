@@ -1,0 +1,91 @@
+services:
+  postgres:
+    environment:
+      FAULT_LAB_PASSWORD_FILE: /run/secrets/fault-lab-db-password
+      EVALUATION_PASSWORD_FILE: /run/secrets/evaluation-db-password
+    secrets:
+      - fault-lab-db-password
+      - evaluation-db-password
+
+  evidence-agent:
+    environment:
+      SOURCE_PATH: /datasets/input/current/observability.jsonl
+
+  fault-lab:
+    image: opspilot-fault-lab:0.1.0
+    profiles: ["phase7"]
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.fault-lab
+    command: ["list"]
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_USERNAME: fault_lab_login
+      DB_PASSWORD_FILE: /run/secrets/fault-lab-db-password
+      JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
+      DATASET_ROOT: /datasets
+      AGENT_INPUT_EXPORT_DIR: /exports/agent-input
+      GROUND_TRUTH_EXPORT_DIR: /exports/ground-truth
+      TOXIPROXY_URL: http://toxiproxy:8474
+      SAMPLE_GATEWAY_URL: http://sample-gateway:8080
+      ORDER_SERVICE_URL: http://order-service:8080
+      INVENTORY_SERVICE_URL: http://inventory-service:8080
+      PROMETHEUS_URL: http://prometheus:9090
+      JAEGER_URL: http://jaeger-v1:16686
+      COMPOSE_PROJECT: opspilot-phase0
+      OPSPILOT_REPOSITORY_ROOT: /workspace
+    secrets: [fault-lab-db-password]
+    volumes:
+      - type: bind
+        source: ../.tmp/phase7-datasets
+        target: /datasets
+      - type: bind
+        source: ./agent-input
+        target: /exports/agent-input
+      - type: bind
+        source: ../.tmp/phase7-ground-truth
+        target: /exports/ground-truth
+      - type: bind
+        source: //var/run/docker.sock
+        target: /var/run/docker.sock
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+      sample-gateway:
+        condition: service_healthy
+    networks: [opspilot-backend]
+
+  evaluation:
+    image: opspilot-evaluation:0.1.0
+    profiles: ["phase7"]
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.phase0
+      target: evaluation-runtime
+    command: ["serve"]
+    restart: "no"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DB_USERNAME: evaluation_login
+      DB_PASSWORD_FILE: /run/secrets/evaluation-db-password
+      JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
+      GROUND_TRUTH_DIR: /datasets/ground-truth
+      OPSPILOT_EVALUATION_PROFILE: /app/config/evaluation-profile.yaml
+    secrets: [evaluation-db-password]
+    volumes:
+      - ../.tmp/phase7-ground-truth:/datasets/ground-truth:ro
+      - ../docs/design/contracts/profiles/mvp-v1.yaml:/app/config/evaluation-profile.yaml:ro
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    networks: [opspilot-backend]
+
+secrets:
+  fault-lab-db-password:
+    file: ../.tmp/secrets/fault-lab-db-password.txt
+  evaluation-db-password:
+    file: ../.tmp/secrets/evaluation-db-password.txt
