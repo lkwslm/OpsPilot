@@ -2,20 +2,20 @@ schema: spec-driven
 
 context: |
   项目：OpsPilot，本地可运行、可验证、可复现的智能运维演示系统。
-  当前变更只覆盖 docs/implementation-plan/05-real-providers-and-rag.md 定义的阶段 05。
+  当前变更只覆盖 docs/implementation-plan/07-fault-lab-rca-and-evaluation.md 定义的阶段 07。
   事实源优先级：docs/design/contracts/ 中的 OpenAPI 与 JSON Schema，其次为设计中的状态矩阵、不变量和模块边界，再其次为阶段计划。
-  本阶段实现 OpenAI-Compatible Chat、Infinity Embedding/Rerank、三个专用 Provider Registry、配置与真实能力探针、Context/Prompt/Token 预算、deadline/retry/bulkhead，以及文档版本、pgvector 精确召回、强制 Rerank、可核验引用和 active revision 原子切换的完整 RAG 链路。
-  本阶段不实现动态模型路由或自动 failover，不假定 Chat 端点支持 Embedding/Rerank，不使用生成模型冒充 Rerank，也不提供绕过 Rerank 的 MVP 开关；阶段 06 的 Agent/A2A 产品能力与阶段 07 的冻结故障场景不在范围内。
-  Provider、检索、知识版本、状态与预算合同必须通过共享合同测试、真实 DeepSeek-compatible/Infinity/pgvector 集成、固定中文质量基准、完整 RAG 性能测试及 secret scan 验证；不得用 Fake Provider 冒充真实集成或 E2E 通过。
+  本阶段实现 Python 3.11+ Fault Lab、可恢复场景状态机、可复现且隔离的数据集、三个冻结故障场景、确定性 Evidence Code/Ground Truth、封账 Run 的结构化 RCA，以及独立 Evaluation 进程和八类确定性指标。
+  本阶段不增加第四场景，不改变三个冻结场景的参数、required Evidence、Root Cause Code 或阈值，不允许 Agent 接触 Ground Truth/execution/卷凭证/Docker socket，不建立重复 RCA 输入快照，也不宣称完成阶段 08 的每场景 5 次发布聚合门禁。
+  Fault Lab、数据集、三个场景、Ground Truth、RCA 与 Evaluation 必须通过 Schema/单元、场景集成、恢复、隔离安全、三场景正常链路 E2E 和可复现性验证；不得使用 LLM-as-a-Judge、自然语言相似度、Mock 结果或未封账数据冒充确定性验收。
   文档、需求、场景、设计决策和任务说明统一使用中文；协议字段名、代码标识符、路径、命令及标准术语保留原文。
 
 rules:
   proposal:
-    - 明确阶段 05 的真实 Provider、模型运行约束、知识版本与完整 RAG 边界、非目标、前置门禁和可验证结果。
+    - 明确阶段 07 的 Fault Lab、数据集、三个冻结场景、Ground Truth、结构化 RCA 和确定性 Evaluation 边界、非目标、前置门禁和可验证结果。
   specs:
-    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的能力探针、Secret 边界、预算与 deadline、revision 一致性、强制 Rerank、空结果语义、引用可核验性和原子切换约束。
+    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的统一执行序列、finally 恢复、三时间窗、数据集与凭证隔离、三个场景冻结参数、Evidence Code 精确匹配、RCA 封账与同源渲染、八指标公式和 Evaluation 独立身份约束。
   design:
-    - 记录 05-WP01 至 05-WP09 的依赖、Provider Registry 与 Adapter 边界、配置快照、Context/预算中间件、知识导入与 revision 生命周期、检索/Rerank/Reference/Evidence 数据流、状态矩阵、真实集成门禁和阻塞条件，不扩展阶段范围。
+    - 记录 07-WP01 至 07-WP09 的依赖、Fault Lab 组件边界、runner/checkpoint/recovery 状态、数据集目录与身份隔离、三个场景的注入/负载/采集/恢复合同、Evidence Code/Ground Truth 数据流、RCA 封账查询与双格式渲染、Evaluation 进程/指标/去重/聚合和阻塞条件，不扩展阶段范围。
   tasks:
-    - 保留 05-WPxx.Tx 编号，任务必须能追溯到实施落点、验证命令或证据。
+    - 保留 07-WPxx.Tx 编号，任务必须能追溯到实施落点、验证命令或证据。
     - 使用未勾选复选框，不把规划工作误标为已完成。

@@ -12,9 +12,9 @@ final class SourceDescriptors {
     }
 
     static SourceDescriptor of(String sourceId, SourceKind kind, String adapterId,
-                               String connectionRef, SignalType capability) {
+                               String connectionRef, SignalType... capabilities) {
         return new SourceDescriptor(
                 sourceId, kind, adapterId, "1.0.0", connectionRef, "phase0",
-                Map.of("cluster", "sample-compose", "namespace", "opspilot"), Set.of(capability));
+                Map.of("cluster", "sample-compose", "namespace", "opspilot"), Set.of(capabilities));
     }
 }

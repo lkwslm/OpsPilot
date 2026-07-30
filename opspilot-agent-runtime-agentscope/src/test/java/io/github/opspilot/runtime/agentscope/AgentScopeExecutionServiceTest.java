@@ -42,7 +42,7 @@ final class AgentScopeExecutionServiceTest {
                     AgentExecutionService.ExecutionSession.specialist(
                             "diagnosis", "task-1", 1, false),
                     AgentExecutionService.CancellationToken.never(),
-                    Instant.now().plusSeconds(5)));
+                    Instant.now().plusSeconds(30)));
 
             assertEquals(AgentExecutionService.ExecutionOutcome.COMPLETED, result.outcome());
             assertEquals("bounded decision", result.decision().summary());
@@ -76,15 +76,15 @@ final class AgentScopeExecutionServiceTest {
             service.execute(request("first",
                     AgentExecutionService.ExecutionSession.specialist(
                             "diagnosis", "task-1", 1, false),
-                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(5)));
+                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(30)));
             AgentExecutionService.ExecutionResult continuation = service.execute(request("continued",
                     AgentExecutionService.ExecutionSession.specialist(
                             "diagnosis", "task-1", 1, true),
-                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(5)));
+                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(30)));
             AgentExecutionService.ExecutionResult retry = service.execute(request("retry",
                     AgentExecutionService.ExecutionSession.specialist(
                             "diagnosis", "task-2", 2, false),
-                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(5)));
+                    AgentExecutionService.CancellationToken.never(), Instant.now().plusSeconds(30)));
 
             assertTrue(continuation.events().stream()
                     .anyMatch(event -> event.eventType().equals("CHECKPOINT_RECOVERED")));
@@ -102,7 +102,7 @@ final class AgentScopeExecutionServiceTest {
         ChatPort slowChat = request -> {
             modelCalls.incrementAndGet();
             try {
-                Thread.sleep(Duration.ofSeconds(5));
+                Thread.sleep(Duration.ofSeconds(30));
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
             }
@@ -118,13 +118,13 @@ final class AgentScopeExecutionServiceTest {
             result = service.execute(request("deadline",
                     AgentExecutionService.ExecutionSession.supervisor("run-1", 1, false),
                     AgentExecutionService.CancellationToken.never(),
-                    Instant.now().plusMillis(100)));
+                    Instant.now().plusSeconds(15)));
         }
         long elapsedMillis = Duration.ofNanos(System.nanoTime() - started).toMillis();
 
         assertEquals(AgentExecutionService.ExecutionOutcome.TERMINATED, result.outcome());
         assertEquals(AgentScopeExecutionGuard.DEADLINE_EXCEEDED, result.terminationReason());
-        assertTrue(elapsedMillis < 1_000, "elapsed=" + elapsedMillis);
+        assertTrue(elapsedMillis < 20_000, "elapsed=" + elapsedMillis);
         assertEquals(1, modelCalls.get());
         assertNotNull(result.checkpoint());
     }

@@ -44,7 +44,7 @@ import org.postgresql.ds.PGSimpleDataSource;
 
 /** Minimal Phase 0 process used to prove the frozen six-process boundary. */
 public final class Phase0Process {
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = new ObjectMapper().findAndRegisterModules();
     private static final String PROTOCOL = "1.0";
     private static final String CHAT_MODEL = "deepseek-v4-flash";
     private static final String EMBEDDING_MODEL = "embedding-bge-small-zh-v1.5";
@@ -221,7 +221,7 @@ public final class Phase0Process {
     private static PostgresReadinessCheck databaseReadiness(
             Map<String, String> environment, PGSimpleDataSource dataSource) {
         return new PostgresReadinessCheck(dataSource,
-                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "18"),
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "24"),
                 environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 
@@ -285,6 +285,8 @@ public final class Phase0Process {
         copyHeader(exchange, request, "X-A2A-Task-Id");
         copyHeader(exchange, request, "X-Invocation-Id");
         copyHeader(exchange, request, "X-Fault-Mode");
+        copyHeader(exchange, request, "X-Window-Start");
+        copyHeader(exchange, request, "X-Window-End");
         try {
             HttpResponse<String> response = HttpClient.newHttpClient().send(
                     request.build(), HttpResponse.BodyHandlers.ofString());
@@ -295,6 +297,22 @@ public final class Phase0Process {
                 ChatResponse providerResponse = invokePhase6Provider(response.body());
                 persistPhase6VerticalSlice(dataSource, exchange, response.body(), providerResponse);
             }
+            if (response.statusCode() == 200 && "true".equalsIgnoreCase(
+                    exchange.getRequestHeaders().getFirst("X-Phase7-Acceptance"))) {
+                ChatResponse providerResponse = invokePhase6Provider(response.body());
+                var report = new Phase7AcceptanceService(dataSource, JSON).complete(
+                        headerUuid(exchange, "X-Incident-Id"), headerUuid(exchange, "X-Run-Id"),
+                        Instant.parse(requiredHeader(exchange, "X-Window-Start")),
+                        Instant.parse(requiredHeader(exchange, "X-Window-End")),
+                        response.body(), providerResponse);
+                json(exchange, 200, JSON.writeValueAsString(Map.of(
+                        "state", "COMPLETED",
+                        "runId", report.rca().runId(),
+                        "outcome", report.rca().outcome(),
+                        "rootCauseCode", report.rca().rootCause().rootCauseCode(),
+                        "rcaObjectDigest", report.objectDigest())));
+                return;
+            }
             copyResponseHeader(exchange, "X-Request-Id");
             copyResponseHeader(exchange, "Trace-Id");
             json(exchange, response.statusCode(), response.body());
@@ -302,6 +320,8 @@ public final class Phase0Process {
             Thread.currentThread().interrupt();
             json(exchange, 503, "{\"code\":\"A2A_CANCELLED\"}");
         } catch (Exception exception) {
+            System.err.printf("A2A_FAILURE type=%s message=%s%n",
+                    exception.getClass().getSimpleName(), escape(String.valueOf(exception.getMessage())));
             json(exchange, 503, "{\"code\":\"A2A_UNAVAILABLE\"}");
         }
     }
@@ -320,35 +340,45 @@ public final class Phase0Process {
             ResourceRef resource = new ResourceRef(
                     "service:sample-system", ResourceType.SERVICE, "sample-system", "sample-system",
                     "phase0", Map.of("composeService", "sample-system"));
+            Instant windowStart = optionalInstantHeader(
+                    exchange, "X-Window-Start", "2026-07-18T07:55:00Z");
+            Instant windowEnd = optionalInstantHeader(
+                    exchange, "X-Window-End", "2026-07-18T08:05:00Z");
             ObservationQuery query = new ObservationQuery(
                     "log/errors-v1", ObservationContracts.sha256("level=ERROR"),
-                    java.time.Instant.parse("2026-07-18T07:55:00Z"),
-                    java.time.Instant.parse("2026-07-18T08:05:00Z"), resource);
+                    windowStart, windowEnd, resource);
             var batch = new JsonlLogAdapter(identity.sourcePath).query(
                     query, SourceExecutionContext.authorizedUntil(java.time.Instant.now().plusSeconds(3)));
             var bundle = new RuntimeEvidenceNormalizer().normalizeRuntime(
                     java.util.List.of(batch), new NormalizationContext(incidentId, runId, stepId));
-            var evidence = bundle.evidence().getFirst();
             String taskId = UUID.randomUUID().toString();
-            json(exchange, 200, "{"
-                    + "\"taskId\":\"" + taskId + "\","
-                    + "\"state\":\"COMPLETED\","
-                    + "\"requestId\":\"" + escape(requestId) + "\","
-                    + "\"traceId\":\"" + escape(traceId) + "\","
-                    + "\"runId\":\"" + runId + "\","
-                    + "\"stepId\":\"" + stepId + "\","
-                    + "\"invocationId\":\"" + escape(invocationId) + "\","
-                    + "\"sourceId\":\"" + batch.source().sourceId() + "\","
-                    + "\"sourceAdapter\":\"" + batch.source().adapterId() + ":" + batch.source().adapterVersion() + "\","
-                    + "\"batchId\":\"" + batch.batchId() + "\","
-                    + "\"observationId\":\"" + batch.observations().getFirst().observationId() + "\","
-                    + "\"artifactId\":\"" + batch.rawArtifact().artifactId() + "\","
-                    + "\"artifactSha256\":\"" + batch.rawArtifact().sha256() + "\","
-                    + "\"evidenceId\":\"" + evidence.evidenceId() + "\","
-                    + "\"claim\":\"" + escape(evidence.claim()) + "\","
-                    + "\"commit\":\"" + escape(System.getenv().getOrDefault("SOURCE_COMMIT", "working-tree")) + "\","
-                    + "\"chatModelId\":\"" + CHAT_MODEL + "\"}");
+            var evidence = bundle.evidence().stream().map(value -> Map.of(
+                    "evidenceId", value.evidenceId().toString(),
+                    "evidenceCode", value.evidenceCode(),
+                    "claim", value.claim(),
+                    "signalType", value.signalType().name(),
+                    "observedAt", value.windowStart().toString())).toList();
+            json(exchange, 200, JSON.writeValueAsString(Map.ofEntries(
+                    Map.entry("taskId", taskId),
+                    Map.entry("state", "COMPLETED"),
+                    Map.entry("requestId", requestId),
+                    Map.entry("traceId", traceId),
+                    Map.entry("runId", runId.toString()),
+                    Map.entry("stepId", stepId.toString()),
+                    Map.entry("invocationId", invocationId),
+                    Map.entry("sourceId", batch.source().sourceId()),
+                    Map.entry("sourceAdapter", batch.source().adapterId() + ":" + batch.source().adapterVersion()),
+                    Map.entry("batchId", batch.batchId().toString()),
+                    Map.entry("artifactId", batch.rawArtifact().artifactId().toString()),
+                    Map.entry("artifactSha256", batch.rawArtifact().sha256()),
+                    Map.entry("evidenceId", bundle.evidence().getFirst().evidenceId().toString()),
+                    Map.entry("claim", bundle.evidence().getFirst().claim()),
+                    Map.entry("evidence", evidence),
+                    Map.entry("commit", System.getenv().getOrDefault("SOURCE_COMMIT", "working-tree")),
+                    Map.entry("chatModelId", CHAT_MODEL))));
         } catch (Exception exception) {
+            System.err.printf("EVIDENCE_COLLECTION_FAILURE type=%s message=%s%n",
+                    exception.getClass().getSimpleName(), escape(String.valueOf(exception.getMessage())));
             json(exchange, 503, "{\"code\":\"SOURCE_UNAVAILABLE\"}");
         }
     }
@@ -356,6 +386,17 @@ public final class Phase0Process {
     private static UUID headerUuid(HttpExchange exchange, String name) {
         String value = exchange.getRequestHeaders().getFirst(name);
         return value == null ? UUID.randomUUID() : UUID.fromString(value);
+    }
+
+    private static String requiredHeader(HttpExchange exchange, String name) {
+        String value = exchange.getRequestHeaders().getFirst(name);
+        if (value == null || value.isBlank()) throw new IllegalArgumentException("HEADER_MISSING:" + name);
+        return value;
+    }
+
+    private static Instant optionalInstantHeader(HttpExchange exchange, String name, String fallback) {
+        String value = exchange.getRequestHeaders().getFirst(name);
+        return Instant.parse(value == null || value.isBlank() ? fallback : value);
     }
 
     private static void copyHeader(HttpExchange exchange, HttpRequest.Builder request, String name) {
@@ -666,10 +707,11 @@ public final class Phase0Process {
                 .validateOnMigrate(true)
                 .load();
         var result = flyway.migrate();
-        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "18");
+        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "24");
         var current = flyway.info().current();
         if (current == null || !expectedVersion.equals(current.getVersion().toString())) {
-            throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE");
+            throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE expected=" + expectedVersion
+                    + " actual=" + (current == null ? "null" : current.getVersion()));
         }
         System.out.println("MIGRATION_SET_VALIDATED version=" + expectedVersion
                 + " migrations=" + result.migrationsExecuted);

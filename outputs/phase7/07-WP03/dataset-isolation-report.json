@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "command": "uv run --project fault-lab --python 3.11 pytest -q fault-lab/tests/test_dataset.py fault-lab/tests/test_compose_isolation.py",
+  "tests": 22,
+  "covered": ["sha256-tampering", "path-traversal", "symlink", "cross-run-json", "window-order", "ground-truth-volume-read-only", "agent-input-read-only", "same-environment-manifest-diff"],
+  "zones": ["input", "ground-truth", "execution"]
+}

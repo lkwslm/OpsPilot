@@ -1,5 +1,7 @@
 package io.github.opspilot.sample.order;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -7,6 +9,7 @@ import java.util.UUID;
 
 @RestController
 final class OrderController {
+    private static final Logger LOG = LoggerFactory.getLogger(OrderController.class);
     private final OrderApplicationService service;
 
     OrderController(OrderApplicationService service) {
@@ -22,6 +25,9 @@ final class OrderController {
             return ResponseEntity.status(201).body(service.create(request.sku(), request.quantity()));
         } catch (InventoryClient.InventoryFailure failure) {
             int status = failure.status() == 409 ? 409 : 503;
+            if (status == 503) {
+                LOG.error("error.code=INVENTORY_CONNECTION_FAILED downstream.service=inventory-service status={}", failure.status());
+            }
             return ResponseEntity.status(status).body(new ErrorResponse(
                     status == 409 ? "INVENTORY_CONFLICT" : "INVENTORY_UNAVAILABLE"));
         }

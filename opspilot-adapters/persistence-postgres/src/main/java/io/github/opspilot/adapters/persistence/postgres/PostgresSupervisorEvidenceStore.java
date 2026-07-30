@@ -23,8 +23,10 @@ import io.github.opspilot.core.application.incident.SupervisorOrchestrationServi
 import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.DelegationStore;
 import io.github.opspilot.core.domain.identity.DomainIds.EvidenceId;
 import io.github.opspilot.core.domain.identity.DomainIds.HypothesisId;
+import io.github.opspilot.core.domain.identity.DomainIds.IncidentId;
 import io.github.opspilot.core.domain.identity.DomainIds.RunId;
 import io.github.opspilot.core.domain.identity.DomainIds.StepId;
+import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
 
 import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
@@ -243,8 +245,10 @@ public final class PostgresSupervisorEvidenceStore
             connection.setReadOnly(true);
             connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             try {
-                assertSealedVersion(connection, runId, runVersion);
-                SealedAnalysis result = new SealedAnalysis(runId, runVersion,
+                SealedRunSnapshot sealed = readSealedVersion(connection, runId, runVersion);
+                SealedAnalysis result = new SealedAnalysis(
+                        sealed.incidentId(), runId, runVersion, sealed.status(), sealed.sealedAt(),
+                        sealed.startedAt(), sealed.endedAt(),
                         readEvidence(connection, runId), readHypotheses(connection, runId),
                         readRelations(connection, runId), readVerifications(connection, runId),
                         readMissing(connection, runId));
@@ -355,14 +359,20 @@ public final class PostgresSupervisorEvidenceStore
             throws SQLException {
         try (var statement = connection.prepareStatement("""
                 INSERT INTO opspilot.evidence
-                    (evidence_id, run_id, summary, artifact_id, attributes, source_type, source_id)
-                VALUES (?, ?, ?, ?, '{"schemaVersion":"1.0.0"}'::jsonb, 'ARTIFACT', ?)
+                    (evidence_id, run_id, evidence_code, summary, artifact_id, attributes,
+                     source_type, source_id, observed_at)
+                VALUES (?, ?, ?, ?, ?, '{"schemaVersion":"1.0.0"}'::jsonb,
+                        ?, ?, COALESCE(?, now()))
                 """)) {
             statement.setObject(1, evidence.evidenceId().value());
             statement.setObject(2, artifact.runId().value());
-            statement.setString(3, evidence.summary());
-            statement.setObject(4, artifact.artifactId().value());
-            statement.setString(5, artifact.sourceId());
+            statement.setString(3, evidence.evidenceCode());
+            statement.setString(4, evidence.summary());
+            statement.setObject(5, artifact.artifactId().value());
+            statement.setString(6, evidence.sourceType());
+            statement.setString(7, artifact.sourceId());
+            statement.setTimestamp(8, evidence.observedAt() == null
+                    ? null : Timestamp.from(evidence.observedAt()));
             statement.executeUpdate();
         }
     }
@@ -409,27 +419,44 @@ public final class PostgresSupervisorEvidenceStore
         }
     }
 
-    private static void assertSealedVersion(Connection connection, RunId runId, long version) throws SQLException {
+    private static SealedRunSnapshot readSealedVersion(Connection connection, RunId runId, long version)
+            throws SQLException {
         try (var statement = connection.prepareStatement("""
-                SELECT 1 FROM opspilot.incident_run
-                WHERE run_id = ? AND run_version = ? AND analysis_sealed_at IS NOT NULL
+                SELECT incident_id, status, analysis_sealed_at, started_at,
+                       COALESCE(ended_at, analysis_sealed_at)
+                FROM opspilot.incident_run
+                WHERE run_id = ? AND run_version = ? AND status = 'GENERATING_REPORT'
+                  AND analysis_sealed_at IS NOT NULL
                 """)) {
             statement.setObject(1, runId.value());
             statement.setLong(2, version);
             try (var result = statement.executeQuery()) {
                 if (!result.next()) throw new IllegalStateException("SEALED_RUN_VERSION_NOT_FOUND");
+                return new SealedRunSnapshot(
+                        new IncidentId(result.getObject(1, UUID.class)), result.getString(2),
+                        result.getTimestamp(3).toInstant(), result.getTimestamp(4).toInstant(),
+                        result.getTimestamp(5).toInstant());
             }
         }
     }
 
     private static List<EvidenceView> readEvidence(Connection connection, RunId runId) throws SQLException {
         List<EvidenceView> values = new ArrayList<>();
-        try (var statement = connection.prepareStatement(
-                "SELECT evidence_id, summary FROM opspilot.evidence WHERE run_id = ? ORDER BY evidence_id")) {
+        try (var statement = connection.prepareStatement("""
+                SELECT e.evidence_id, e.evidence_code, e.summary, e.artifact_id,
+                       a.sha256, a.access_level, e.observed_at
+                FROM opspilot.evidence e
+                LEFT JOIN opspilot.artifact a ON a.artifact_id = e.artifact_id
+                WHERE e.run_id = ? ORDER BY e.evidence_id
+                """)) {
             statement.setObject(1, runId.value());
             try (var result = statement.executeQuery()) {
                 while (result.next()) values.add(new EvidenceView(
-                        new EvidenceId(result.getObject(1, UUID.class)), result.getString(2)));
+                        new EvidenceId(result.getObject(1, UUID.class)), result.getString(2), result.getString(3),
+                        result.getObject(4) == null ? null : new ArtifactId(result.getObject(4, UUID.class)),
+                        result.getString(5), !"GROUND_TRUTH".equals(result.getString(6))
+                                && !"EVALUATION_ONLY".equals(result.getString(6)),
+                        result.getTimestamp(7) == null ? null : result.getTimestamp(7).toInstant()));
             }
         }
         return values;
@@ -438,13 +465,14 @@ public final class PostgresSupervisorEvidenceStore
     private static List<HypothesisView> readHypotheses(Connection connection, RunId runId) throws SQLException {
         List<HypothesisView> values = new ArrayList<>();
         try (var statement = connection.prepareStatement("""
-                SELECT hypothesis_id, statement, status FROM opspilot.hypothesis
+                SELECT hypothesis_id, statement, status, confidence FROM opspilot.hypothesis
                 WHERE run_id = ? ORDER BY hypothesis_id
                 """)) {
             statement.setObject(1, runId.value());
             try (var result = statement.executeQuery()) {
                 while (result.next()) values.add(new HypothesisView(
-                        new HypothesisId(result.getObject(1, UUID.class)), result.getString(2), result.getString(3)));
+                        new HypothesisId(result.getObject(1, UUID.class)), result.getString(2), result.getString(3),
+                        result.getDouble(4)));
             }
         }
         return values;
@@ -471,7 +499,7 @@ public final class PostgresSupervisorEvidenceStore
     private static List<VerificationView> readVerifications(Connection connection, RunId runId) throws SQLException {
         List<VerificationView> values = new ArrayList<>();
         try (var statement = connection.prepareStatement("""
-                SELECT v.hypothesis_id, v.evidence_id, v.result
+                SELECT v.hypothesis_id, v.evidence_id, v.result, v.summary
                 FROM opspilot.hypothesis_verification v
                 JOIN opspilot.hypothesis h ON h.hypothesis_id = v.hypothesis_id
                 WHERE h.run_id = ? ORDER BY v.verification_id
@@ -481,7 +509,7 @@ public final class PostgresSupervisorEvidenceStore
                 while (result.next()) values.add(new VerificationView(
                         new HypothesisId(result.getObject(1, UUID.class)),
                         result.getObject(2) == null ? null : new EvidenceId(result.getObject(2, UUID.class)),
-                        result.getString(3)));
+                        result.getString(3), result.getString(4)));
             }
         }
         return values;
@@ -515,6 +543,10 @@ public final class PostgresSupervisorEvidenceStore
             throw new IllegalStateException(code, exception);
         }
     }
+
+    private record SealedRunSnapshot(
+            IncidentId incidentId, String status, java.time.Instant sealedAt,
+            java.time.Instant startedAt, java.time.Instant endedAt) { }
 
     @FunctionalInterface
     private interface SqlWork<T> { T run(Connection connection) throws SQLException; }

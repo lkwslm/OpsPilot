@@ -125,11 +125,11 @@ final class PostgresPhase3AdapterTest {
 
     @Test
     void readinessRolesRlsAndSchemaGateFailClosed() throws Exception {
-        assertTrue(new PostgresReadinessCheck(dataSource, "18", "0.8.4").check().ready());
+        assertTrue(new PostgresReadinessCheck(dataSource, "24", "0.8.4").check().ready());
         assertEquals("FLYWAY_VERSION_MISMATCH",
                 new PostgresReadinessCheck(dataSource, "99", "0.8.4").check().reason());
         assertEquals("PGVECTOR_VERSION_MISMATCH",
-                new PostgresReadinessCheck(dataSource, "18", "99").check().reason());
+                new PostgresReadinessCheck(dataSource, "24", "99").check().reason());
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             assertFalse(queryBoolean(statement, """

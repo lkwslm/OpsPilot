@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "matrix": {
+    "file": {
+      "status": "PASS",
+      "evidence": "Diagnosis Agent 真实容器只能读取 /datasets/input；Ground Truth、execution 与 Docker socket 均不存在"
+    },
+    "environmentAndCredentials": {
+      "status": "PASS",
+      "evidence": "Agent 环境和 Secret 挂载不包含 Fault Lab 或 Evaluation 身份与凭证"
+    },
+    "database": {
+      "status": "PASS",
+      "evidence": "diagnosis_agent_login 查询 opspilot_eval.ground_truth 被拒绝；evaluation_login 可读但不可写"
+    },
+    "api": {
+      "status": "PASS",
+      "evidence": "产品 OpenAPI 不暴露 Ground Truth 或 Evaluation 服务端点"
+    },
+    "log": {
+      "status": "PASS",
+      "evidence": "Agent 运行时资源不包含受限目录或专用凭证路径"
+    },
+    "prompt": {
+      "status": "PASS",
+      "evidence": "Prompt 不含受限路径或凭证，并显式禁止索取或泄露 Ground Truth"
+    }
+  },
+  "automatedChecks": {
+    "command": "uv run --project fault-lab --python 3.11 pytest -q fault-lab/tests/test_compose_isolation.py",
+    "result": "3 passed"
+  },
+  "hardGate": "PASS"
+}

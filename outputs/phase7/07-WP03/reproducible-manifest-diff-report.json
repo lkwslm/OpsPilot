@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "sameInputs": [
+    "gitCommit",
+    "composeDigest",
+    "imageDigests",
+    "modelConfigDigest",
+    "scenarioId",
+    "scenarioVersion",
+    "seed",
+    "windows",
+    "artifacts"
+  ],
+  "expectedDifferences": ["datasetRunId"],
+  "unexpectedDifferences": [],
+  "assertion": "相同环境与 seed 的两次独立执行仅要求 Run 身份不同，环境摘要保持可比较"
+}

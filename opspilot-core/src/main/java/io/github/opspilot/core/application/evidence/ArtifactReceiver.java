@@ -143,7 +143,18 @@ public final class ArtifactReceiver {
         }
     }
 
-    public record EvidenceWrite(EvidenceId evidenceId, String summary) { }
+    public record EvidenceWrite(
+            EvidenceId evidenceId, String evidenceCode, String summary,
+            java.time.Instant observedAt, String sourceType) {
+        public EvidenceWrite(EvidenceId evidenceId, String evidenceCode, String summary,
+                java.time.Instant observedAt) {
+            this(evidenceId, evidenceCode, summary, observedAt, "ARTIFACT");
+        }
+        /** Compatibility constructor for pre-Phase-7 producers that do not yet emit a normalized code. */
+        public EvidenceWrite(EvidenceId evidenceId, String summary) {
+            this(evidenceId, null, summary, null, "ARTIFACT");
+        }
+    }
     public record HypothesisWrite(HypothesisId hypothesisId, String statement, List<EvidenceId> evidenceIds) {
         public HypothesisWrite { evidenceIds = List.copyOf(evidenceIds); }
     }

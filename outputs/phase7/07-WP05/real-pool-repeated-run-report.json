@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "scenarioId": "database-pool-exhausted-order",
+  "scenarioVersion": "1.0.0",
+  "environment": "真实 Sample、HikariCP、PostgreSQL、Prometheus 与业务请求环境",
+  "frozenParameters": {
+    "baselineSeconds": 60,
+    "loadSeconds": 240,
+    "faultWindowSeconds": 120,
+    "heldConnections": 4,
+    "holdSeconds": 90,
+    "maximumPoolSize": 4,
+    "connectionTimeoutMs": 2000
+  },
+  "successfulRuns": [
+    {
+      "datasetRunId": "457a8f45-bee0-4c9d-9cb4-2d5d727b9570",
+      "manifestSha256": "8014d664803fd9c30b1e052f75588d29b4966955bd88f40a915b1b0d380fa881",
+      "baseline": {"requests": 297, "successRate": 1.0, "active": 0, "pending": 0, "p95Ms": 64.00476199632976},
+      "fault": {"active": 4, "pending": 11, "saturatedSeconds": 90, "connectionTimeouts": 441, "postgresStopped": false},
+      "recovery": {"requests": 594, "successRate": 1.0, "active": 1, "pending": 0, "p95Ms": 27.63553900149418}
+    },
+    {
+      "datasetRunId": "ea0bc0b9-e72a-4e20-a483-404b9464acd3",
+      "manifestSha256": "b8d14592d6f8b05634d8b8c75580186d5a89e7d25fd0b16e3f20740ca03c6ecd",
+      "baseline": {"requests": 297, "successRate": 1.0, "active": 0, "pending": 0, "p95Ms": 24.117395005305298},
+      "fault": {"active": 4, "pending": 10, "saturatedSeconds": 90, "connectionTimeouts": 441, "postgresStopped": false},
+      "recovery": {"requests": 594, "successRate": 1.0, "active": 1, "pending": 0, "p95Ms": 83.9323769978364}
+    }
+  ],
+  "groundTruthSha256": "7050703aaf05cd31f6aeea4201bac882b8bcf0f882012fee4a67774df388e053",
+  "assertions": {
+    "poolReachedMaximum": "PASS",
+    "pendingPositiveForAtLeast15Seconds": "PASS",
+    "realConnectionTimeoutObserved": "PASS",
+    "sharedPostgresNeverStopped": "PASS",
+    "transactionsReleasedAndPoolRecovered": "PASS",
+    "datasetValidator": "PASS"
+  }
+}

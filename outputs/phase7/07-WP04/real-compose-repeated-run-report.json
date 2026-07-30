@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "scenarioId": "dependency-latency-inventory",
+  "scenarioVersion": "1.0.0",
+  "environment": "真实 Compose、Toxiproxy、OpenTelemetry、Jaeger 与 Sample 业务服务",
+  "frozenParameters": {
+    "baselineSeconds": 60,
+    "loadSeconds": 240,
+    "faultSeconds": 120,
+    "latencyMs": 3000,
+    "jitterMs": 100,
+    "requestsPerSecond": 5
+  },
+  "successfulRuns": [
+    {
+      "datasetRunId": "c15b12a5-7a50-4fe2-8c8d-8f5b510b658f",
+      "manifestSha256": "e0d126b0bd305fbc664a99e4476cff45b8457d3a39258e3392d748db8dcb76ba",
+      "baseline": {"requests": 298, "successRate": 1.0, "p95Ms": 25.04673899966292},
+      "fault": {"requests": 600, "successRate": 0.7566666666666667, "p95Ms": 4879.412773996592, "clientSpanP95Ms": 3094.587, "traceParentChildValid": true, "inventoryResourcesNormal": true},
+      "recovery": {"requests": 593, "successRate": 1.0, "p95Ms": 36.22026400262257, "toxicRemoved": true}
+    },
+    {
+      "datasetRunId": "a217b80c-41fb-4531-82c9-a961a628f26a",
+      "manifestSha256": "32316221713dcdbf8c115844a14e9517300f9d7189d2d804b488333f5e4d5a2e",
+      "baseline": {"requests": 298, "successRate": 1.0, "p95Ms": 60.17096499999752},
+      "fault": {"requests": 600, "successRate": 0.745, "p95Ms": 4944.349378005427, "clientSpanP95Ms": 3100.91, "traceParentChildValid": true, "inventoryResourcesNormal": true},
+      "recovery": {"requests": 592, "successRate": 1.0, "p95Ms": 28.833752003265545, "toxicRemoved": true}
+    }
+  ],
+  "groundTruthSha256": "d12448f73c09c8ec56d37c9549d59902debbf8ffb15c5419a0a1372f76df167b",
+  "assertions": {
+    "realToxicInjected": "PASS",
+    "clientSpanP95AtLeast2500Ms": "PASS",
+    "orderInventoryTraceTopology": "PASS",
+    "inventoryResourcesNormal": "PASS",
+    "toxicRemovedAndRecoveryStable": "PASS",
+    "datasetValidator": "PASS"
+  }
+}

@@ -159,9 +159,13 @@ final class ProductApiContractTest {
                 + artifactId + "','" + runId + "','artifact://report','" + "a".repeat(64)
                 + "','application/json','INTERNAL','" + artifactId + "',1)");
         execute("INSERT INTO opspilot.rca_report "
-                + "(report_id,run_id,report_artifact_id,report_json,report_markdown) VALUES ('"
+                + "(report_id,run_id,report_artifact_id,report_json,report_markdown,"
+                + "run_version,analysis_sealed_at,input_digest,object_digest) "
+                + "SELECT '"
                 + UUID.randomUUID() + "','" + runId + "','" + artifactId
-                + "','{\"schemaVersion\":\"1.0.0\",\"rootCauseCode\":\"DB_POOL\"}','# RCA')");
+                + "','{\"schemaVersion\":\"1.0.0\",\"rootCauseCode\":\"DB_POOL\"}','# RCA',"
+                + "run_version,analysis_sealed_at,'" + "b".repeat(64) + "','" + "c".repeat(64)
+                + "' FROM opspilot.incident_run WHERE run_id='" + runId + "'");
         assertEquals(200, get("/api/incidents/" + incidentId + "/report?runId=" + runId,
                 "tenant-a", Map.of("Accept", "application/json")).status());
         Response markdown = get("/api/incidents/" + incidentId + "/report?runId=" + runId,

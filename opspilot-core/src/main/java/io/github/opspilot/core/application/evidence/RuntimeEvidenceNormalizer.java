@@ -87,8 +87,10 @@ public final class RuntimeEvidenceNormalizer implements EvidenceNormalizer {
         }
 
         private Evidence evidence() {
+            String evidenceCode = String.valueOf(first.attributes().getOrDefault(
+                    "evidenceCode", first.signalType().name().toLowerCase(Locale.ROOT) + ".observed"));
             return new Evidence(
-                    evidenceId, first.signalType().name().toLowerCase(Locale.ROOT) + ".observed", "RUNTIME",
+                    evidenceId, evidenceCode, "RUNTIME",
                     first.signalType(), first.resource(), first.summary(), firstBatch.query().windowStart(),
                     firstBatch.query().windowEnd(), List.copyOf(artifacts), List.copyOf(provenance));
         }

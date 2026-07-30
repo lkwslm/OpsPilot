@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "scope": "阶段 07 功能验收",
+  "functionalRuns": 3,
+  "phase8ReleaseRunsRequired": 15,
+  "phase8ReleaseThresholdSatisfied": false,
+  "releaseClaim": false,
+  "runs": [
+    {
+      "scenarioId": "dependency-latency-inventory",
+      "datasetRunId": "a217b80c-41fb-4531-82c9-a961a628f26a",
+      "incidentId": "64852dcc-5dc9-40fe-9e67-d3729ca5d3c9",
+      "runId": "84ab518b-743e-4034-8963-74291ea68151",
+      "rootCauseCode": "dependency.latency.inventory",
+      "rcaObjectDigest": "7a0cff9383332f20e528670cce7d409fbd8fe41ec91e4acbd60ac4558b7d9088",
+      "evaluationResultDigest": "e95d10bfc11ba7b74ea553ff725b934180e0db414bff5ea4edc45e565d039eb4",
+      "metrics": {"rootCauseTop1": 1.0, "evidenceRecall": 1.0, "evidencePrecision": 1.0, "toolSelection": 1.0, "taskCompletion": 1.0, "unsafeActionRate": 0.0, "citationValidity": 1.0},
+      "efficiency": {"supervisorRounds": 1, "maxProfessionalAgentRounds": 1, "a2aAttempts": 1, "toolCalls": 2, "inputTokens": 44, "outputTokens": 98, "wallClockMillis": 299697},
+      "valid": true
+    },
+    {
+      "scenarioId": "database-pool-exhausted-order",
+      "datasetRunId": "ea0bc0b9-e72a-4e20-a483-404b9464acd3",
+      "incidentId": "293edd84-bc1f-41b5-83e8-f5e86ee61186",
+      "runId": "c90bd069-aa9f-4593-b1db-61e67559e9eb",
+      "rootCauseCode": "database.pool.exhausted.order",
+      "rcaObjectDigest": "5f1834865b66150153eb6c2b235392a5513a67d8ecf17d8269196642f959aca5",
+      "evaluationResultDigest": "7750239050c64fb9c545285ef6ba51e904c44f7f8e90e75caef8d7da31603fd9",
+      "metrics": {"rootCauseTop1": 1.0, "evidenceRecall": 1.0, "evidencePrecision": 1.0, "toolSelection": 1.0, "taskCompletion": 1.0, "unsafeActionRate": 0.0, "citationValidity": 1.0},
+      "efficiency": {"supervisorRounds": 1, "maxProfessionalAgentRounds": 1, "a2aAttempts": 1, "toolCalls": 3, "inputTokens": 38, "outputTokens": 107, "wallClockMillis": 299775},
+      "valid": true
+    },
+    {
+      "scenarioId": "service-instance-stopped-inventory",
+      "datasetRunId": "1d04d805-cd18-43d1-aa3b-ce266c51e3f3",
+      "incidentId": "9d44ed25-8a3d-41b1-a7a7-56d96cbc587d",
+      "runId": "65446eb5-8fc9-4960-8f6a-1d2ecde1ca1d",
+      "rootCauseCode": "service.instance.stopped.inventory",
+      "rcaObjectDigest": "a79fa038d11e5893d945f8cafdf3c6ca4aef297e56eca297da5b99fb0d6e495e",
+      "evaluationResultDigest": "de67f0254b7e42ebb081bbf96f54232a1f13403887725d13e8de85a6fb7804d7",
+      "metrics": {"rootCauseTop1": 1.0, "evidenceRecall": 1.0, "evidencePrecision": 1.0, "toolSelection": 1.0, "taskCompletion": 1.0, "unsafeActionRate": 0.0, "citationValidity": 1.0},
+      "efficiency": {"supervisorRounds": 1, "maxProfessionalAgentRounds": 1, "a2aAttempts": 1, "toolCalls": 3, "inputTokens": 31, "outputTokens": 75, "wallClockMillis": 300243},
+      "valid": true
+    }
+  ],
+  "hardGateFailures": [],
+  "conclusion": "三个冻结场景各完成一次真实 Fault Lab→Agent 调查→封账 RCA→独立 Evaluation 功能链路；该结论不代表阶段 08 的 15 Run 发布门禁已满足。"
+}

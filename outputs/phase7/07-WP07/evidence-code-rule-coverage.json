@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PASS",
+  "command": "uv run --project fault-lab --python 3.11 pytest -q fault-lab/tests/test_evidence.py",
+  "testsPassed": 7,
+  "matchingInputs": ["sourceType", "resourceId", "service", "utcWindow", "structuredPredicate"],
+  "matchingMode": "exact",
+  "modelOrTextSimilarityUsed": false,
+  "groundTruthExamples": [
+    "dependency-latency-inventory/1.0.0",
+    "database-pool-exhausted-order/1.0.0",
+    "service-instance-stopped-inventory/1.0.0"
+  ],
+  "groundTruthFileSha256": {
+    "database-pool-exhausted-order.json": "a20a9094493eba5e6d965cd8301cacf6d6b0c49f7e31c6291e75e1c1e1e255c5",
+    "dependency-latency-inventory.json": "98fc1eb5222d8cce9f63391bb072bcdea6a94cebb93ecff3f67da6d0f37c9c4f",
+    "service-instance-stopped-inventory.json": "6232a850b47348aa61ad655b554d95f419aa6f2e8d3109ccd9889c17f80f6c41"
+  }
+}
