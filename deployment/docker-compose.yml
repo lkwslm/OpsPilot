@@ -48,8 +48,8 @@ services:
       OPSPILOT_MIGRATOR_PASSWORD_FILE: /run/secrets/migrator-db-password
       OPSPILOT_APP_PASSWORD_FILE: /run/secrets/runtime-db-password
       SAMPLE_APP_PASSWORD_FILE: /run/secrets/runtime-db-password
-      FAULT_LAB_PASSWORD_FILE: /run/secrets/fault-lab-db-password
-      EVALUATION_PASSWORD_FILE: /run/secrets/evaluation-db-password
+      FAULT_LAB_PASSWORD_FILE: /run/secrets/runtime-db-password
+      EVALUATION_PASSWORD_FILE: /run/secrets/runtime-db-password
       EVIDENCE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
       CODE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
       KNOWLEDGE_AGENT_PASSWORD_FILE: /run/secrets/runtime-db-password
@@ -59,8 +59,6 @@ services:
       - postgres-bootstrap-password
       - migrator-db-password
       - runtime-db-password
-      - fault-lab-db-password
-      - evaluation-db-password
     volumes:
       - type: bind
         source: ./postgres/init
@@ -175,7 +173,7 @@ services:
       A2A_BASE_URL: http://evidence-agent:8081
       SERVICE_TOKEN_FILE: /run/secrets/evidence-agent-token
       DIRECTORY_PATH: /app/config/agent-directory.yaml
-      SOURCE_PATH: /datasets/input/current/observability.jsonl
+      SOURCE_PATH: /datasets/input/observability.jsonl
     secrets: [evidence-agent-token, runtime-db-password]
 
   code-agent:
@@ -265,79 +263,6 @@ services:
       SERVICE_TOKEN_FILE: /run/secrets/remediation-agent-token
       DIRECTORY_PATH: /app/config/agent-directory.yaml
     secrets: [remediation-agent-token, runtime-db-password]
-
-  fault-lab:
-    image: opspilot-fault-lab:0.1.0
-    profiles: ["phase7"]
-    build:
-      context: ..
-      dockerfile: deployment/Dockerfile.fault-lab
-    command: ["list"]
-    restart: "no"
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      DB_USERNAME: fault_lab_login
-      DB_PASSWORD_FILE: /run/secrets/fault-lab-db-password
-      JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
-      DATASET_ROOT: /datasets
-      AGENT_INPUT_EXPORT_DIR: /exports/agent-input
-      GROUND_TRUTH_EXPORT_DIR: /exports/ground-truth
-      TOXIPROXY_URL: http://toxiproxy:8474
-      SAMPLE_GATEWAY_URL: http://sample-gateway:8080
-      ORDER_SERVICE_URL: http://order-service:8080
-      INVENTORY_SERVICE_URL: http://inventory-service:8080
-      PROMETHEUS_URL: http://prometheus:9090
-      JAEGER_URL: http://jaeger-v1:16686
-      COMPOSE_PROJECT: opspilot-phase0
-      OPSPILOT_REPOSITORY_ROOT: /workspace
-    secrets: [fault-lab-db-password]
-    volumes:
-      - type: bind
-        source: ../.tmp/phase7-datasets
-        target: /datasets
-      - type: bind
-        source: ./agent-input
-        target: /exports/agent-input
-      - type: bind
-        source: ../.tmp/phase7-ground-truth
-        target: /exports/ground-truth
-      - type: bind
-        source: //var/run/docker.sock
-        target: /var/run/docker.sock
-    depends_on:
-      db-migrate:
-        condition: service_completed_successfully
-      sample-gateway:
-        condition: service_healthy
-    networks: [opspilot-backend]
-
-  evaluation:
-    image: opspilot-evaluation:0.1.0
-    profiles: ["phase7"]
-    build:
-      context: ..
-      dockerfile: deployment/Dockerfile.phase0
-      target: evaluation-runtime
-    command: ["serve"]
-    restart: "no"
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      DB_USERNAME: evaluation_login
-      DB_PASSWORD_FILE: /run/secrets/evaluation-db-password
-      JDBC_URL: jdbc:postgresql://postgres:5432/opspilot
-      GROUND_TRUTH_DIR: /datasets/ground-truth
-      OPSPILOT_EVALUATION_PROFILE: /app/config/evaluation-profile.yaml
-    secrets: [evaluation-db-password]
-    volumes:
-      - ../.tmp/phase7-ground-truth:/datasets/ground-truth:ro
-      - ../docs/design/contracts/profiles/mvp-v1.yaml:/app/config/evaluation-profile.yaml:ro
-    depends_on:
-      db-migrate:
-        condition: service_completed_successfully
-    networks: [opspilot-backend]
 
   jaeger-v1:
     image: jaegertracing/all-in-one@sha256:6279882637ae03e70f519965d2ba5ca84cb785f4baf4f0d7237e827a37c33a42
@@ -554,10 +479,6 @@ secrets:
     file: ../.tmp/secrets/migrator-db-password.txt
   runtime-db-password:
     file: ../.tmp/secrets/runtime-db-password.txt
-  fault-lab-db-password:
-    file: ../.tmp/secrets/fault-lab-db-password.txt
-  evaluation-db-password:
-    file: ../.tmp/secrets/evaluation-db-password.txt
   supervisor-service-token:
     file: ../.tmp/secrets/supervisor-service-token.txt
   evidence-agent-token:

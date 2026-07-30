@@ -26,8 +26,28 @@ def volumes(service: dict) -> str:
     return str(service.get("volumes", []))
 
 
+def merge_compose(base: dict, overlay: dict) -> dict:
+    merged = dict(base)
+    for key, value in overlay.items():
+        current = merged.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = merge_compose(current, value)
+        elif isinstance(current, list) and isinstance(value, list):
+            merged[key] = current + value
+        else:
+            merged[key] = value
+    return merged
+
+
+def load_phase7_compose() -> dict:
+    deployment = ROOT / "deployment"
+    base = yaml.safe_load((deployment / "docker-compose.yml").read_text(encoding="utf-8"))
+    overlay = yaml.safe_load((deployment / "docker-compose.phase7.yml").read_text(encoding="utf-8"))
+    return merge_compose(base, overlay)
+
+
 def test_only_fault_lab_has_docker_control_and_restricted_dataset_paths() -> None:
-    compose = yaml.safe_load((ROOT / "deployment" / "docker-compose.yml").read_text(encoding="utf-8"))
+    compose = load_phase7_compose()
     services = compose["services"]
     for name, service in services.items():
         mounts = volumes(service)
@@ -48,13 +68,13 @@ def test_only_fault_lab_has_docker_control_and_restricted_dataset_paths() -> Non
 
 
 def test_agent_input_is_read_only_for_all_agent_services() -> None:
-    compose = yaml.safe_load((ROOT / "deployment" / "docker-compose.yml").read_text(encoding="utf-8"))
+    compose = load_phase7_compose()
     for name in AGENT_SERVICES:
         assert "read_only" in volumes(compose["services"][name])
 
 
 def test_agent_ground_truth_access_matrix_is_fail_closed() -> None:
-    compose = yaml.safe_load((ROOT / "deployment" / "docker-compose.yml").read_text(encoding="utf-8"))
+    compose = load_phase7_compose()
     services = compose["services"]
 
     # 文件、环境变量和凭证：Agent 仅能看到只读 input，不能获得评测或故障实验身份。
