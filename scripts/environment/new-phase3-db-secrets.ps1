@@ -9,7 +9,9 @@ $secretNames = @(
     'migrator-db-password.txt',
     'runtime-db-password.txt',
     'fault-lab-db-password.txt',
-    'evaluation-db-password.txt'
+    'evaluation-db-password.txt',
+    'knowledge-control-db-password.txt',
+    'knowledge-control-token.txt'
 )
 
 New-Item -ItemType Directory -Path $secretDirectory -Force | Out-Null

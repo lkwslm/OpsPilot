@@ -15,7 +15,8 @@ New-Item -ItemType Directory -Force -Path $evidenceRoot, $secretDir | Out-Null
 $secretNames = @(
     "postgres-bootstrap-password", "migrator-db-password", "runtime-db-password",
     "supervisor-service-token", "evidence-agent-token", "code-agent-token",
-    "knowledge-agent-token", "diagnosis-agent-token", "remediation-agent-token"
+    "knowledge-agent-token", "diagnosis-agent-token", "remediation-agent-token",
+    "knowledge-control-db-password", "knowledge-control-token"
 )
 foreach ($name in $secretNames) {
     $path = Join-Path $secretDir "$name.txt"

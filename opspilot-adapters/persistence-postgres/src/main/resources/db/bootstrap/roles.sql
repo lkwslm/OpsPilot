@@ -12,6 +12,7 @@ BEGIN
         'evidence_agent_role',
         'code_agent_role',
         'knowledge_agent_role',
+        'knowledge_control_role',
         'diagnosis_agent_role',
         'remediation_agent_role'
     ]

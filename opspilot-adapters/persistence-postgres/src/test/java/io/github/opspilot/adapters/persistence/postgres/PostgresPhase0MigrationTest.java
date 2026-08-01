@@ -41,7 +41,8 @@ final class PostgresPhase0MigrationTest {
     private static final Set<String> ROLES = Set.of(
             "opspilot_migrator", "opspilot_app_role", "sample_app_role", "fault_lab_role",
             "evaluation_role", "professional_agent_role", "evidence_agent_role", "code_agent_role",
-            "knowledge_agent_role", "diagnosis_agent_role", "remediation_agent_role");
+            "knowledge_agent_role", "knowledge_control_role", "diagnosis_agent_role",
+            "remediation_agent_role");
     private static final Set<String> PHASE0_TABLES = Set.of(
             "opspilot.incident", "opspilot.incident_run", "opspilot.agent_state",
             "opspilot.artifact", "opspilot.evidence", "opspilot.evaluation_result",
@@ -78,13 +79,13 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-              assertEquals("35", queryString(connection,
+              assertEquals("36", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
                     "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('opspilot','opspilot_a2a','sample','opspilot_eval')"));
             assertEquals(ROLES, querySet(connection,
-                    "SELECT rolname FROM pg_roles WHERE rolname IN ('opspilot_migrator','opspilot_app_role','sample_app_role','fault_lab_role','evaluation_role','professional_agent_role','evidence_agent_role','code_agent_role','knowledge_agent_role','diagnosis_agent_role','remediation_agent_role')"));
+                    "SELECT rolname FROM pg_roles WHERE rolname IN ('opspilot_migrator','opspilot_app_role','sample_app_role','fault_lab_role','evaluation_role','professional_agent_role','evidence_agent_role','code_agent_role','knowledge_agent_role','knowledge_control_role','diagnosis_agent_role','remediation_agent_role')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_schema_privilege('evidence_agent_role', 'opspilot_a2a', 'USAGE')"));
             assertTrue(queryBoolean(connection,
@@ -96,6 +97,18 @@ final class PostgresPhase0MigrationTest {
                     "SELECT has_table_privilege('evaluation_role', 'opspilot.model_usage', 'SELECT')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_table_privilege('knowledge_agent_role', 'opspilot.model_revision', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_table_privilege('knowledge_control_role', "
+                            + "'opspilot.knowledge_revision', 'SELECT,INSERT,UPDATE')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_table_privilege('knowledge_control_role', "
+                            + "'opspilot.knowledge_activation_receipt', 'SELECT,INSERT,UPDATE')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('knowledge_control_role', "
+                            + "'opspilot.knowledge_revision', 'DELETE')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('fault_lab_role', "
+                            + "'opspilot.knowledge_activation_receipt', 'SELECT')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_function_privilege('fault_lab_role', "
                             + "'opspilot.read_release_run_identity(uuid,uuid)', 'EXECUTE')"));
@@ -231,7 +244,7 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("35", queryString(connection,
+            assertEquals("36", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
