@@ -60,7 +60,7 @@ final class PostgresKnowledgeRevisionControlAdapterTest {
     }
 
     @Test
-    void preparesActivatesAndRestoresImmutableRevisionThroughPublicPort() {
+    void preparesActivatesAndRestoresImmutableRevisionThroughPublicPort() throws Exception {
         var adapter = new PostgresKnowledgeRevisionControlAdapter(dataSource);
         UUID original = id("original-revision");
         UUID target = id("target-revision");
@@ -72,6 +72,13 @@ final class PostgresKnowledgeRevisionControlAdapterTest {
         assertEquals(original, adapter.findActiveRevision(COLLECTION).orElseThrow());
 
         assertEquals("READY", adapter.prepare(revision(target, "target", "b".repeat(64))).status());
+        assertEquals("controlled content target", queryString("""
+                SELECT chunk.metadata_json ->> 'text'
+                FROM opspilot.knowledge_chunk chunk
+                JOIN opspilot.knowledge_document_version version
+                  ON version.document_version_id=chunk.document_version_id
+                WHERE version.knowledge_revision_id='%s'
+                """.formatted(target)));
         var receipt = adapter.activate(
                 "activate-target-01", "fault-lab:phase8", COLLECTION, target, original,
                 NOW.plusSeconds(600), NOW.plusSeconds(10));
@@ -101,12 +108,36 @@ final class PostgresKnowledgeRevisionControlAdapterTest {
         assertEquals("KNOWLEDGE_CONTROL_ACTIVE_REVISION_CONFLICT", failure.getMessage());
     }
 
+    @Test
+    void prepareRenewsTheLeaseOfAnUnchangedRetainedRevision() {
+        var adapter = new PostgresKnowledgeRevisionControlAdapter(dataSource);
+        UUID revisionId = id("renewed-revision");
+        PreparedRevision expired = revision(
+                revisionId, "renewed", "d".repeat(64), "prepare-renewed-01", NOW.plusSeconds(10));
+        PreparedRevision renewed = revision(
+                revisionId, "renewed", "d".repeat(64), "prepare-renewed-02", NOW.plusSeconds(900));
+
+        adapter.prepare(expired);
+        assertEquals(NOW.plusSeconds(900), adapter.prepare(renewed).expiresAt());
+        UUID active = adapter.findActiveRevision(COLLECTION).orElse(null);
+        var receipt = adapter.activate(
+                "activate-renewed-01", "fault-lab:phase8", COLLECTION, revisionId, active,
+                NOW.plusSeconds(600), NOW.plusSeconds(20));
+
+        assertEquals(revisionId, receipt.activatedRevisionId());
+    }
+
     private static PreparedRevision revision(UUID revisionId, String key, String digest) {
+        return revision(revisionId, key, digest, "prepare-" + key + "-01", NOW.plusSeconds(900));
+    }
+
+    private static PreparedRevision revision(
+            UUID revisionId, String key, String digest, String operationId, Instant expiresAt) {
         UUID chunkId = id("chunk-" + key);
         return new PreparedRevision(
-                "prepare-" + key + "-01", "fault-lab:phase8", COLLECTION, revisionId,
+                operationId, "fault-lab:phase8", COLLECTION, revisionId,
                 "phase8/" + key + "/1.0.0", digest, MODEL_REVISION, "infinity-test-revision",
-                3, "COSINE", NOW.plusSeconds(900), List.of(new PreparedChunk(
+                3, "COSINE", expiresAt, List.of(new PreparedChunk(
                 chunkId, "document-" + key, "controlled content " + key,
                 sha256("controlled content " + key), Map.of("scenario", key),
                 List.copyOf(Set.of("knowledge-agent")), new float[]{1, 0, 0})));
@@ -131,6 +162,15 @@ final class PostgresKnowledgeRevisionControlAdapterTest {
         try (var stream = PostgresKnowledgeRevisionControlAdapterTest.class.getResourceAsStream(path)) {
             if (stream == null) throw new IllegalStateException("Missing resource " + path);
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    private static String queryString(String sql) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.createStatement();
+             var result = statement.executeQuery(sql)) {
+            result.next();
+            return result.getString(1);
         }
     }
 

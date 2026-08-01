@@ -85,6 +85,14 @@ public final class PostgresKnowledgeRevisionControlAdapter implements KnowledgeR
                             || !Objects.equals(status.manifestSha256(), revision.manifestSha256())) {
                         throw new ControlPersistenceException("KNOWLEDGE_CONTROL_REVISION_IMMUTABLE");
                     }
+                    if (("READY".equals(status.status()) || "RETAINED".equals(status.status()))
+                            && (status.expiresAt() == null
+                            || revision.expiresAt().isAfter(status.expiresAt()))) {
+                        renewRevisionLease(connection, revision);
+                        insertAudit(connection, revision.operationId(), revision.principalId(), "PREPARE",
+                                revision.collectionId(), revision.revisionId(), null, Instant.now());
+                        status = findRevision(connection, revision.revisionId()).orElseThrow();
+                    }
                     connection.commit();
                     return status;
                 }
@@ -310,7 +318,7 @@ public final class PostgresKnowledgeRevisionControlAdapter implements KnowledgeR
                              content_artifact_id, searchable, metadata_json, source_location, acl_json)
                         VALUES (?, ?, ?, ?, ?, false, ?::jsonb, ?, ?::jsonb)
                         """, chunk.chunkId(), versionId, ordinal++, chunk.contentSha256(), artifactId,
-                        metadataJson(chunk.metadata()), "knowledge-control://" + revision.revisionId()
+                        metadataJson(chunk.metadata(), chunk.text()), "knowledge-control://" + revision.revisionId()
                                 + "/" + chunk.chunkId(), aclJson(chunk.aclPrincipals()));
                 updateOne(connection, """
                         INSERT INTO opspilot.knowledge_embedding
@@ -320,6 +328,20 @@ public final class PostgresKnowledgeRevisionControlAdapter implements KnowledgeR
                         vectorLiteral(chunk.embedding()), chunk.contentSha256());
             }
         }
+    }
+
+    private static void renewRevisionLease(Connection connection, PreparedRevision revision)
+            throws SQLException {
+        updateOne(connection, """
+                UPDATE opspilot.knowledge_revision
+                SET expires_at = ?, retain_until = ?
+                WHERE knowledge_revision_id = ? AND status IN ('READY', 'RETAINED')
+                """, revision.expiresAt(), revision.expiresAt(), revision.revisionId());
+        updateAny(connection, """
+                UPDATE opspilot.knowledge_document_version
+                SET retain_until = ?
+                WHERE knowledge_revision_id = ? AND status IN ('READY', 'RETAINED')
+                """, revision.expiresAt(), revision.revisionId());
     }
 
     private static UUID insertArtifact(
@@ -530,10 +552,11 @@ public final class PostgresKnowledgeRevisionControlAdapter implements KnowledgeR
                 principalId, action, collectionId, revisionId, receiptId, occurredAt);
     }
 
-    private static String metadataJson(Map<String, String> metadata) {
+    private static String metadataJson(Map<String, String> metadata, String text) {
         Map<String, String> values = new LinkedHashMap<>();
         values.put("schemaVersion", "1.0.0");
         values.putAll(metadata);
+        values.put("text", text);
         return jsonObject(values);
     }
 

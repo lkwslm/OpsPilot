@@ -49,7 +49,22 @@ public final class KnowledgeRevisionControlService {
         validatePrepare(command);
         var existing = revisions.findPrepared(
                 command.collectionId(), command.revisionId(), command.manifestSha256());
-        if (existing.isPresent()) return existing.get();
+        if (existing.isPresent()) {
+            RevisionStatus status = existing.get();
+            if (!status.revisionKey().equals(command.revisionKey())
+                    || !status.modelRevisionId().equals(command.modelRevisionId())
+                    || !status.modelRevisionKey().equals(command.embeddingIdentity().revision())) {
+                throw new ControlException("KNOWLEDGE_CONTROL_REVISION_IMMUTABLE");
+            }
+            if (status.expiresAt() != null && !command.expiresAt().isAfter(status.expiresAt())) {
+                return status;
+            }
+            return revisions.prepare(new PreparedRevision(
+                    command.operationId(), command.principalId(), command.collectionId(),
+                    command.revisionId(), command.revisionKey(), command.manifestSha256(),
+                    command.modelRevisionId(), command.embeddingIdentity().revision(),
+                    command.embeddingDimension(), command.distanceMetric(), command.expiresAt(), List.of()));
+        }
 
         List<float[]> vectors = List.of();
         if (!command.chunks().isEmpty()) {

@@ -84,8 +84,8 @@ final class Phase7ProfessionalA2aHandler {
             write(exchange, 200, A2aJson.write(completed));
         } catch (Exception failure) {
             tasks.fail(created.task().taskId());
-            System.err.printf("A2A_AGENT_FAILURE agentId=%s type=%s%n",
-                    agentId, failure.getClass().getSimpleName());
+            System.err.printf("A2A_AGENT_FAILURE agentId=%s type=%s detail=%s%n",
+                    agentId, failure.getClass().getSimpleName(), diagnostic(failure));
             write(exchange, 500, "{\"error\":\"AGENT_EXECUTION_FAILED\"}");
         }
     }
@@ -177,6 +177,15 @@ final class Phase7ProfessionalA2aHandler {
     private static String required(String value, String name) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required");
         return value;
+    }
+
+    private static String diagnostic(Throwable failure) {
+        Throwable current = failure;
+        while (current.getCause() != null) current = current.getCause();
+        String message = current.getMessage();
+        if (message == null || message.isBlank()) return current.getClass().getSimpleName();
+        String normalized = message.replaceAll("[\\r\\n]+", " ");
+        return normalized.substring(0, Math.min(normalized.length(), 240));
     }
 
     private record CapabilityInvocation(

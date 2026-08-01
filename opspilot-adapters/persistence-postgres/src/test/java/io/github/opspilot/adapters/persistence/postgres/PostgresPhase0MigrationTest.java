@@ -79,7 +79,7 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-              assertEquals("36", queryString(connection,
+              assertEquals("38", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
@@ -97,6 +97,14 @@ final class PostgresPhase0MigrationTest {
                     "SELECT has_table_privilege('evaluation_role', 'opspilot.model_usage', 'SELECT')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_table_privilege('knowledge_agent_role', 'opspilot.model_revision', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_column_privilege('knowledge_agent_role', 'opspilot.incident', 'ticket_json', 'SELECT')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('knowledge_agent_role', 'opspilot.incident', 'INSERT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_column_privilege('knowledge_agent_role', 'opspilot.knowledge_reference', 'run_id', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_column_privilege('knowledge_agent_role', 'opspilot.knowledge_reference', 'knowledge_revision_id', 'SELECT')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_table_privilege('knowledge_control_role', "
                             + "'opspilot.knowledge_revision', 'SELECT,INSERT,UPDATE')"));
@@ -244,7 +252,7 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("36", queryString(connection,
+            assertEquals("38", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));

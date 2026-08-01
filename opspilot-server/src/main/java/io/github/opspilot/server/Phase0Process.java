@@ -175,6 +175,7 @@ public final class Phase0Process {
         controlDataSource.setUser(RuntimeIdentity.required(environment, "KNOWLEDGE_CONTROL_DB_USERNAME"));
         controlDataSource.setPassword(Files.readString(Path.of(RuntimeIdentity.required(
                 environment, "KNOWLEDGE_CONTROL_DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
+        controlDataSource.setOptions("-c role=knowledge_control_role");
         var revisions = new PostgresKnowledgeRevisionControlAdapter(controlDataSource);
         var embeddingIdentity = new ProviderIdentity(
                 "infinity", RuntimeIdentity.required(environment, "EMBEDDING_MODEL_ID"),

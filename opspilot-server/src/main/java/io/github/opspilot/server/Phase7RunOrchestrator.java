@@ -151,7 +151,8 @@ final class Phase7RunOrchestrator {
             }
             new Phase7AcceptanceService(dataSource, JSON).complete(
                     run.incidentId(), run.runId(), run.windowStart(), run.windowEnd(),
-                    artifacts.get("evidence-collector"), artifacts.get("diagnosis"),
+                    artifacts.get("evidence-collector"), artifacts.get("knowledge"),
+                    artifacts.get("diagnosis"),
                     artifacts.get("remediation"), actualTools, providerResponse);
         } catch (ProductRunWorker.ProductRunFailure failure) {
             throw failure;

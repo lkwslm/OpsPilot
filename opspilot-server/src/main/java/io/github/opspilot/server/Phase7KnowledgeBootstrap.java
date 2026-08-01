@@ -172,11 +172,11 @@ final class Phase7KnowledgeBootstrap {
                        JOIN opspilot.knowledge_revision revision
                          ON revision.knowledge_revision_id=collection.active_knowledge_revision_id
                        WHERE collection.collection_id=? AND revision.status='ACTIVE'
-                         AND revision.searchable AND revision.completed_chunk_count=?
+                         AND revision.searchable AND revision.coverage_status='COMPLETE'
+                         AND revision.completed_chunk_count=revision.expected_chunk_count
                      )
                      """)) {
             statement.setObject(1, COLLECTION_ID);
-            statement.setInt(2, PLAYBOOKS.size());
             try (var result = statement.executeQuery()) { result.next(); return result.getBoolean(1); }
         }
     }
