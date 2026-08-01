@@ -5,6 +5,7 @@
 !fault-lab/pyproject.toml
 !fault-lab/uv.lock
 !fault-lab/src/**
+!fault-lab/fixtures/**
 !docs/design/contracts/**
 !sample-system/
 !sample-system/**

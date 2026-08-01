@@ -58,7 +58,21 @@ class PostgresRunEvidenceReader:
 
     def export(self, run_id: str, output_root: Path) -> dict[str, Any]:
         values = self._read(run_id)
-        _validate_projection(values)
+        return self._export(run_id, output_root, values, _validate_projection)
+
+    def export_empty_outcome(self, run_id: str, output_root: Path) -> dict[str, Any]:
+        """Export complete evidence while allowing intentional KB_EMPTY/NO_MATCH results."""
+        values = self._read(run_id)
+        return self._export(run_id, output_root, values, _validate_empty_outcome_projection)
+
+    @staticmethod
+    def _export(
+        run_id: str,
+        output_root: Path,
+        values: Mapping[str, Any],
+        validator: Callable[[Mapping[str, Any]], None],
+    ) -> dict[str, Any]:
+        validator(values)
         target = output_root.resolve() / run_id
         if target.exists():
             raise ContractError(ReleaseErrorCode.QUALITY_EVIDENCE_EXISTS.value, run_id)
@@ -79,10 +93,10 @@ class PostgresRunEvidenceReader:
             os.replace(staging, target)
             for path in target.iterdir():
                 path.chmod(0o444)
-            return {
-                "artifacts": artifacts,
-                "executionIntegrity": _execution_integrity(values["a2a-calls"]),
-            }
+            exported = {"artifacts": artifacts}
+            if validator is _validate_projection:
+                exported["executionIntegrity"] = _execution_integrity(values["a2a-calls"])
+            return exported
         except BaseException:
             shutil.rmtree(staging, ignore_errors=True)
             raise
@@ -317,6 +331,44 @@ def _validate_projection(values: Mapping[str, Any]) -> None:
             "incomplete release evidence projection",
         )
     _execution_integrity(values["a2a-calls"])
+
+
+def _validate_empty_outcome_projection(values: Mapping[str, Any]) -> None:
+    evaluation = values.get("evaluation")
+    a2a = values.get("a2a-calls")
+    tasks = a2a.get("tasks") if isinstance(a2a, Mapping) else None
+    knowledge = next(
+        (
+            task.get("artifact")
+            for task in tasks or []
+            if isinstance(task, Mapping)
+            and task.get("agentId") == "knowledge"
+            and task.get("state") == "COMPLETED"
+        ),
+        None,
+    )
+    valid = (
+        set(values) == set(REQUIRED_RUN_EVIDENCE)
+        and isinstance(values.get("rca-json"), Mapping)
+        and isinstance(values.get("rca-markdown"), str)
+        and bool(values["rca-markdown"].strip())
+        and isinstance(evaluation, Mapping)
+        and evaluation.get("status") == "COMPLETED"
+        and isinstance(evaluation.get("report"), Mapping)
+        and isinstance(values.get("provider-calls"), list)
+        and len(values["provider-calls"]) >= 6
+        and isinstance(values.get("tool-calls"), list)
+        and isinstance(values.get("usage-ledger"), list)
+        and isinstance(tasks, list)
+        and isinstance(knowledge, Mapping)
+        and knowledge.get("outcome") in {"KB_EMPTY", "NO_MATCH", "MATCH"}
+        and knowledge.get("knowledgeRevisionId")
+    )
+    if not valid:
+        raise ContractError(
+            ReleaseErrorCode.QUALITY_EVIDENCE_INVALID.value,
+            "incomplete empty-outcome evidence projection",
+        )
 
 
 def _execution_integrity(value: Any) -> dict[str, bool]:

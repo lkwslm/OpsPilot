@@ -15,6 +15,9 @@ from .model import ReleaseErrorCode, RunPurpose
 _CASE_KINDS = {"KB_EMPTY", "NO_MATCH", "INSUFFICIENT_HISTORY"}
 _DIGEST = re.compile(r"^[0-9a-f]{64}$")
 _ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,95}$")
+_REVISION_KEY = re.compile(
+    r"^phase8-empty-outcome/[0-9]+\.[0-9]+\.[0-9]+/[a-z0-9][a-z0-9-]{2,95}$"
+)
 _FILTER_KEYS = {"language", "service", "documentType", "tag", "relation"}
 _SOURCE_KINDS = {"FILE", "PROMETHEUS", "JAEGER", "HTTP", "DATABASE"}
 _CALL_KEYS = {
@@ -170,6 +173,7 @@ class EmptyOutcomeManifest:
             "revisionId",
             "revisionKey",
             "searchableChunkCount",
+            "chunks",
         }:
             _invalid("knowledge")
         try:
@@ -182,12 +186,45 @@ class EmptyOutcomeManifest:
         revisions.add(value["revisionId"])
         if (
             not isinstance(value["revisionKey"], str)
-            or not value["revisionKey"].startswith("phase8-empty-outcome/1.0.0/")
+            or not _REVISION_KEY.fullmatch(value["revisionKey"])
             or not isinstance(value["searchableChunkCount"], int)
             or isinstance(value["searchableChunkCount"], bool)
             or value["searchableChunkCount"] < 0
         ):
             _invalid("knowledge revision")
+        chunks = value["chunks"]
+        if not isinstance(chunks, list) or len(chunks) != value["searchableChunkCount"]:
+            _invalid("knowledge chunks")
+        chunk_ids: set[str] = set()
+        external_keys: set[str] = set()
+        for chunk in chunks:
+            if not isinstance(chunk, Mapping) or set(chunk) != {
+                "chunkId", "externalKey", "text", "metadata", "aclPrincipals"
+            }:
+                _invalid("knowledge chunk fields")
+            try:
+                UUID(chunk["chunkId"])
+            except (ValueError, TypeError, AttributeError):
+                _invalid("knowledge chunk identity")
+            metadata = chunk["metadata"]
+            principals = chunk["aclPrincipals"]
+            if (
+                chunk["chunkId"] in chunk_ids
+                or not isinstance(chunk["externalKey"], str)
+                or not chunk["externalKey"].strip()
+                or chunk["externalKey"] in external_keys
+                or not isinstance(chunk["text"], str)
+                or not chunk["text"].strip()
+                or not isinstance(metadata, Mapping)
+                or not set(metadata).issubset(_FILTER_KEYS)
+                or not all(isinstance(item, str) and item.strip() for item in metadata.values())
+                or not isinstance(principals, list)
+                or not principals
+                or not all(isinstance(item, str) and item.strip() for item in principals)
+            ):
+                _invalid("knowledge chunk values")
+            chunk_ids.add(chunk["chunkId"])
+            external_keys.add(chunk["externalKey"])
 
     @staticmethod
     def _validate_query(value: Any) -> None:

@@ -32,7 +32,7 @@
 - [x] 3.4 `08-WP03.T1` 实现现场 Evidence 可用但历史案例为 0 的 case，断言零历史为正常业务结果并保留 Knowledge 调用轨迹。
 - [x] 3.5 `08-WP03.T2` 增加预算与状态断言，验证三类 Run 在冻结 rounds、Tool/A2A、时长和 Token 上限内形成 `CONCLUSIVE|PARTIAL|INCONCLUSIVE`，且限制与 `missingEvidence` 一致。
 - [x] 3.6 `08-WP03.T3` 增加 RCA/Citation 负向测试，覆盖无证据时 `INCONCLUSIVE/rootCause=null/notApplicable`、事实性结论无引用、跨 Run 引用和伪造 evidenceCode。
-- [ ] 3.7 `08-WP03.T1-T3` 通过复用通用 Knowledge revision 生命周期的内部 control-plane adapter（不得直接写表或建立 fixture 专用状态机）准备并切换三个测试 revision，运行三类独立真实 E2E，输出调用轨迹、状态、RCA、Evaluation 与 `outputs/phase8/08-WP03/empty-outcome-matrix.json`，使用恢复凭据还原原 revision，并证明这些 Run 未进入 15 Run 分母。
+- [x] 3.7 `08-WP03.T1-T3` 通过复用通用 Knowledge revision 生命周期的内部 control-plane adapter（不得直接写表或建立 fixture 专用状态机）准备并切换三个测试 revision，运行三类独立真实 E2E，输出调用轨迹、状态、RCA、Evaluation 与 `outputs/phase8/08-WP03/empty-outcome-matrix.json`，使用恢复凭据还原原 revision，并证明这些 Run 未进入 15 Run 分母。
 
 ## 4. 08-WP04：执行技术失败与关键性矩阵
 

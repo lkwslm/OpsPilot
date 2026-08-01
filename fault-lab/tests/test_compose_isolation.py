@@ -63,7 +63,10 @@ def test_only_fault_lab_has_docker_control_and_restricted_dataset_paths() -> Non
     assert ":ro" in volumes(services["evaluation"])
     assert services["fault-lab"]["environment"]["DB_USERNAME"] == "fault_lab_login"
     assert services["evaluation"]["environment"]["DB_USERNAME"] == "evaluation_login"
-    assert services["fault-lab"]["secrets"] == ["fault-lab-db-password"]
+    assert services["fault-lab"]["secrets"] == [
+        "fault-lab-db-password",
+        "knowledge-control-token",
+    ]
     assert services["evaluation"]["secrets"] == ["evaluation-db-password"]
 
 

@@ -36,6 +36,12 @@ def test_loads_three_versioned_empty_outcome_cases() -> None:
         "INSUFFICIENT_HISTORY",
     }
     assert len({case["knowledge"]["revisionId"] for case in document["cases"]}) == 3
+    assert len({case["knowledge"]["collectionId"] for case in document["cases"]}) == 1
+    assert all(
+        len(case["knowledge"]["chunks"])
+        == case["knowledge"]["searchableChunkCount"]
+        for case in document["cases"]
+    )
     assert all(case["query"]["text"] for case in document["cases"])
     assert all(case["fieldEvidence"] for case in document["cases"])
 
@@ -57,10 +63,14 @@ def test_loads_three_versioned_empty_outcome_cases() -> None:
         lambda value: value["cases"].pop(),
         lambda value: value["cases"][1].update(caseKind="KB_EMPTY"),
         lambda value: value["cases"][0]["knowledge"].update(revisionId="mutable"),
+        lambda value: value["cases"][1]["knowledge"]["chunks"].pop(),
         lambda value: value["cases"][1]["expectations"]["calls"].update(rerank=1),
         lambda value: value["cases"][2].update(rootCauseCode="forbidden.answer"),
     ],
-    ids=("missing-case", "duplicate-kind", "mutable-revision", "unexpected-rerank", "ground-truth"),
+    ids=(
+        "missing-case", "duplicate-kind", "mutable-revision", "chunk-count",
+        "unexpected-rerank", "ground-truth",
+    ),
 )
 def test_rejects_incomplete_drifting_or_ground_truth_fixture(change) -> None:
     document = EmptyOutcomeManifest.load(MANIFEST).document

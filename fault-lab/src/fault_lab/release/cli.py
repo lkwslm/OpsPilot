@@ -12,6 +12,8 @@ import yaml
 from ..contracts import ContractError
 from ..product import ProductInvestigationClient
 from .baseline import BaselineRunner, PostgresBaselineUsageReader
+from .empty_outcome import EmptyOutcomeManifest
+from .empty_outcome_run import EmptyOutcomeRunner, KnowledgeControlPlaneClient
 from .ledger import RunLedger
 from .model import ReleaseErrorCode, ReleaseStatus, RunPurpose
 from .quality import QualityBatchPlanner
@@ -72,6 +74,7 @@ def add_release_parser(subcommands: Any) -> None:
                 choices=[purpose.value for purpose in RunPurpose],
             )
             workflow.add_argument("--snapshot", type=Path)
+            workflow.add_argument("--ticket", type=Path)
             workflow.add_argument("--wp01-gate", type=Path)
             workflow.add_argument("--evaluation-profile", type=Path)
             workflow.add_argument("--dataset-map", type=Path)
@@ -104,6 +107,18 @@ def add_release_parser(subcommands: Any) -> None:
                 default=os.environ.get("COMPOSE_PROJECT", "opspilot-phase0"),
             )
             workflow.add_argument("--deadline-seconds", type=int, default=600)
+            workflow.add_argument("--empty-outcome-manifest", type=Path)
+            workflow.add_argument("--quality-run-report", type=Path)
+            workflow.add_argument(
+                "--knowledge-control-url",
+                default=os.environ.get("KNOWLEDGE_CONTROL_URL"),
+            )
+            workflow.add_argument(
+                "--knowledge-control-token-file",
+                type=Path,
+                default=Path(os.environ["KNOWLEDGE_CONTROL_TOKEN_FILE"])
+                if os.environ.get("KNOWLEDGE_CONTROL_TOKEN_FILE") else None,
+            )
 
 
 def run_release_command(args: argparse.Namespace) -> int:
@@ -111,6 +126,8 @@ def run_release_command(args: argparse.Namespace) -> int:
         return _run_baseline(args)
     if args.release_command == "run" and args.run_purpose == RunPurpose.RELEASE_QUALITY.value:
         return _run_quality(args)
+    if args.release_command == "run" and args.run_purpose == RunPurpose.EMPTY_OUTCOME.value:
+        return _run_empty_outcome(args)
     payload = {
         "releaseBatchId": args.release_batch_id,
         "runPurpose": (
@@ -225,6 +242,58 @@ def _run_quality(args: argparse.Namespace) -> int:
     return 2 if report["status"] == ReleaseStatus.BLOCKED.value else 1
 
 
+def _run_empty_outcome(args: argparse.Namespace) -> int:
+    required = (
+        ("ticket", args.ticket),
+        ("evaluation-profile", args.evaluation_profile),
+        ("empty-outcome-manifest", args.empty_outcome_manifest),
+        ("quality-run-report", args.quality_run_report),
+        ("product-api", args.product_api),
+        ("jdbc-url", args.jdbc_url),
+        ("db-username", args.db_username),
+        ("db-password-file", args.db_password_file),
+        ("knowledge-control-url", args.knowledge_control_url),
+        ("knowledge-control-token-file", args.knowledge_control_token_file),
+    )
+    missing = [name for name, value in required if value is None or value == ""]
+    if missing:
+        return _blocked_empty_outcome(args.release_batch_id, ",".join(missing))
+    try:
+        report = EmptyOutcomeRunner(
+            KnowledgeControlPlaneClient(
+                args.knowledge_control_url,
+                args.knowledge_control_token_file,
+            ),
+            ProductInvestigationClient(args.product_api, principal="fault-lab:phase8"),
+            PostgresRunEvidenceReader(
+                args.jdbc_url,
+                args.db_username,
+                args.db_password_file,
+            ),
+            args.output_root,
+        ).execute(
+            args.release_batch_id,
+            EmptyOutcomeManifest.load(args.empty_outcome_manifest),
+            _json_document(args.ticket),
+            _yaml_document(args.evaluation_profile),
+            args.quality_run_report,
+            deadline_seconds=args.deadline_seconds,
+        )
+    except ContractError as exc:
+        payload = {
+            "releaseBatchId": args.release_batch_id,
+            "runPurpose": RunPurpose.EMPTY_OUTCOME.value,
+            "status": ReleaseStatus.FAILED.value,
+            "errorCode": exc.code,
+            "detail": exc.detail,
+            "workflow": "run",
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        return 1
+    print(json.dumps(report, ensure_ascii=False))
+    return 0
+
+
 def _run_baseline(args: argparse.Namespace) -> int:
     missing = [
         name
@@ -325,4 +394,16 @@ def _blocked_quality(release_batch_id: str, detail: str) -> int:
             ensure_ascii=False,
         )
     )
+    return 2
+
+
+def _blocked_empty_outcome(release_batch_id: str, detail: str) -> int:
+    print(json.dumps({
+        "releaseBatchId": release_batch_id,
+        "runPurpose": RunPurpose.EMPTY_OUTCOME.value,
+        "status": ReleaseStatus.BLOCKED.value,
+        "errorCode": ReleaseErrorCode.PREREQUISITE_UNAVAILABLE.value,
+        "workflow": "run",
+        "missing": detail,
+    }, ensure_ascii=False))
     return 2
