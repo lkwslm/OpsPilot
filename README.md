@@ -8,15 +8,16 @@ OpsPilot 将日志、指标、Trace、健康状态、配置和拓扑等现场信
 
 ## 当前状态
 
-- **已完成 Phase 0–6：** 工程基础、内聚核心、PostgreSQL 持久化、Sample System 与可观测链路、真实模型与 RAG、AgentScope 运行时、A2A 多 Agent 协作和产品 API。
-- **正在规划 Phase 7：** Fault Lab、三个真实故障场景、结构化 RCA 和确定性 Evaluation。
-- 最近完成阶段的门禁结果：299 项测试通过、0 failures、0 errors，详见 [Phase 6 Gate Summary](outputs/phase6/phase6-gate-summary.json)。
+- **已完成 Phase 0–7：** 工程基础、内聚核心、PostgreSQL 持久化、Sample System 与可观测链路、真实模型与 RAG、AgentScope 运行时、A2A 多 Agent 协作、产品 API、Fault Lab、三个真实故障场景、结构化 RCA 与确定性 Evaluation。
+- **正在实施 Phase 8：** 已完成发布基线、不可变环境快照、`mvp-v2` Evaluation Profile、append-only Run ledger，以及质量批次编排、聚合和输入隔离测试。
+- **Phase 8 当前门禁：** 三个场景各 5 次、共 15 次正式质量 Run 已完成执行，但质量门禁仍为 `FAILED`；数据库连接池耗尽和依赖延迟场景的根因命中、证据召回与精度尚未达到阈值。空结果语义（`KB_EMPTY`、`NO_MATCH`、`INSUFFICIENT_HISTORY`）与受控 knowledge revision 测试正在收尾，因此当前版本尚未达到 Phase 8 发布条件。
+- Phase 7 门禁结果：三类真实场景均完成重复运行，结构化 RCA、引用有效性、Agent 隔离和确定性评测通过，详见 [Phase 7 Gate Summary](outputs/phase7/phase7-gate-summary.json)。
 
 ## 架构概览
 
 ![OpsPilot 目标架构：从故障现场到可追溯 RCA](docs/architecture/opspilot-readme-overview.svg)
 
-> 上图展示目标架构的主链路。当前已实现到多 Agent 协作与产品 API；Fault Lab、完整 RCA 与 Evaluation 属于后续阶段。更完整的模块、数据流和安全边界见[系统设计](docs/design/OpsPilot-System-Design.md)。
+> 上图展示目标架构的主链路。当前已实现到多 Agent 协作、产品 API、Fault Lab、结构化 RCA 与确定性 Evaluation；质量、安全、效率、性能和发布门禁仍在 Phase 8 收敛。更完整的模块、数据流和安全边界见[系统设计](docs/design/OpsPilot-System-Design.md)。
 
 ## 项目目的
 
@@ -224,9 +225,8 @@ docker compose -f deployment/docker-compose.yml down
 
 | 阶段 | 状态 | 目标 |
 | --- | --- | --- |
-| Phase 0–6 | ✅ 已完成 | 工程门禁、核心领域、持久化、可观测链路、真实 Provider / RAG、AgentScope、A2A 与产品 API |
-| Phase 7 | 🧭 规划中 | Fault Lab、三个真实故障场景、结构化 RCA、确定性 Evaluation |
-| Phase 8 | 📋 计划中 | 质量矩阵、恢复、安全、效率与性能门禁 |
+| Phase 0–7 | ✅ 已完成 | 工程门禁、核心领域、持久化、可观测链路、真实 Provider / RAG、AgentScope、A2A、产品 API、Fault Lab、三场景 RCA 与确定性 Evaluation |
+| Phase 8 | 🚧 实施中 | 发布基线与 Run ledger 已通过；15-run 质量批次已执行但门禁未通过，空结果、恢复、安全、效率、性能与发布门禁继续收敛 |
 | Phase 9 | 📋 计划中 | CI、持续交付、不可变 RC、SBOM 与 Release Manifest |
 
 完整分阶段计划见[实施计划](docs/implementation-plan/README.md)。
@@ -235,9 +235,10 @@ docker compose -f deployment/docker-compose.yml down
 
 - [系统完整设计](docs/design/OpsPilot-System-Design.md)
 - [分阶段实施计划](docs/implementation-plan/README.md)
+- [Phase 8：质量、安全与发布门禁计划](docs/implementation-plan/08-quality-security-and-release-gates.md)
 - [OpenAPI 与 JSON Schema 合同](docs/design/contracts/README.md)
 - [版本锁定清单](deployment/versions.lock.yaml)
-- [Phase 6 验收证据](outputs/phase6/phase6-gate-summary.json)
+- [Phase 7 验收证据](outputs/phase7/phase7-gate-summary.json)
 
 ## 当前边界
 
