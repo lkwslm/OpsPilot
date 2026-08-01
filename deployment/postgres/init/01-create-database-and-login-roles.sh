@@ -18,7 +18,7 @@ for secret_name in \
   OPSPILOT_MIGRATOR_PASSWORD OPSPILOT_APP_PASSWORD SAMPLE_APP_PASSWORD \
   FAULT_LAB_PASSWORD EVALUATION_PASSWORD EVIDENCE_AGENT_PASSWORD \
   CODE_AGENT_PASSWORD KNOWLEDGE_AGENT_PASSWORD DIAGNOSIS_AGENT_PASSWORD \
-  REMEDIATION_AGENT_PASSWORD; do
+  REMEDIATION_AGENT_PASSWORD KNOWLEDGE_CONTROL_PASSWORD; do
   load_secret "$secret_name"
 done
 
@@ -32,6 +32,7 @@ done
 : "${KNOWLEDGE_AGENT_PASSWORD:?KNOWLEDGE_AGENT_PASSWORD is required}"
 : "${DIAGNOSIS_AGENT_PASSWORD:?DIAGNOSIS_AGENT_PASSWORD is required}"
 : "${REMEDIATION_AGENT_PASSWORD:?REMEDIATION_AGENT_PASSWORD is required}"
+: "${KNOWLEDGE_CONTROL_PASSWORD:?KNOWLEDGE_CONTROL_PASSWORD is required}"
 
 psql --set=ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   --set=migrator_password="$OPSPILOT_MIGRATOR_PASSWORD" \
@@ -43,7 +44,8 @@ psql --set=ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
   --set=code_password="$CODE_AGENT_PASSWORD" \
   --set=knowledge_password="$KNOWLEDGE_AGENT_PASSWORD" \
   --set=diagnosis_password="$DIAGNOSIS_AGENT_PASSWORD" \
-  --set=remediation_password="$REMEDIATION_AGENT_PASSWORD" <<'SQL'
+  --set=remediation_password="$REMEDIATION_AGENT_PASSWORD" \
+  --set=knowledge_control_password="$KNOWLEDGE_CONTROL_PASSWORD" <<'SQL'
 CREATE ROLE opspilot_app_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE sample_app_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE fault_lab_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
@@ -54,6 +56,7 @@ CREATE ROLE code_agent_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE knowledge_agent_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE diagnosis_agent_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 CREATE ROLE remediation_agent_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
+CREATE ROLE knowledge_control_role NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE;
 -- pgvector 0.8.4 is not a trusted extension. The migration command uses this
 -- bootstrap privilege for V1 only and immediately demotes the role permanently.
 CREATE ROLE opspilot_migrator LOGIN SUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT PASSWORD :'migrator_password';
@@ -66,6 +69,7 @@ CREATE ROLE code_agent_login LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT P
 CREATE ROLE knowledge_agent_login LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD :'knowledge_password';
 CREATE ROLE diagnosis_agent_login LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD :'diagnosis_password';
 CREATE ROLE remediation_agent_login LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD :'remediation_password';
+CREATE ROLE knowledge_control_login LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT PASSWORD :'knowledge_control_password';
 GRANT CREATE ON DATABASE :"DBNAME" TO opspilot_migrator;
 GRANT USAGE, CREATE ON SCHEMA public TO opspilot_migrator;
 GRANT opspilot_app_role TO opspilot_app_login;
@@ -78,4 +82,5 @@ GRANT code_agent_role TO code_agent_login;
 GRANT knowledge_agent_role TO knowledge_agent_login;
 GRANT diagnosis_agent_role TO diagnosis_agent_login;
 GRANT remediation_agent_role TO remediation_agent_login;
+GRANT knowledge_control_role TO knowledge_control_login;
 SQL
