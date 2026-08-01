@@ -6,8 +6,11 @@ import com.sun.net.httpserver.HttpServer;
 import io.github.opspilot.adapters.model.openai.OpenAiCompatibleChatModelProvider;
 import io.github.opspilot.adapters.model.openai.OpenAiCompatibleClientConfiguration;
 import io.github.opspilot.adapters.observability.JsonlLogAdapter;
+import io.github.opspilot.adapters.knowledge.pgvector.PostgresKnowledgeRevisionControlAdapter;
 import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
 import io.github.opspilot.adapters.persistence.postgres.DurableTaskRepository;
+import io.github.opspilot.adapters.retrieval.infinity.InfinityEmbeddingAdapter;
+import io.github.opspilot.adapters.retrieval.infinity.InfinityEmbeddingConfiguration;
 import io.github.opspilot.a2a.contract.A2aProtocol;
 import io.github.opspilot.a2a.server.PostgresA2aTaskStore;
 import org.flywaydb.core.Flyway;
@@ -21,6 +24,8 @@ import io.github.opspilot.core.port.observability.ObservationContracts.SourceExe
 import io.github.opspilot.core.port.agent.ChatPort.ChatMessage;
 import io.github.opspilot.core.port.agent.ChatPort.ChatRequest;
 import io.github.opspilot.core.port.agent.ChatPort.ChatResponse;
+import io.github.opspilot.core.application.knowledge.KnowledgeRevisionControlService;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderIdentity;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -36,11 +41,13 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import org.postgresql.ds.PGSimpleDataSource;
@@ -142,6 +149,7 @@ public final class Phase0Process {
                     exchange, identity, phase7ProfessionalHandler));
         }
         ProductRunWorker productRunWorker = null;
+        HttpServer knowledgeControlServer = null;
         if ("supervisor".equals(identity.agentId)) {
             new ProductApiHandler(dataSource).install(server);
             var gateway = new PostgresProductRunGateway(dataSource,
@@ -149,12 +157,64 @@ public final class Phase0Process {
             productRunWorker = new ProductRunWorker(
                     new DurableTaskRepository(dataSource), gateway, gateway,
                     identity.profile.serviceIdentity + ":product-run");
+            knowledgeControlServer = startKnowledgeControlPlane(environment);
         }
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.start();
         if (productRunWorker != null) productRunWorker.start();
         System.out.printf("PROCESS_READY agentId=%s port=%d dbRole=%s%n",
                 identity.agentId, identity.profile.port, identity.profile.dbRole);
+    }
+
+    private static HttpServer startKnowledgeControlPlane(Map<String, String> environment) throws Exception {
+        if (!Boolean.parseBoolean(environment.getOrDefault("KNOWLEDGE_CONTROL_ENABLED", "false"))) {
+            return null;
+        }
+        PGSimpleDataSource controlDataSource = new PGSimpleDataSource();
+        controlDataSource.setUrl(RuntimeIdentity.required(environment, "JDBC_URL"));
+        controlDataSource.setUser(RuntimeIdentity.required(environment, "KNOWLEDGE_CONTROL_DB_USERNAME"));
+        controlDataSource.setPassword(Files.readString(Path.of(RuntimeIdentity.required(
+                environment, "KNOWLEDGE_CONTROL_DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip());
+        var revisions = new PostgresKnowledgeRevisionControlAdapter(controlDataSource);
+        var embeddingIdentity = new ProviderIdentity(
+                "infinity", RuntimeIdentity.required(environment, "EMBEDDING_MODEL_ID"),
+                RuntimeIdentity.required(environment, "EMBEDDING_MODEL_REVISION"));
+        int dimension = Integer.parseInt(environment.getOrDefault(
+                "KNOWLEDGE_CONTROL_EMBEDDING_DIMENSION", "512"));
+        var embedding = new InfinityEmbeddingAdapter(new InfinityEmbeddingConfiguration(
+                embeddingIdentity.providerId(),
+                URI.create(RuntimeIdentity.required(environment, "EMBEDDING_BASE_URL")),
+                embeddingIdentity.modelId(), embeddingIdentity.revision(), dimension,
+                InfinityEmbeddingConfiguration.Normalization.L2_UNIT,
+                InfinityEmbeddingConfiguration.DistanceMetric.COSINE, 16, 16, 8192),
+                text -> Math.max(1, (text.length() + 1) / 2));
+        Set<UUID> allowedCollections = Arrays.stream(RuntimeIdentity.required(
+                        environment, "KNOWLEDGE_CONTROL_ALLOWED_COLLECTIONS").split(","))
+                .map(String::strip).filter(value -> !value.isEmpty()).map(UUID::fromString)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        long maxTtlSeconds = Long.parseLong(environment.getOrDefault(
+                "KNOWLEDGE_CONTROL_MAX_TTL_SECONDS", "900"));
+        var service = new KnowledgeRevisionControlService(
+                revisions, embedding, Clock.systemUTC(),
+                new KnowledgeRevisionControlService.Policy(allowedCollections, maxTtlSeconds));
+        String token = Files.readString(Path.of(RuntimeIdentity.required(
+                environment, "KNOWLEDGE_CONTROL_TOKEN_FILE")), StandardCharsets.UTF_8).strip();
+        UUID modelRevisionId = UUID.fromString(RuntimeIdentity.required(
+                environment, "KNOWLEDGE_CONTROL_MODEL_REVISION_ID"));
+        int port = Integer.parseInt(environment.getOrDefault("KNOWLEDGE_CONTROL_PORT", "8099"));
+        HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", port), 0);
+        new KnowledgeControlPlaneHandler(
+                service, revisions, token,
+                environment.getOrDefault("KNOWLEDGE_CONTROL_PRINCIPAL_ID", "fault-lab:phase8"),
+                new KnowledgeControlPlaneHandler.ModelConfiguration(
+                        modelRevisionId, embeddingIdentity, dimension, "COSINE"))
+                .install(server);
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        System.out.printf("KNOWLEDGE_CONTROL_READY port=%d principal=%s collections=%d%n",
+                port, environment.getOrDefault("KNOWLEDGE_CONTROL_PRINCIPAL_ID", "fault-lab:phase8"),
+                allowedCollections.size());
+        return server;
     }
 
     static Readiness readiness(String[] urls) {

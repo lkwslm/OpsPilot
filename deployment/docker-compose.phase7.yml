@@ -42,6 +42,23 @@ services:
       retrieval-inference:
         condition: service_started
 
+  opspilot-server:
+    expose: ["8080", "8099"]
+    environment:
+      KNOWLEDGE_CONTROL_ENABLED: "true"
+      KNOWLEDGE_CONTROL_PORT: "8099"
+      KNOWLEDGE_CONTROL_PRINCIPAL_ID: fault-lab:phase8
+      KNOWLEDGE_CONTROL_DB_USERNAME: knowledge_control_login
+      KNOWLEDGE_CONTROL_DB_PASSWORD_FILE: /run/secrets/knowledge-control-db-password
+      KNOWLEDGE_CONTROL_TOKEN_FILE: /run/secrets/knowledge-control-token
+      KNOWLEDGE_CONTROL_ALLOWED_COLLECTIONS: 6d23b3aa-853f-3521-b7e2-4880938c946c
+      KNOWLEDGE_CONTROL_MODEL_REVISION_ID: 5ba0d660-cb75-3103-99be-83ebc0b915f0
+      KNOWLEDGE_CONTROL_EMBEDDING_DIMENSION: "512"
+      KNOWLEDGE_CONTROL_MAX_TTL_SECONDS: "900"
+    secrets:
+      - knowledge-control-db-password
+      - knowledge-control-token
+
   fault-lab:
     image: opspilot-fault-lab:0.1.0
     profiles: ["phase7"]
@@ -68,7 +85,9 @@ services:
       COMPOSE_PROJECT: opspilot-phase0
       OPSPILOT_REPOSITORY_ROOT: /workspace
       OPSPILOT_PRODUCT_API_URL: http://opspilot-server:8080
-    secrets: [fault-lab-db-password]
+      KNOWLEDGE_CONTROL_URL: http://opspilot-server:8099
+      KNOWLEDGE_CONTROL_TOKEN_FILE: /run/secrets/knowledge-control-token
+    secrets: [fault-lab-db-password, knowledge-control-token]
     volumes:
       - type: bind
         source: ../.tmp/phase7-datasets
