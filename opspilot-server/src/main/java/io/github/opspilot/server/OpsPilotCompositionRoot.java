@@ -95,7 +95,7 @@ public final class OpsPilotCompositionRoot {
                 new DurableTaskRepository(dataSource),
                 new SseEventRepository(dataSource),
                 new LocalVolumeArtifactAccessService(dataSource, artifactRoot, maxArtifactBytes),
-                new PostgresReadinessCheck(dataSource, "24", "0.8.4"));
+                new PostgresReadinessCheck(dataSource, "31", "0.8.4"));
     }
 
     /** Adapter implementations are explicitly enumerated here; no classpath discovery is used. */

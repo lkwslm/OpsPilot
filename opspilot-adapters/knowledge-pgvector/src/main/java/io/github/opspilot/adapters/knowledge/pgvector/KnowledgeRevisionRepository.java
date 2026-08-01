@@ -113,6 +113,17 @@ public final class KnowledgeRevisionRepository {
         }
     }
 
+    /** Reads the Supervisor-frozen revision without allowing a professional Agent to mutate Run authority. */
+    public EffectiveSnapshot requireRunSnapshot(UUID runId) {
+        try (var connection = dataSource.getConnection()) {
+            EffectiveSnapshot snapshot = loadRunSnapshot(connection, runId);
+            if (snapshot == null) throw new RevisionException("KNOWLEDGE_RUN_SNAPSHOT_MISSING");
+            return snapshot;
+        } catch (SQLException failure) {
+            throw new RevisionException("KNOWLEDGE_SNAPSHOT_READ_FAILED", failure);
+        }
+    }
+
     public List<UUID> cleanupCandidates(Instant before) {
         String sql = """
                 SELECT revision.knowledge_revision_id

@@ -78,7 +78,7 @@ final class PostgresPhase0MigrationTest {
         migrate(database, null);
 
         try (Connection connection = connection(database)) {
-              assertEquals("24", queryString(connection,
+              assertEquals("35", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertNotNull(queryString(connection, "SELECT extversion FROM pg_extension WHERE extname = 'vector'"));
             assertEquals(SCHEMAS, querySet(connection,
@@ -87,10 +87,47 @@ final class PostgresPhase0MigrationTest {
                     "SELECT rolname FROM pg_roles WHERE rolname IN ('opspilot_migrator','opspilot_app_role','sample_app_role','fault_lab_role','evaluation_role','professional_agent_role','evidence_agent_role','code_agent_role','knowledge_agent_role','diagnosis_agent_role','remediation_agent_role')"));
             assertTrue(queryBoolean(connection,
                     "SELECT has_schema_privilege('evidence_agent_role', 'opspilot_a2a', 'USAGE')"));
-            assertFalse(queryBoolean(connection,
+            assertTrue(queryBoolean(connection,
                     "SELECT has_schema_privilege('evidence_agent_role', 'opspilot', 'USAGE')"));
             assertTrue(queryBoolean(connection,
+                    "SELECT has_function_privilege('fault_lab_role', "
+                            + "'opspilot.read_release_run_evidence(uuid)', 'EXECUTE')"));
+            assertTrue(queryBoolean(connection,
                     "SELECT has_table_privilege('evaluation_role', 'opspilot.model_usage', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_table_privilege('knowledge_agent_role', 'opspilot.model_revision', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_function_privilege('fault_lab_role', "
+                            + "'opspilot.read_release_run_identity(uuid,uuid)', 'EXECUTE')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('fault_lab_role', 'opspilot_a2a.task', 'SELECT')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('fault_lab_role', "
+                            + "'opspilot_a2a.agent_scope_state', 'SELECT')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_schema_privilege('opspilot_app_role', 'opspilot_a2a', 'USAGE')"));
+            assertTrue(queryBoolean(connection,
+                    "SELECT has_table_privilege('opspilot_app_role', 'opspilot_a2a.agent_scope_state', 'SELECT,INSERT,UPDATE,DELETE')"));
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("SET ROLE opspilot_app_role");
+                assertEquals("supervisor", queryString(connection,
+                        "SELECT opspilot.current_server_agent_id()"));
+                statement.executeUpdate("""
+                        INSERT INTO opspilot_a2a.agent_scope_state
+                            (server_agent_id,user_id,session_id,state_key,state_type,is_list,state_json)
+                        VALUES ('supervisor','migration-test','migration-test','checkpoint','test',false,
+                                '{"schemaVersion":"1.0.0","payload":{}}'::jsonb)
+                        """);
+                assertEquals(1, queryInt(connection, """
+                        SELECT count(*) FROM opspilot_a2a.agent_scope_state
+                        WHERE server_agent_id='supervisor' AND user_id='migration-test'
+                        """));
+                statement.executeUpdate("""
+                        DELETE FROM opspilot_a2a.agent_scope_state
+                        WHERE server_agent_id='supervisor' AND user_id='migration-test'
+                        """);
+                statement.execute("RESET ROLE");
+            }
         }
         assertThrows(ClassNotFoundException.class, () -> Class.forName("org.h2.Driver"));
     }
@@ -194,7 +231,7 @@ final class PostgresPhase0MigrationTest {
         }
         migrate(upgradeDatabase, null);
         try (Connection connection = connection(upgradeDatabase); Statement statement = connection.createStatement()) {
-            assertEquals("24", queryString(connection,
+            assertEquals("35", queryString(connection,
                     "SELECT version FROM flyway_schema_history WHERE success AND version IS NOT NULL ORDER BY installed_rank DESC LIMIT 1"));
             assertTrue(queryBoolean(connection,
                     "SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_incident_one_active_run')"));
@@ -342,6 +379,71 @@ final class PostgresPhase0MigrationTest {
 
     @Test
     @Order(6)
+    void evaluationRoleCanOnlyLeaseEvaluationTasksThroughTheRestrictedApi() throws Exception {
+        String database = createDatabase("wp07_t06_evaluation_queue");
+        migrate(database, null);
+        UUID incidentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        UUID expiredTaskId = UUID.randomUUID();
+        UUID productTaskId = UUID.randomUUID();
+        try (Connection connection = connection(database); Statement statement = connection.createStatement()) {
+            statement.executeUpdate("INSERT INTO opspilot.incident "
+                    + "(incident_id,target_system_id,status) VALUES ('" + incidentId
+                    + "','sample-system','OPEN')");
+            statement.executeUpdate("INSERT INTO opspilot.incident_run "
+                    + "(run_id,incident_id,status) VALUES ('" + runId + "','" + incidentId
+                    + "','COMPLETED')");
+            statement.executeUpdate("INSERT INTO opspilot.task "
+                    + "(task_id,run_id,task_type,status,max_attempts,attempt_count,idempotency_key,"
+                    + "payload_json,lease_owner,lease_until) VALUES ('" + expiredTaskId + "','"
+                    + runId + "','EVALUATION','RUNNING',3,1,'evaluation-expired',"
+                    + "'{\"schemaVersion\":\"1.0.0\"}','dead-worker',now()-interval '1 second')");
+            statement.executeUpdate("INSERT INTO opspilot.task "
+                    + "(task_id,run_id,task_type,status,max_attempts,idempotency_key,payload_json) VALUES ('"
+                    + productTaskId + "','" + runId + "','PRODUCT_RUN','PENDING',3,'product-pending',"
+                    + "'{\"schemaVersion\":\"1.0.0\"}')");
+            assertTrue(queryBoolean(connection, "SELECT has_function_privilege('evaluation_role', "
+                    + "'opspilot.claim_evaluation_task(text,integer)', 'EXECUTE')"));
+            assertFalse(queryBoolean(connection,
+                    "SELECT has_table_privilege('evaluation_role','opspilot.task','SELECT')"));
+
+            statement.execute("SET ROLE evaluation_role");
+            PSQLException directTaskReadDenied = assertThrows(PSQLException.class,
+                    () -> statement.executeQuery("SELECT * FROM opspilot.task"));
+            assertEquals("42501", directTaskReadDenied.getSQLState());
+            try (PreparedStatement claim = connection.prepareStatement(
+                    "SELECT task_id,run_id FROM opspilot.claim_evaluation_task(?,120)")) {
+                claim.setString(1, "evaluation:test");
+                try (ResultSet result = claim.executeQuery()) {
+                    assertTrue(result.next());
+                    assertEquals(expiredTaskId, result.getObject(1, UUID.class));
+                    assertEquals(runId, result.getObject(2, UUID.class));
+                    assertFalse(result.next());
+                }
+            }
+            try (PreparedStatement complete = connection.prepareStatement(
+                    "SELECT opspilot.complete_evaluation_task(?,?)")) {
+                complete.setObject(1, expiredTaskId);
+                complete.setString(2, "evaluation:test");
+                try (ResultSet result = complete.executeQuery()) {
+                    assertTrue(result.next());
+                    assertTrue(result.getBoolean(1));
+                }
+            }
+            statement.execute("RESET ROLE");
+            assertEquals("COMPLETED", queryString(connection,
+                    "SELECT status FROM opspilot.task WHERE task_id='" + expiredTaskId + "'"));
+            assertEquals(2, queryInt(connection,
+                    "SELECT attempt_count FROM opspilot.task WHERE task_id='" + expiredTaskId + "'"));
+            assertEquals("PENDING", queryString(connection,
+                    "SELECT status FROM opspilot.task WHERE task_id='" + productTaskId + "'"));
+            assertNotNull(queryString(connection,
+                    "SELECT execution_started_at::text FROM opspilot.incident_run WHERE run_id='" + runId + "'"));
+        }
+    }
+
+    @Test
+    @Order(7)
     void everyVersionMigratesOnTheLockedEmptyDatabaseAndHasStableChecksums() throws Exception {
         for (int version = 1; version <= 8; version++) {
             String database = createDatabase("wp10_empty_v" + version);

@@ -10,7 +10,9 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.net.URI;
+import java.sql.DriverManager;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -22,6 +24,60 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 final class A2aIdempotencyTest {
 
     private static final String IMAGE = A2aPostgresFixture.IMAGE;
+
+    @Test
+    void persistsCrossBoundaryCorrelationOnTaskAndEveryEvent() throws Exception {
+        try (PostgreSQLContainer postgres = postgres()) {
+            postgres.start();
+            A2aPostgresFixture.migrate(postgres);
+            UUID incidentId = UUID.randomUUID();
+            UUID runId = UUID.randomUUID();
+            UUID requestId = UUID.randomUUID();
+            UUID traceId = UUID.randomUUID();
+            UUID stepId = UUID.randomUUID();
+            UUID invocationId = UUID.randomUUID();
+            try (var connection = DriverManager.getConnection(
+                    postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                 var statement = connection.createStatement()) {
+                statement.execute("INSERT INTO opspilot.target_system (target_system_id,display_name) "
+                        + "VALUES ('a2a-correlation','A2A correlation')");
+                statement.execute("INSERT INTO opspilot.incident (incident_id,target_system_id,status) VALUES ('"
+                        + incidentId + "','a2a-correlation','OPEN')");
+                statement.execute("INSERT INTO opspilot.incident_run (run_id,incident_id,status) VALUES ('"
+                        + runId + "','" + incidentId + "','CREATED')");
+            }
+            try (PostgresA2aTaskStore store = store(postgres)) {
+                A2aSendRequest request = new A2aSendRequest(
+                        "message-correlation", runId.toString(), "payload", true,
+                        "svc:opspilot-server", "evidence-collector", "collect-observability-evidence",
+                        "application/json", "application/json", "1.0",
+                        List.of("urn:opspilot:a2a:correlation:v1"), List.of(),
+                        requestId.toString(), traceId.toString(), runId.toString(), stepId.toString(),
+                        null, invocationId.toString());
+                A2aTask task = store.create(request).task();
+                store.markWorking(task.taskId());
+
+                try (var connection = DriverManager.getConnection(
+                        postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+                     var statement = connection.createStatement()) {
+                    try (var result = statement.executeQuery("SELECT run_id,request_id,trace_id,step_id,invocation_id "
+                            + "FROM opspilot_a2a.task WHERE task_id='" + task.taskId() + "'")) {
+                        assertTrue(result.next());
+                        assertEquals(runId, result.getObject("run_id", UUID.class));
+                        assertEquals(requestId, result.getObject("request_id", UUID.class));
+                        assertEquals(traceId, result.getObject("trace_id", UUID.class));
+                        assertEquals(stepId, result.getObject("step_id", UUID.class));
+                        assertEquals(invocationId, result.getObject("invocation_id", UUID.class));
+                    }
+                    try (var result = statement.executeQuery("SELECT count(*) FROM opspilot_a2a.task_event "
+                            + "WHERE task_id='" + task.taskId() + "' AND run_id='" + runId + "'")) {
+                        assertTrue(result.next());
+                        assertEquals(2, result.getInt(1));
+                    }
+                }
+            }
+        }
+    }
 
     @Test
     void returnsOriginalTaskWithoutDuplicateEventsAndRejectsHashConflict() throws Exception {

@@ -53,7 +53,7 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         try (Connection connection = connection()) {
             connection.setAutoCommit(false);
             try {
-                if (!insertTask(connection, task, requestHash)) {
+                if (!insertTask(connection, task, request, requestHash)) {
                     A2aTask existing = findByMessageId(connection, request.messageId(), requestHash);
                     connection.commit();
                     return new CreateResult(existing, false);
@@ -95,12 +95,23 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
 
     public A2aTask complete(String taskId, String result, String mediaType) {
         String payload = "{\"result\":" + io.github.opspilot.a2a.contract.A2aJson.write(result) + "}";
+        return completeArtifact(taskId, payload, mediaType, List.of());
+    }
+
+    public A2aTask completeArtifact(
+            String taskId, String payload, String mediaType, List<String> references) {
+        required("payload", payload);
+        required("mediaType", mediaType);
         A2aTask current = get(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("TASK_NOT_FOUND:" + taskId));
         A2aArtifact artifact = new A2aArtifact(
                 UUID.randomUUID().toString(), mediaType, "1.0.0", sha256(payload), payload,
-                current.taskId(), current.contextId(), serverAgentId, List.of());
+                current.taskId(), current.contextId(), serverAgentId, List.copyOf(references));
         return transitionTo(taskId, A2aTaskState.COMPLETED, artifact);
+    }
+
+    public A2aTask fail(String taskId) {
+        return transitionTo(taskId, A2aTaskState.FAILED, null);
     }
 
     public A2aTask cancel(String taskId) {
@@ -194,11 +205,13 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
         }
     }
 
-    private boolean insertTask(Connection connection, A2aTask task, String requestHash)
+    private boolean insertTask(
+            Connection connection, A2aTask task, A2aSendRequest request, String requestHash)
             throws SQLException {
         String sql = "INSERT INTO opspilot_a2a.task "
-                + "(task_id, server_agent_id, context_id, message_id, request_hash, state, payload_json, revision) "
-                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?) "
+                + "(task_id, server_agent_id, context_id, message_id, request_hash, state, payload_json, revision, "
+                + "run_id, request_id, trace_id, step_id, invocation_id) "
+                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?, ?, ?, ?, ?, ?) "
                 + "ON CONFLICT (server_agent_id, message_id) DO NOTHING";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, task.taskId());
@@ -208,6 +221,11 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
             statement.setString(5, requestHash);
             statement.setString(6, task.state().name());
             statement.setLong(7, task.revision());
+            bindUuid(statement, 8, request.runId());
+            bindUuid(statement, 9, request.requestId());
+            bindUuid(statement, 10, request.traceId());
+            bindUuid(statement, 11, request.stepId());
+            bindUuid(statement, 12, request.invocationId());
             return statement.executeUpdate() == 1;
         }
     }
@@ -247,8 +265,9 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
     private void insertEvent(Connection connection, A2aTask task) throws SQLException {
         String sql = "INSERT INTO opspilot_a2a.task_event "
                 + "(task_id, server_agent_id, context_id, message_id, state, event_type, payload_json, "
-                + "artifact_id, media_type, schema_version, sha256, artifact_payload, revision) "
-                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?, ?, ?, ?, ?, ?)";
+                + "artifact_id, media_type, schema_version, sha256, artifact_payload, revision, run_id) "
+                + "VALUES (?, ?, ?, ?, ?, ?, '{\"schemaVersion\":\"1.0.0\"}'::jsonb, ?, ?, ?, ?, ?, ?, "
+                + "(SELECT run_id FROM opspilot_a2a.task WHERE task_id=? AND server_agent_id=?))";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, task.taskId());
             statement.setString(2, serverAgentId);
@@ -258,8 +277,16 @@ public final class PostgresA2aTaskStore implements AutoCloseable {
             statement.setString(6, task.state().name());
             bindArtifact(statement, task.artifact(), 7);
             statement.setLong(12, task.revision());
+            statement.setString(13, task.taskId());
+            statement.setString(14, serverAgentId);
             statement.executeUpdate();
         }
+    }
+
+    private static void bindUuid(PreparedStatement statement, int index, String value)
+            throws SQLException {
+        if (value == null) statement.setNull(index, java.sql.Types.OTHER);
+        else statement.setObject(index, UUID.fromString(value));
     }
 
     private static void bindMutable(PreparedStatement statement, A2aTask task, int index)

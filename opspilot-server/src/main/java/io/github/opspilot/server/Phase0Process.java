@@ -7,6 +7,9 @@ import io.github.opspilot.adapters.model.openai.OpenAiCompatibleChatModelProvide
 import io.github.opspilot.adapters.model.openai.OpenAiCompatibleClientConfiguration;
 import io.github.opspilot.adapters.observability.JsonlLogAdapter;
 import io.github.opspilot.adapters.persistence.postgres.PostgresReadinessCheck;
+import io.github.opspilot.adapters.persistence.postgres.DurableTaskRepository;
+import io.github.opspilot.a2a.contract.A2aProtocol;
+import io.github.opspilot.a2a.server.PostgresA2aTaskStore;
 import org.flywaydb.core.Flyway;
 import io.github.opspilot.core.application.evidence.EvidenceContracts.NormalizationContext;
 import io.github.opspilot.core.application.evidence.RuntimeEvidenceNormalizer;
@@ -90,6 +93,29 @@ public final class Phase0Process {
         startup.complete(StartupTrafficGate.Stage.CARD_DIRECTORY_RECONCILIATION);
         startup.complete(StartupTrafficGate.Stage.REGISTRIES_FROZEN);
         HttpServer server = HttpServer.create(new InetSocketAddress("0.0.0.0", identity.profile.port), 0);
+        Phase7AgentExecutor phase7AgentExecutor = new Phase7AgentExecutor(
+                identity.agentId, environment, dataSource);
+        Phase7ProfessionalA2aHandler phase7ProfessionalHandler = "supervisor".equals(identity.agentId)
+                ? null
+                : new Phase7ProfessionalA2aHandler(
+                        identity.agentId, identity.profile.skill,
+                        new PostgresA2aTaskStore(
+                                identity.agentId,
+                                RuntimeIdentity.required(environment, "JDBC_URL"),
+                                RuntimeIdentity.required(environment, "DB_USERNAME"),
+                                Files.readString(Path.of(RuntimeIdentity.required(
+                                        environment, "DB_PASSWORD_FILE")), StandardCharsets.UTF_8).strip()),
+                        phase7AgentExecutor,
+                        "evidence-collector".equals(identity.agentId)
+                                ? new Phase7EvidenceCollector(Path.of(RuntimeIdentity.required(
+                                        environment, "SOURCE_PATH"))) : null,
+                        "code-analysis".equals(identity.agentId)
+                                ? new Phase7CodeAnalyzer(
+                                        Path.of(RuntimeIdentity.required(environment, "CODE_SOURCE_PATH")),
+                                        Path.of(RuntimeIdentity.required(environment, "CODE_WORKSPACE_PATH")),
+                                        RuntimeIdentity.required(environment, "CODE_COMMIT_SHA")) : null,
+                        "knowledge".equals(identity.agentId)
+                                ? new Phase7KnowledgeRetriever(dataSource, environment) : null);
         server.createContext("/actuator/health/liveness", exchange -> json(exchange, 200,
                 healthJson(identity, directory, "liveness", "UP", "PROCESS_CONTROL_AVAILABLE")));
         server.createContext("/actuator/health/readiness", exchange -> {
@@ -109,12 +135,24 @@ public final class Phase0Process {
         server.createContext("/.well-known/agent-card.json", exchange ->
                 json(exchange, 200, cardJson(identity.agentId, identity.profile.skill)));
         server.createContext("/a2a/messages:send", exchange -> handleMessage(
-                exchange, identity, directory, databaseReadiness, startup, dataSource));
+                exchange, identity, directory, databaseReadiness, startup, dataSource,
+                phase7ProfessionalHandler));
+        if (phase7ProfessionalHandler != null) {
+            server.createContext("/a2a/tasks/", exchange -> handlePhase7Task(
+                    exchange, identity, phase7ProfessionalHandler));
+        }
+        ProductRunWorker productRunWorker = null;
         if ("supervisor".equals(identity.agentId)) {
             new ProductApiHandler(dataSource).install(server);
+            var gateway = new PostgresProductRunGateway(dataSource,
+                    new Phase7RunOrchestrator(dataSource, directory, phase7AgentExecutor, environment));
+            productRunWorker = new ProductRunWorker(
+                    new DurableTaskRepository(dataSource), gateway, gateway,
+                    identity.profile.serviceIdentity + ":product-run");
         }
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.start();
+        if (productRunWorker != null) productRunWorker.start();
         System.out.printf("PROCESS_READY agentId=%s port=%d dbRole=%s%n",
                 identity.agentId, identity.profile.port, identity.profile.dbRole);
     }
@@ -221,13 +259,14 @@ public final class Phase0Process {
     private static PostgresReadinessCheck databaseReadiness(
             Map<String, String> environment, PGSimpleDataSource dataSource) {
         return new PostgresReadinessCheck(dataSource,
-                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "24"),
+                environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "31"),
                 environment.getOrDefault("EXPECTED_PGVECTOR_VERSION", "0.8.4"));
     }
 
     private static void handleMessage(HttpExchange exchange, RuntimeIdentity identity,
             AgentDirectory directory, PostgresReadinessCheck database,
-            StartupTrafficGate startup, javax.sql.DataSource dataSource) throws IOException {
+            StartupTrafficGate startup, javax.sql.DataSource dataSource,
+            Phase7ProfessionalA2aHandler phase7ProfessionalHandler) throws IOException {
         System.out.printf("HTTP_AUDIT method=%s path=/a2a/messages:send caller=%s%n",
                 exchange.getRequestMethod(), exchange.getRemoteAddress().getAddress().getHostAddress());
         try {
@@ -253,6 +292,12 @@ public final class Phase0Process {
             json(exchange, 503, "{\"code\":\"SOURCE_UNAVAILABLE\"}");
             return;
         }
+        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
+        if (!"supervisor".equals(identity.agentId)
+                && contentType != null && contentType.startsWith(A2aProtocol.MEDIA_TYPE)) {
+            phase7ProfessionalHandler.handle(exchange);
+            return;
+        }
         if ("supervisor".equals(identity.agentId)) {
             delegateToEvidenceAgent(exchange, identity, dataSource);
             return;
@@ -262,6 +307,21 @@ public final class Phase0Process {
             return;
         }
         json(exchange, 202, "{\"taskId\":\"" + UUID.randomUUID() + "\",\"state\":\"SUBMITTED\"}");
+    }
+
+    private static void handlePhase7Task(HttpExchange exchange, RuntimeIdentity identity,
+            Phase7ProfessionalA2aHandler handler) throws IOException {
+        String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+        boolean tokenMatches = authorization != null && authorization.startsWith("Bearer ")
+                && MessageDigest.isEqual(identity.serviceToken,
+                authorization.substring("Bearer ".length()).getBytes(StandardCharsets.UTF_8));
+        if (!tokenMatches
+                || !identity.profile.skill.equals(exchange.getRequestHeaders().getFirst("X-A2A-Skill"))
+                || !identity.profile.dbRole.equals(exchange.getRequestHeaders().getFirst("X-DB-Role"))) {
+            json(exchange, 403, "{\"code\":\"AGENT_IDENTITY_FORBIDDEN\"}");
+            return;
+        }
+        handler.handleTask(exchange);
     }
 
     private static void delegateToEvidenceAgent(HttpExchange exchange, RuntimeIdentity identity,
@@ -296,22 +356,6 @@ public final class Phase0Process {
                     exchange.getRequestHeaders().getFirst("X-Phase6-Vertical-Slice"))) {
                 ChatResponse providerResponse = invokePhase6Provider(response.body());
                 persistPhase6VerticalSlice(dataSource, exchange, response.body(), providerResponse);
-            }
-            if (response.statusCode() == 200 && "true".equalsIgnoreCase(
-                    exchange.getRequestHeaders().getFirst("X-Phase7-Acceptance"))) {
-                ChatResponse providerResponse = invokePhase6Provider(response.body());
-                var report = new Phase7AcceptanceService(dataSource, JSON).complete(
-                        headerUuid(exchange, "X-Incident-Id"), headerUuid(exchange, "X-Run-Id"),
-                        Instant.parse(requiredHeader(exchange, "X-Window-Start")),
-                        Instant.parse(requiredHeader(exchange, "X-Window-End")),
-                        response.body(), providerResponse);
-                json(exchange, 200, JSON.writeValueAsString(Map.of(
-                        "state", "COMPLETED",
-                        "runId", report.rca().runId(),
-                        "outcome", report.rca().outcome(),
-                        "rootCauseCode", report.rca().rootCause().rootCauseCode(),
-                        "rcaObjectDigest", report.objectDigest())));
-                return;
             }
             copyResponseHeader(exchange, "X-Request-Id");
             copyResponseHeader(exchange, "Trace-Id");
@@ -707,7 +751,7 @@ public final class Phase0Process {
                 .validateOnMigrate(true)
                 .load();
         var result = flyway.migrate();
-        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "24");
+        String expectedVersion = environment.getOrDefault("EXPECTED_FLYWAY_VERSION", "31");
         var current = flyway.info().current();
         if (current == null || !expectedVersion.equals(current.getVersion().toString())) {
             throw new IllegalStateException("MIGRATION_SET_INCOMPATIBLE expected=" + expectedVersion

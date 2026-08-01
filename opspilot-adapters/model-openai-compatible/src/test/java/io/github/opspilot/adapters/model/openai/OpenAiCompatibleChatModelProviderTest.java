@@ -105,11 +105,26 @@ class OpenAiCompatibleChatModelProviderTest {
     }
 
     @Test
+    void governedInvocationReturnsStableFailureWithoutLeakingAnException() throws Exception {
+        try (TestEndpoint endpoint = TestEndpoint.responding("application/json", "{}")) {
+            OpenAiCompatibleChatModelProvider unverified = provider(endpoint, Set.of());
+            ChatInvocation invocation = new ChatInvocation(structuredRequest(false), Instant.now().plusSeconds(3),
+                    new ProviderIdentity("deepseek", "configured-model", "revision-1"));
+
+            var result = unverified.invoke(invocation);
+
+            assertEquals("MODEL_CAPABILITY_UNVERIFIED", result.failure().errorCode());
+            assertEquals(false, result.failure().retryable());
+            assertEquals(0, endpoint.requestCount);
+        }
+    }
+
+    @Test
     void performsAtMostOneAuthorizedStructuredRepair() throws Exception {
         String invalid = completion("not-json");
         String valid = completion("{\"status\":\"ok\"}");
         try (TestEndpoint endpoint = TestEndpoint.respondingSequence("application/json", List.of(invalid, valid))) {
-            ChatInvocation invocation = new ChatInvocation(structuredRequest(true), Instant.now().plusSeconds(3),
+            ChatInvocation invocation = new ChatInvocation(structuredRequest(true), Instant.now().plusSeconds(10),
                     new ProviderIdentity("deepseek", "configured-model", "revision-1"));
 
             ChatResponse response = provider(endpoint).complete(invocation);
@@ -124,7 +139,7 @@ class OpenAiCompatibleChatModelProviderTest {
         String invalid = completion("not-json");
         try (TestEndpoint endpoint = TestEndpoint.respondingSequence(
                 "application/json", List.of(invalid, invalid, completion("{\"status\":\"ok\"}")))) {
-            ChatInvocation invocation = new ChatInvocation(structuredRequest(true), Instant.now().plusSeconds(3),
+            ChatInvocation invocation = new ChatInvocation(structuredRequest(true), Instant.now().plusSeconds(10),
                     new ProviderIdentity("deepseek", "configured-model", "revision-1"));
 
             assertThrows(StrictJsonSchemaValidator.StructuredOutputException.class,

@@ -125,11 +125,11 @@ final class PostgresPhase3AdapterTest {
 
     @Test
     void readinessRolesRlsAndSchemaGateFailClosed() throws Exception {
-        assertTrue(new PostgresReadinessCheck(dataSource, "24", "0.8.4").check().ready());
+        assertTrue(new PostgresReadinessCheck(dataSource, "35", "0.8.4").check().ready());
         assertEquals("FLYWAY_VERSION_MISMATCH",
                 new PostgresReadinessCheck(dataSource, "99", "0.8.4").check().reason());
         assertEquals("PGVECTOR_VERSION_MISMATCH",
-                new PostgresReadinessCheck(dataSource, "24", "99").check().reason());
+                new PostgresReadinessCheck(dataSource, "35", "99").check().reason());
 
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             assertFalse(queryBoolean(statement, """
@@ -466,6 +466,13 @@ final class PostgresPhase3AdapterTest {
         assertEquals(1, tasks.markExpiredForRecovery(NOW));
         assertEquals("RECOVERING", queryString(
                 "SELECT status FROM opspilot.task WHERE task_id='" + taskId + "'"));
+        var retryLease = tasks.claim("worker-c", NOW, Duration.ofMinutes(1), "PROJECT").orElseThrow();
+        tasks.markRunning(retryLease.taskId(), "worker-c");
+        assertEquals("worker-c", queryString(
+                "SELECT lease_owner FROM opspilot.task WHERE task_id='" + taskId + "'"));
+        tasks.retry(retryLease.taskId(), "worker-c", NOW);
+        assertEquals("RECOVERING", queryString(
+                "SELECT status FROM opspilot.task WHERE task_id='" + taskId + "'"));
         execute("UPDATE opspilot.task SET status='LEASED', attempt_count=max_attempts, "
                 + "lease_owner='worker-a', lease_until='%s' "
                 .formatted(NOW.minusSeconds(1)) + "WHERE task_id='%s'".formatted(taskId));
@@ -477,6 +484,11 @@ final class PostgresPhase3AdapterTest {
                 .formatted(NOW.minusSeconds(2), NOW.minusSeconds(1), taskId));
         tasks.markExpiredForRecovery(NOW);
         assertEquals("COMPLETED", queryString(
+                "SELECT status FROM opspilot.task WHERE task_id='" + taskId + "'"));
+        execute("UPDATE opspilot.task SET status='RUNNING', side_effect_committed_at=NULL, "
+                + "lease_owner=NULL, lease_until=NULL WHERE task_id='" + taskId + "'");
+        assertEquals(1, tasks.markExpiredForRecovery(NOW));
+        assertEquals("RECOVERING", queryString(
                 "SELECT status FROM opspilot.task WHERE task_id='" + taskId + "'"));
 
         SseEventRepository events = new SseEventRepository(dataSource);
@@ -490,6 +502,22 @@ final class PostgresPhase3AdapterTest {
         assertEquals(List.of("TWO"), events.replayAfter(runId, firstId, 10).stream()
                 .map(SseEventRepository.Event::eventType).toList());
         assertTrue(events.replayAfter(otherRunId, firstId, 10).isEmpty());
+    }
+
+    @Test
+    void activeRunsWithoutAProductTaskAreReconciledExactlyOnce() throws Exception {
+        UUID runId = UUID.randomUUID();
+        insertIncidentRun(UUID.randomUUID(), runId);
+        DurableTaskRepository tasks = new DurableTaskRepository(dataSource);
+
+        tasks.reconcileMissingProductRunTasks();
+        tasks.reconcileMissingProductRunTasks();
+
+        assertEquals("1", queryString("""
+                SELECT count(*)::text FROM opspilot.task
+                WHERE run_id='%s' AND task_type='PRODUCT_RUN'
+                  AND idempotency_key='product-run:%s'
+                """.formatted(runId, runId)));
     }
 
     @Test

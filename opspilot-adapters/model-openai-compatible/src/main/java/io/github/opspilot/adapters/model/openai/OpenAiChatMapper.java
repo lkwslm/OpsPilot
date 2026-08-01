@@ -78,7 +78,20 @@ public final class OpenAiChatMapper {
     }
 
     private OpenAiChatDtos.Message toMessage(ChatMessage message) {
-        return new OpenAiChatDtos.Message(message.role(), message.content(), null);
+        List<OpenAiChatDtos.ToolCall> toolCalls = message.toolCalls().isEmpty() ? null
+                : message.toolCalls().stream().map(call -> new OpenAiChatDtos.ToolCall(
+                        call.id(), "function", new OpenAiChatDtos.FunctionCall(
+                                call.name(), argumentsJson(call.arguments())))).toList();
+        return new OpenAiChatDtos.Message(
+                message.role(), message.content(), toolCalls, message.toolCallId());
+    }
+
+    private String argumentsJson(Map<String, Object> arguments) {
+        try {
+            return json.writeValueAsString(arguments);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("tool call arguments cannot be serialized", exception);
+        }
     }
 
     private OpenAiChatDtos.Tool toTool(ToolDefinition tool) {

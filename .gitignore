@@ -19,3 +19,4 @@ __pycache__/
 
 # Phase 7 runtime dataset exposure
 deployment/agent-input/current/
+deployment/agent-input/*/

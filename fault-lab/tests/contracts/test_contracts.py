@@ -43,6 +43,17 @@ def test_evaluation_profile_contract(contracts: ContractLoader) -> None:
     assert contracts.validate("evaluation-profile", profile) == profile
 
 
+def test_published_evaluation_profiles_are_distinct_and_valid(contracts: ContractLoader) -> None:
+    profiles = ROOT / "docs" / "design" / "contracts" / "profiles"
+    v1 = contracts.load("evaluation-profile", profiles / "mvp-v1.yaml")
+    v2 = contracts.load("evaluation-profile", profiles / "mvp-v2.yaml")
+
+    assert v1["profile_id"] == "mvp-v1"
+    assert "total_tokens" not in v1["efficiency_limits"]
+    assert v2["profile_id"] == "mvp-v2"
+    assert v2["efficiency_limits"]["total_tokens"] == 65536
+
+
 def test_unknown_field_and_version_are_rejected(contracts: ContractLoader) -> None:
     source = contracts.load("ground-truth", EXAMPLES / "ground-truth" / "dependency-latency-inventory.json")
     unknown_field = copy.deepcopy(source)

@@ -6,6 +6,8 @@
 !fault-lab/uv.lock
 !fault-lab/src/**
 !docs/design/contracts/**
+!sample-system/
+!sample-system/**
 !opspilot-server/target/opspilot-server-0.1.0-SNAPSHOT.jar
 !opspilot-server/target/dependency/*.jar
 !opspilot-evaluation/target/opspilot-evaluation-0.1.0-SNAPSHOT.jar

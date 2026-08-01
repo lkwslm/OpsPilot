@@ -198,6 +198,21 @@ public final class PostgresProductApiRepository {
             }
             throw exception;
         }
+        try (var statement = connection.prepareStatement("""
+                INSERT INTO opspilot.task
+                    (task_id, run_id, task_type, status, priority, max_attempts,
+                     idempotency_key, payload_json)
+                VALUES (?, ?, 'PRODUCT_RUN', 'PENDING', 100, 3, ?,
+                        jsonb_build_object('schemaVersion', '1.0.0',
+                                           'incidentId', ?::text, 'runId', ?::text))
+                """)) {
+            statement.setObject(1, UUID.randomUUID());
+            statement.setObject(2, runId);
+            statement.setString(3, "product-run:" + runId);
+            statement.setObject(4, incidentId);
+            statement.setObject(5, runId);
+            statement.executeUpdate();
+        }
         return new RunSnapshot(incidentId, runId, "QUEUED", null, 0);
     }
 

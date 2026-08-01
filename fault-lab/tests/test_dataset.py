@@ -19,7 +19,8 @@ def manifest(run_id: str, artifacts: list[object]) -> dict[str, object]:
             "fault": {"start": "2026-07-29T00:01:00Z", "end": "2026-07-29T00:03:00Z"},
             "recovery": {"start": "2026-07-29T00:03:00Z", "end": "2026-07-29T00:04:00Z"},
         },
-        "artifacts": [artifact.__dict__ for artifact in artifacts],
+        "artifacts": [artifact if isinstance(artifact, dict) else artifact.__dict__
+                      for artifact in artifacts],
     }
 
 

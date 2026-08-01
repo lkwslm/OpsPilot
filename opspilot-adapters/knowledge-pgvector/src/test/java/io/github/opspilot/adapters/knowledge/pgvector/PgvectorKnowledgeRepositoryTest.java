@@ -14,20 +14,43 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.DelegationRecord;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.DelegationStore;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.PlanStep;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.RemainingBudget;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.ResultKind;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.Role;
+import io.github.opspilot.core.application.incident.SupervisorOrchestrationService.RunSnapshot;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService;
 import io.github.opspilot.core.port.repository.EmbeddingBatchCommitPort.EmbeddingBatchCommit;
 import io.github.opspilot.core.port.repository.EmbeddingBatchCommitPort.EmbeddingVectorWrite;
 import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.KnowledgeReference;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.KnowledgeSnapshot;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.Outcome;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.SearchAudit;
+import io.github.opspilot.core.application.knowledge.KnowledgeSearchService.SearchRequest;
+import io.github.opspilot.core.domain.identity.DomainIds.EvidenceId;
 import io.github.opspilot.core.domain.identity.DomainIds.ArtifactId;
+import io.github.opspilot.core.domain.identity.DomainIds.RunId;
+import io.github.opspilot.core.domain.identity.DomainIds.StepId;
 import io.github.opspilot.core.port.provider.ProviderContracts.ProviderIdentity;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderResult;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderUsage;
+import io.github.opspilot.core.port.provider.RerankPort.RankedDocument;
 
 import static io.github.opspilot.adapters.knowledge.pgvector.PgvectorKnowledgeRepository.DistanceMetric.COSINE;
+import static io.github.opspilot.core.domain.state.StateMachines.IncidentRunState.GENERATING_HYPOTHESES;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,6 +61,304 @@ final class PgvectorKnowledgeRepositoryTest {
     private static final String HASH_B = "b".repeat(64);
     private static PostgreSQLContainer postgres;
     private static DataSource dataSource;
+
+    @Test
+    void kbEmptyIsARealDatabaseOutcomeAndFieldInvestigationContinues() throws Exception {
+        Fixture fixture = fixture("phase8-kb-empty");
+        UUID collectionId = UUID.fromString("3eb2a9f3-6e9b-5439-a772-e2052d505fb5");
+        UUID knowledgeRevisionId = UUID.fromString("01e066b2-ee42-57ea-8311-0efa2395537e");
+        execute("INSERT INTO opspilot.knowledge_collection (collection_id, collection_key) VALUES (?, ?)",
+                collectionId, "phase8-empty-outcome-kb-empty-v1");
+        execute("INSERT INTO opspilot.knowledge_revision "
+                        + "(knowledge_revision_id, collection_id, status, normalization_version, "
+                        + "chunk_strategy_version, model_revision_id, embedding_dimension, coverage_status, "
+                        + "expected_chunk_count, completed_chunk_count, searchable) "
+                        + "VALUES (?, ?, 'ACTIVE', 'phase8-v1', 'phase8-v1', ?, 3, 'COMPLETE', 0, 0, true)",
+                knowledgeRevisionId, collectionId, fixture.revisionId());
+        execute("UPDATE opspilot.knowledge_collection SET active_knowledge_revision_id=?, "
+                        + "active_model_revision_id=? WHERE collection_id=?",
+                knowledgeRevisionId, fixture.revisionId(), collectionId);
+        execute("UPDATE opspilot.incident_run SET effective_knowledge_revision_id=? WHERE run_id=?",
+                knowledgeRevisionId, fixture.runId());
+
+        var pgvector = new PgvectorKnowledgeSearchAdapter(dataSource, (artifact, location) -> {
+            throw new AssertionError("KB_EMPTY must not load Chunk text");
+        });
+        List<SearchAudit> audits = new ArrayList<>();
+        ProviderIdentity embeddingIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-small-zh-v1.5", "7999e1d3359715c523056ef9478215996d62a620");
+        ProviderIdentity rerankIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-reranker-v2-m3", "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e");
+        var service = new KnowledgeSearchService(
+                pgvector,
+                request -> { throw new AssertionError("KB_EMPTY must not call Embedding"); },
+                pgvector,
+                request -> { throw new AssertionError("KB_EMPTY must not call Rerank"); },
+                (runId, reference) -> { throw new AssertionError("KB_EMPTY must not persist Citation"); },
+                audits::add);
+        var response = service.search(new SearchRequest(
+                fixture.runId(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), 0, 1,
+                new KnowledgeSnapshot(collectionId, knowledgeRevisionId, fixture.revisionId(),
+                        3, "COSINE", embeddingIdentity, rerankIdentity),
+                "库存服务在现场窗口出现健康检查失败和上游连接错误，请检索相关运维资料",
+                20, 5,
+                Map.of("language", "zh", "service", "inventory-service", "documentType", "playbook"),
+                Set.of("phase8-empty-outcome-reader"), Instant.now().plusSeconds(60)));
+
+        assertNull(response.failure());
+        assertEquals(Outcome.KB_EMPTY, response.value().outcome());
+        assertFalse(response.value().rerankApplied());
+        assertTrue(response.value().references().isEmpty());
+        assertEquals(1, audits.size());
+        assertEquals(0, audits.getFirst().candidateCount());
+        assertEquals(0, audits.getFirst().rerankCount());
+        assertEquals(0, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_chunk chunk "
+                        + "JOIN opspilot.knowledge_document_version version "
+                        + "ON version.document_version_id=chunk.document_version_id "
+                        + "WHERE version.knowledge_revision_id=? AND chunk.searchable",
+                knowledgeRevisionId));
+        assertEquals(0, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_reference WHERE run_id=?", fixture.runId()));
+
+        var businessResult = SupervisorOrchestrationService.interpretProfessionalResult(
+                Role.SUPERVISOR, ResultKind.KB_EMPTY, null);
+        assertTrue(businessResult.succeeded());
+        assertTrue(businessResult.missingEvidence().isEmpty());
+        List<EvidenceId> fieldEvidence = List.of(
+                new EvidenceId(UUID.randomUUID()), new EvidenceId(UUID.randomUUID()));
+        List<DelegationRecord> delegated = new ArrayList<>();
+        var supervisor = new SupervisorOrchestrationService(new DelegationStore() {
+            @Override public void commitBeforeNetwork(DelegationRecord record) { }
+            @Override public void markSkipped(RunId runId, StepId stepId, String reasonCode) { }
+            @Override public void recordMissingEvidence(RunId runId, String reasonCode) { }
+        }, delegated::add);
+        var decision = supervisor.dispatchNext(new RunSnapshot(
+                new RunId(fixture.runId()), GENERATING_HYPOTHESES,
+                List.of(new PlanStep(new StepId(UUID.randomUUID()), Role.KNOWLEDGE),
+                        new PlanStep(new StepId(UUID.randomUUID()), Role.DIAGNOSIS)),
+                1, 1, false, true, Set.of("field-evidence-present"), 0, 2,
+                fieldEvidence, List.of(), new RemainingBudget(3, 3, 3, 1000, 1000),
+                Instant.now().plusSeconds(60), "phase8-empty-outcome-v1"));
+
+        assertEquals(SupervisorOrchestrationService.DecisionKind.DELEGATED, decision.kind());
+        assertEquals("diagnose-incident", decision.record().targetSkill());
+        assertEquals(fieldEvidence, decision.record().evidenceIds());
+        assertEquals(1, delegated.size());
+    }
+
+    @Test
+    void noMatchUsesRealFilteredRecallWithoutRerankFallbackOrCitation() throws Exception {
+        Fixture fixture = fixture("phase8-no-match");
+        UUID collectionId = UUID.fromString("5fe401bf-25da-5799-8a1a-9f7f5b699f14");
+        UUID knowledgeRevisionId = UUID.fromString("c05677a6-f0c9-55c6-b78f-747244e01cc1");
+        execute("INSERT INTO opspilot.knowledge_collection (collection_id, collection_key) VALUES (?, ?)",
+                collectionId, "phase8-empty-outcome-no-match-v1");
+        execute("INSERT INTO opspilot.knowledge_revision "
+                        + "(knowledge_revision_id, collection_id, status, normalization_version, "
+                        + "chunk_strategy_version, model_revision_id, embedding_dimension, coverage_status, "
+                        + "expected_chunk_count, completed_chunk_count, searchable) "
+                        + "VALUES (?, ?, 'ACTIVE', 'phase8-v1', 'phase8-v1', ?, 3, 'COMPLETE', 2, 2, true)",
+                knowledgeRevisionId, collectionId, fixture.revisionId());
+
+        var versions = new KnowledgeVersionRepository(dataSource);
+        var vectors = new PgvectorKnowledgeRepository(dataSource);
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        UUID firstChunk = UUID.randomUUID();
+        UUID secondChunk = UUID.randomUUID();
+        versions.createDocument(documentId, collectionId, "phase8-no-match-active-document");
+        versions.createVersion(versionId, documentId, 1, HASH_A, artifact(fixture.runId()), 2, null);
+        versions.appendChunk(firstChunk, versionId, 0, HASH_A, artifact(fixture.runId()),
+                "{\"schemaVersion\":\"1.0.0\",\"language\":\"zh\","
+                        + "\"service\":\"inventory-service\",\"tag\":\"known-playbook-a\"}");
+        versions.appendChunk(secondChunk, versionId, 1, HASH_B, artifact(fixture.runId()),
+                "{\"schemaVersion\":\"1.0.0\",\"language\":\"zh\","
+                        + "\"service\":\"inventory-service\",\"tag\":\"known-playbook-b\"}");
+        execute("UPDATE opspilot.knowledge_document_version SET knowledge_revision_id=?, "
+                        + "acl_json='{\"principals\":[\"phase8-empty-outcome-reader\"]}'::jsonb "
+                        + "WHERE document_version_id=?", knowledgeRevisionId, versionId);
+        vectors.insertEmbedding(firstChunk, fixture.revisionId(), 3, COSINE,
+                new float[]{1, 0, 0}, HASH_A);
+        vectors.insertEmbedding(secondChunk, fixture.revisionId(), 3, COSINE,
+                new float[]{0, 1, 0}, HASH_B);
+        UUID jobId = UUID.randomUUID();
+        versions.createJob(jobId, versionId, fixture.revisionId());
+        versions.recordCheckpoint(jobId, 2, 2, "COMPLETE", null);
+        versions.activateVersion(versionId, fixture.revisionId());
+        execute("UPDATE opspilot.knowledge_collection SET active_knowledge_revision_id=? "
+                        + "WHERE collection_id=?", knowledgeRevisionId, collectionId);
+        execute("UPDATE opspilot.incident_run SET effective_knowledge_revision_id=? WHERE run_id=?",
+                knowledgeRevisionId, fixture.runId());
+
+        var pgvector = new PgvectorKnowledgeSearchAdapter(dataSource, (artifactId, location) -> {
+            throw new AssertionError("NO_MATCH must not load fallback Chunk text");
+        });
+        AtomicInteger catalogCalls = new AtomicInteger();
+        AtomicInteger embeddingCalls = new AtomicInteger();
+        AtomicInteger recallCalls = new AtomicInteger();
+        List<SearchAudit> audits = new ArrayList<>();
+        ProviderIdentity embeddingIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-small-zh-v1.5", "7999e1d3359715c523056ef9478215996d62a620");
+        ProviderIdentity rerankIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-reranker-v2-m3", "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e");
+        var service = new KnowledgeSearchService(
+                (snapshot, principals) -> {
+                    catalogCalls.incrementAndGet();
+                    return pgvector.hasSearchableDocuments(snapshot, principals);
+                },
+                request -> {
+                    embeddingCalls.incrementAndGet();
+                    return new ProviderResult<>(List.of(new float[]{1, 0, 0}),
+                            new ProviderUsage(1, 0, 0L), null);
+                },
+                query -> {
+                    recallCalls.incrementAndGet();
+                    return pgvector.exactCandidates(query);
+                },
+                request -> { throw new AssertionError("NO_MATCH must not call Rerank"); },
+                (runId, reference) -> { throw new AssertionError("NO_MATCH must not persist Citation"); },
+                audits::add);
+        var response = service.search(new SearchRequest(
+                fixture.runId(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), 0, 1,
+                new KnowledgeSnapshot(collectionId, knowledgeRevisionId, fixture.revisionId(),
+                        3, "COSINE", embeddingIdentity, rerankIdentity),
+                "检索当前库存调用延迟现场信号对应的隔离租户运维资料",
+                20, 5,
+                Map.of("language", "zh", "service", "inventory-service",
+                        "tag", "phase8-isolated-no-match"),
+                Set.of("phase8-empty-outcome-reader"), Instant.now().plusSeconds(60)));
+
+        assertNull(response.failure());
+        assertEquals(Outcome.NO_MATCH, response.value().outcome());
+        assertFalse(response.value().rerankApplied());
+        assertTrue(response.value().references().isEmpty());
+        assertEquals(1, catalogCalls.get());
+        assertEquals(1, embeddingCalls.get());
+        assertEquals(1, recallCalls.get());
+        assertEquals(1, audits.size());
+        assertEquals(0, audits.getFirst().candidateCount());
+        assertEquals(0, audits.getFirst().rerankCount());
+        assertEquals(2, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_chunk chunk "
+                        + "JOIN opspilot.knowledge_document_version version "
+                        + "ON version.document_version_id=chunk.document_version_id "
+                        + "WHERE version.knowledge_revision_id=? AND chunk.searchable",
+                knowledgeRevisionId));
+        assertEquals(0, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_reference WHERE run_id=?", fixture.runId()));
+    }
+
+    @Test
+    void zeroIncidentHistoryIsNormalAndPreservesFieldEvidenceAndKnowledgeTrace() throws Exception {
+        Fixture fixture = fixture("phase8-insufficient-history");
+        UUID collectionId = UUID.fromString("6b0f41a0-7593-58e5-9280-ba2e58ee5e5e");
+        UUID knowledgeRevisionId = UUID.fromString("c8daf3d4-8664-549e-b27d-52f593e0f784");
+        execute("INSERT INTO opspilot.knowledge_collection (collection_id, collection_key) VALUES (?, ?)",
+                collectionId, "phase8-empty-outcome-insufficient-history-v1");
+        execute("INSERT INTO opspilot.knowledge_revision "
+                        + "(knowledge_revision_id, collection_id, status, normalization_version, "
+                        + "chunk_strategy_version, model_revision_id, embedding_dimension, coverage_status, "
+                        + "expected_chunk_count, completed_chunk_count, searchable) "
+                        + "VALUES (?, ?, 'ACTIVE', 'phase8-v1', 'phase8-v1', ?, 3, 'COMPLETE', 3, 3, true)",
+                knowledgeRevisionId, collectionId, fixture.revisionId());
+
+        var versions = new KnowledgeVersionRepository(dataSource);
+        var vectors = new PgvectorKnowledgeRepository(dataSource);
+        UUID documentId = UUID.randomUUID();
+        UUID versionId = UUID.randomUUID();
+        List<UUID> chunks = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        List<UUID> artifacts = List.of(
+                artifact(fixture.runId()), artifact(fixture.runId()), artifact(fixture.runId()));
+        versions.createDocument(documentId, collectionId, "phase8-history-playbooks");
+        versions.createVersion(versionId, documentId, 1, HASH_A, artifact(fixture.runId()), 3, null);
+        for (int index = 0; index < chunks.size(); index++) {
+            String hash = index == 1 ? HASH_B : HASH_A;
+            versions.appendChunk(chunks.get(index), versionId, index, hash, artifacts.get(index),
+                    "{\"schemaVersion\":\"1.0.0\",\"language\":\"zh\","
+                            + "\"service\":\"order-service\",\"documentType\":\"playbook\"}");
+            vectors.insertEmbedding(chunks.get(index), fixture.revisionId(), 3, COSINE,
+                    new float[]{index == 0 ? 1 : 0, index == 1 ? 1 : 0, index == 2 ? 1 : 0}, hash);
+        }
+        execute("UPDATE opspilot.knowledge_document_version SET knowledge_revision_id=?, "
+                        + "acl_json='{\"principals\":[\"phase8-empty-outcome-reader\"]}'::jsonb "
+                        + "WHERE document_version_id=?", knowledgeRevisionId, versionId);
+        UUID jobId = UUID.randomUUID();
+        versions.createJob(jobId, versionId, fixture.revisionId());
+        versions.recordCheckpoint(jobId, 3, 3, "COMPLETE", null);
+        versions.activateVersion(versionId, fixture.revisionId());
+        execute("UPDATE opspilot.knowledge_collection SET active_knowledge_revision_id=? "
+                        + "WHERE collection_id=?", knowledgeRevisionId, collectionId);
+        execute("UPDATE opspilot.incident_run SET effective_knowledge_revision_id=? WHERE run_id=?",
+                knowledgeRevisionId, fixture.runId());
+        execute("INSERT INTO opspilot.evidence "
+                        + "(evidence_id, run_id, summary, evidence_code, attributes) VALUES "
+                        + "(?, ?, 'connection waiters present', 'metric.order.connection_pending', "
+                        + "'{\"schemaVersion\":\"1.0.0\",\"evidenceCode\":\"metric.order.connection_pending\"}'::jsonb), "
+                        + "(?, ?, 'connection timeouts present', 'log.order.connection_timeout', "
+                        + "'{\"schemaVersion\":\"1.0.0\",\"evidenceCode\":\"log.order.connection_timeout\"}'::jsonb)",
+                UUID.randomUUID(), fixture.runId(), UUID.randomUUID(), fixture.runId());
+
+        Map<UUID, String> textByArtifact = Map.of(
+                artifacts.get(0), "连接池等待排查手册",
+                artifacts.get(1), "数据库超时排查手册",
+                artifacts.get(2), "订单服务连接观测手册");
+        var pgvector = new PgvectorKnowledgeSearchAdapter(
+                dataSource, (artifactId, location) -> textByArtifact.get(artifactId.value()));
+        List<SearchAudit> audits = new ArrayList<>();
+        ProviderIdentity embeddingIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-small-zh-v1.5", "7999e1d3359715c523056ef9478215996d62a620");
+        ProviderIdentity rerankIdentity = new ProviderIdentity(
+                "infinity", "BAAI/bge-reranker-v2-m3", "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e");
+        var service = new KnowledgeSearchService(
+                pgvector,
+                request -> new ProviderResult<>(List.of(new float[]{1, 0, 0}),
+                        new ProviderUsage(1, 0, 0L), null),
+                pgvector,
+                request -> new ProviderResult<>(List.of(
+                        new RankedDocument(chunks.get(0).toString(), 0, .99, 1, rerankIdentity),
+                        new RankedDocument(chunks.get(1).toString(), 1, .88, 2, rerankIdentity),
+                        new RankedDocument(chunks.get(2).toString(), 2, .77, 3, rerankIdentity)),
+                        new ProviderUsage(3, 0, 0L), null),
+                new PostgresKnowledgeReferenceRepository(dataSource), audits::add);
+        var response = service.search(new SearchRequest(
+                fixture.runId(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), 0, 1,
+                new KnowledgeSnapshot(collectionId, knowledgeRevisionId, fixture.revisionId(),
+                        3, "COSINE", embeddingIdentity, rerankIdentity),
+                "根据连接等待与超时现场信号检索排障资料，并核对历史相似案例",
+                20, 5,
+                Map.of("language", "zh", "service", "order-service", "documentType", "playbook"),
+                Set.of("phase8-empty-outcome-reader"), Instant.now().plusSeconds(60)));
+
+        int historyResultCount = scalarInt("""
+                SELECT count(*)
+                FROM opspilot.rca_report report
+                JOIN opspilot.incident_run historical_run ON historical_run.run_id=report.run_id
+                JOIN opspilot.incident historical_incident
+                  ON historical_incident.incident_id=historical_run.incident_id
+                JOIN opspilot.incident_run current_run ON current_run.run_id=?
+                JOIN opspilot.incident current_incident
+                  ON current_incident.incident_id=current_run.incident_id
+                WHERE historical_run.run_id<>current_run.run_id
+                  AND historical_run.status='COMPLETED'
+                  AND historical_incident.target_system_id=current_incident.target_system_id
+                """, fixture.runId());
+
+        assertNull(response.failure());
+        assertEquals(Outcome.MATCH, response.value().outcome());
+        assertEquals(3, response.value().references().size());
+        assertEquals(0, historyResultCount);
+        assertEquals(1, audits.size());
+        assertEquals(3, audits.getFirst().candidateCount());
+        assertEquals(3, audits.getFirst().rerankCount());
+        assertEquals(3, scalarInt(
+                "SELECT count(*) FROM opspilot.knowledge_reference WHERE run_id=?", fixture.runId()));
+        assertEquals(2, scalarInt(
+                "SELECT count(*) FROM opspilot.evidence WHERE run_id=?", fixture.runId()));
+    }
 
     @BeforeAll
     static void migrateDatabase() throws Exception {

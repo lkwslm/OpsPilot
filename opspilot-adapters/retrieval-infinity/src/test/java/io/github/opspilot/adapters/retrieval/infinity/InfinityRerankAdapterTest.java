@@ -69,6 +69,27 @@ class InfinityRerankAdapterTest {
     }
 
     @Test
+    void acceptsDocumentedInfinityMetadataWithoutWeakeningResultValidation() throws Exception {
+        try (Fixture fixture = new Fixture(exchange -> send(exchange, 200, """
+                {"object":"rerank","results":[
+                  {"relevance_score":7.25,"index":0,"document":null},
+                  {"relevance_score":1.5,"index":1,"document":null},
+                  {"relevance_score":-2.5,"index":2,"document":null}],
+                 "model":"rerank-model","usage":{"prompt_tokens":3,"total_tokens":3},
+                 "id":"infinity-request-id","created":1785430794}
+                """))) {
+            var response = fixture.adapter("rerank-model", "revision-1", fixedClock())
+                    .rerank(request(IDENTITY, NOW.plusSeconds(5), CANDIDATES));
+
+            assertNull(response.failure());
+            assertEquals(List.of("doc-a", "doc-b", "doc-c"),
+                    response.value().stream().map(document -> document.documentId()).toList());
+            assertEquals(List.of(7.25, 1.5, -2.5),
+                    response.value().stream().map(document -> document.score()).toList());
+        }
+    }
+
+    @Test
     void identityAndDuplicateDocumentIdsFailBeforeNetwork() throws Exception {
         try (Fixture fixture = Fixture.json("rerank-model", List.of(
                 result(0, 1), result(1, 0), result(2, -1)))) {

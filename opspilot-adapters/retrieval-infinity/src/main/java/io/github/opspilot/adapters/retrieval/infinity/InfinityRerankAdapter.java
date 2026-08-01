@@ -25,7 +25,9 @@ public final class InfinityRerankAdapter implements RerankPort {
     private final Clock clock;
 
     public InfinityRerankAdapter(InfinityRerankConfiguration configuration) {
-        this(configuration, HttpClient.newHttpClient(), new ObjectMapper(), Clock.systemUTC());
+        this(configuration,
+                HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build(),
+                new ObjectMapper(), Clock.systemUTC());
     }
 
     InfinityRerankAdapter(

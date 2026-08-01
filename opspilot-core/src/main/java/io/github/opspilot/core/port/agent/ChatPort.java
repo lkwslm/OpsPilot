@@ -38,7 +38,18 @@ public interface ChatPort {
         }
     }
 
-    record ChatMessage(String role, String content) {
+    record ChatMessage(
+            String role,
+            String content,
+            List<ToolCall> toolCalls,
+            String toolCallId) {
+        public ChatMessage {
+            toolCalls = toolCalls == null ? List.of() : List.copyOf(toolCalls);
+        }
+
+        public ChatMessage(String role, String content) {
+            this(role, content, List.of(), null);
+        }
     }
 
     record ToolDefinition(

@@ -52,7 +52,8 @@ final class EvaluationRunReader {
             int a2aCalls = count(connection,
                     "SELECT count(*) FROM opspilot.call_audit WHERE run_id=? AND call_kind='A2A'", runId);
             Usage usage = usage(connection, runId);
-            long wallClock = Math.max(0, Duration.between(run.startedAt(), run.endedAt()).toMillis());
+            long wallClock = Math.max(0, Duration.between(
+                    run.executionStartedAt(), run.executionEndedAt()).toMillis());
             return new EvaluationInput(
                     runId.toString(), scenarioId, rca.path("outcome").asText(),
                     rca.path("rootCause").path("rootCauseCode").asText(null), citations, tools,
@@ -67,14 +68,16 @@ final class EvaluationRunReader {
 
     private static RunFact run(Connection connection, UUID runId) throws Exception {
         try (var statement = connection.prepareStatement("""
-                SELECT status,started_at,COALESCE(ended_at,now())
+                SELECT status,started_at,COALESCE(ended_at,analysis_sealed_at,now()),
+                       execution_started_at,COALESCE(execution_ended_at,now())
                 FROM opspilot.incident_run WHERE run_id=?
                 """)) {
             statement.setObject(1, runId);
             try (var result = statement.executeQuery()) {
                 if (!result.next()) throw new IllegalStateException("EVALUATION_RUN_NOT_FOUND");
                 return new RunFact(result.getString(1), result.getTimestamp(2).toInstant(),
-                        result.getTimestamp(3).toInstant());
+                        result.getTimestamp(3).toInstant(), result.getTimestamp(4).toInstant(),
+                        result.getTimestamp(5).toInstant());
             }
         }
     }
@@ -155,7 +158,9 @@ final class EvaluationRunReader {
         }
     }
 
-    private record RunFact(String status, Instant startedAt, Instant endedAt) { }
+    private record RunFact(
+            String status, Instant startedAt, Instant endedAt,
+            Instant executionStartedAt, Instant executionEndedAt) { }
     private record Usage(int inputTokens, int outputTokens, long costMicros) { }
     private record EvidenceFact(
             UUID runId, String evidenceCode, Instant observedAt, String artifactSha256, String accessLevel) { }

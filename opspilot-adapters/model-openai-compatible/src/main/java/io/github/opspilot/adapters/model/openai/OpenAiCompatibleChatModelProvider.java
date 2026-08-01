@@ -9,7 +9,11 @@ import io.github.opspilot.core.port.provider.SecretResolver;
 import io.github.opspilot.core.port.provider.SecretResolver.ResolutionContext;
 import io.github.opspilot.core.port.provider.SecretResolver.ResolvedSecret;
 import io.github.opspilot.core.domain.failure.ChainFailure;
+import io.github.opspilot.core.domain.failure.ChainFailure.CheckpointRef;
 import io.github.opspilot.adapters.model.openai.OpenAiProviderFailureMapper.FailureContext;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderFailure;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderResult;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderUsage;
 
 import java.io.IOException;
 import java.net.URI;
@@ -19,6 +23,7 @@ import java.util.Objects;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 /** OpenAI-compatible Chat provider with one-attempt ordinary and complete-only streaming calls. */
 public final class OpenAiCompatibleChatModelProvider implements ChatPort {
@@ -81,6 +86,21 @@ public final class OpenAiCompatibleChatModelProvider implements ChatPort {
 
     public ChatResponse complete(ChatInvocation invocation) {
         return execute(invocation, false);
+    }
+
+    @Override
+    public ProviderResult<ChatResponse> invoke(ChatInvocation invocation) {
+        UUID correlationId = UUID.randomUUID();
+        CallOutcome outcome = call(invocation, new FailureContext(
+                stableProviderId, 1, correlationId, new CheckpointRef(correlationId, 0)), false);
+        if (outcome.failure() != null) {
+            ChainFailure failure = outcome.failure();
+            return new ProviderResult<>(null, null,
+                    new ProviderFailure(failure.errorCode(), failure.retryable(), failure.redactedSummary()));
+        }
+        ChatResponse response = outcome.response();
+        return new ProviderResult<>(response,
+                new ProviderUsage(response.usage().inputTokens(), response.usage().outputTokens(), null), null);
     }
 
     public ChatResponse completeStreaming(ChatInvocation invocation) {

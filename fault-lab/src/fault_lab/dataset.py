@@ -4,6 +4,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import stat
 import uuid
 from pathlib import Path
 from typing import Any
@@ -148,6 +150,58 @@ class DatasetValidator:
             if start >= end or (previous_end is not None and start < previous_end):
                 raise ContractError("DATASET_WINDOW_INVALID", name)
             previous_end = end
+
+
+def activate_dataset_zone(dataset_dir: Path, zone: str, target_root: Path) -> None:
+    """Export one immutable dataset zone and make it the active `current` input."""
+    source = dataset_dir.resolve() / zone
+    if not source.is_dir() or zone not in _ZONES:
+        raise ContractError("DATASET_ZONE_INVALID", zone)
+    target_root = target_root.resolve()
+    target_root.mkdir(parents=True, exist_ok=True)
+    immutable = target_root / dataset_dir.name
+    if immutable.exists():
+        source_files = {
+            path.relative_to(source): path.read_bytes()
+            for path in source.rglob("*")
+            if path.is_file()
+        }
+        immutable_files = {
+            path.relative_to(immutable): path.read_bytes()
+            for path in immutable.rglob("*")
+            if path.is_file()
+        }
+        if source_files != immutable_files:
+            raise ContractError("DATASET_IMMUTABLE_EXPORT_CONFLICT", dataset_dir.name)
+    else:
+        shutil.copytree(source, immutable)
+
+    staging = target_root / f".current-{dataset_dir.name}"
+    current = target_root / "current"
+    previous = target_root / ".previous-current"
+    if staging.exists():
+        _remove_export_tree(staging)
+    shutil.copytree(source, staging)
+    if previous.exists():
+        _remove_export_tree(previous)
+    if current.exists():
+        os.replace(current, previous)
+    try:
+        os.replace(staging, current)
+    except OSError:
+        if previous.exists() and not current.exists():
+            os.replace(previous, current)
+        raise
+    if previous.exists():
+        _remove_export_tree(previous)
+
+
+def _remove_export_tree(path: Path) -> None:
+    def make_writable_and_retry(function: Any, failed_path: str, _: Any) -> None:
+        os.chmod(failed_path, stat.S_IWRITE)
+        function(failed_path)
+
+    shutil.rmtree(path, onerror=make_writable_and_retry)
 
 
 def manifest_for(

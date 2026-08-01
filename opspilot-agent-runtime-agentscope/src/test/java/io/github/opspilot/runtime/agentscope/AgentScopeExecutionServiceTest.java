@@ -4,6 +4,8 @@ import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.core.state.State;
 import io.github.opspilot.core.port.agent.AgentExecutionService;
 import io.github.opspilot.core.port.agent.ChatPort;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderFailure;
+import io.github.opspilot.core.port.provider.ProviderContracts.ProviderResult;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -127,6 +129,41 @@ final class AgentScopeExecutionServiceTest {
         assertTrue(elapsedMillis < 20_000, "elapsed=" + elapsedMillis);
         assertEquals(1, modelCalls.get());
         assertNotNull(result.checkpoint());
+    }
+
+    @Test
+    void preservesStableProviderFailureCodeAndAuditsTheFailedModelCall() {
+        MemoryStateStore stateStore = new MemoryStateStore();
+        ChatPort failedChat = new ChatPort() {
+            @Override
+            public ChatResponse complete(ChatRequest request) {
+                throw new AssertionError("governed runtime must use invoke");
+            }
+
+            @Override
+            public ProviderResult<ChatResponse> invoke(ChatInvocation invocation) {
+                return new ProviderResult<>(null, null,
+                        new ProviderFailure("PROVIDER_BAD_REQUEST", false, "request rejected"));
+            }
+        };
+        List<io.github.opspilot.core.port.agent.RuntimeAuditSink.AuditEvent> audit =
+                new java.util.ArrayList<>();
+
+        AgentExecutionService.ExecutionResult result;
+        try (AgentScopeExecutionService service = new AgentScopeExecutionService(
+                failedChat, List.of(), stateStore, audit::add)) {
+            result = service.execute(request("provider-failure",
+                    AgentExecutionService.ExecutionSession.specialist(
+                            "diagnosis", "task-provider-failure", 1, false),
+                    AgentExecutionService.CancellationToken.never(),
+                    Instant.now().plusSeconds(30)));
+        }
+
+        assertEquals(AgentExecutionService.ExecutionOutcome.FAILED, result.outcome());
+        assertEquals("PROVIDER_BAD_REQUEST", result.terminationReason());
+        assertTrue(result.events().stream().anyMatch(event ->
+                event.eventType().equals("MODEL_FAILED")
+                        && event.attributes().get("errorCode").equals("PROVIDER_BAD_REQUEST")));
     }
 
     private static AgentExecutionService.ExecutionRequest request(

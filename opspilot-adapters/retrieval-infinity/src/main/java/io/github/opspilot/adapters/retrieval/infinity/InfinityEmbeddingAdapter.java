@@ -28,7 +28,9 @@ public final class InfinityEmbeddingAdapter implements EmbeddingPort {
     public InfinityEmbeddingAdapter(
             InfinityEmbeddingConfiguration configuration,
             InfinityEmbeddingBatcher.TokenCounter tokenCounter) {
-        this(configuration, tokenCounter, HttpClient.newHttpClient(), new ObjectMapper(), Clock.systemUTC());
+        this(configuration, tokenCounter,
+                HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build(),
+                new ObjectMapper(), Clock.systemUTC());
     }
 
     InfinityEmbeddingAdapter(

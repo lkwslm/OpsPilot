@@ -157,6 +157,10 @@ public final class AgentScopeExecutionService implements AgentExecutionService, 
             if (stopped != null || !guard.status().permitted()) {
                 return terminated(request, guard, collectingSink);
             }
+            ProviderCallFailed providerFailure = findProviderFailure(executionFailure);
+            if (providerFailure != null) {
+                return failed(request, guard, collectingSink, providerFailure.getMessage(), null);
+            }
             return failed(request, guard, collectingSink, "AGENT_EXECUTION_FAILED", null);
         }
         agent.close();
@@ -307,6 +311,15 @@ public final class AgentScopeExecutionService implements AgentExecutionService, 
                 : findStopped(failure.getCause());
     }
 
+    private static ProviderCallFailed findProviderFailure(Throwable failure) {
+        if (failure == null) {
+            return null;
+        }
+        return failure instanceof ProviderCallFailed providerFailure
+                ? providerFailure
+                : findProviderFailure(failure.getCause());
+    }
+
     public record ExecutionJournalState(
             String checkpointId,
             String executionId,
@@ -356,6 +369,10 @@ public final class AgentScopeExecutionService implements AgentExecutionService, 
             int currentRound = guard.usage().rounds();
             ProviderResult<ChatResponse> result = delegate.invoke(new ChatInvocation(request, deadline, null));
             if (result.failure() != null) {
+                audit.event("MODEL_FAILED", currentRound, null,
+                        null, null, null, false, Map.of(
+                                "errorCode", result.failure().errorCode(),
+                                "retryable", result.failure().retryable()));
                 throw new ProviderCallFailed(result.failure().errorCode());
             }
             ChatResponse response = result.value();
@@ -392,9 +409,14 @@ public final class AgentScopeExecutionService implements AgentExecutionService, 
                     null, null, null, false, Map.of("toolName", name()));
             ToolResult result = delegate.execute(input);
             requireAllowed(guard.afterToolCall(result.evidenceIds().size()));
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            attributes.put("toolName", name());
+            attributes.put("status", result.status().name());
+            if (result.errorCode() != null) {
+                attributes.put("errorCode", result.errorCode());
+            }
             audit.event("TOOL_COMPLETED", guard.usage().rounds(), fingerprint,
-                    null, null, null, false, Map.of(
-                            "toolName", name(), "status", result.status().name()));
+                    null, null, null, false, attributes);
             return result;
         }
     }

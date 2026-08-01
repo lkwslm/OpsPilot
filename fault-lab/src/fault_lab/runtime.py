@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import psycopg
 
@@ -25,7 +25,13 @@ from .adapters import (
     ToxiproxyLatencyInjector,
 )
 from .contracts import ContractError, ContractLoader
-from .dataset import DatasetValidator, DatasetWriter, canonical_json, sha256_bytes
+from .dataset import (
+    DatasetValidator,
+    DatasetWriter,
+    activate_dataset_zone,
+    canonical_json,
+    sha256_bytes,
+)
 from .evidence import EvidenceCodeMatcher, EvidenceMatch, EvidenceRecord, GroundTruthGenerator, GroundTruthValidator
 from .model import ExecutionContext
 from .outcomes import ScenarioOutcomeValidator
@@ -120,13 +126,30 @@ class RealTraffic:
 
 class RealEnvironmentController:
     def __init__(self, jdbc_url: str, username: str, password_file: Path, compose_project: str,
-                 toxiproxy_url: str, inventory_url: str):
+                 toxiproxy_url: str, inventory_url: str,
+                 frozen_identity: Mapping[str, str] | None = None):
         self.jdbc_url = jdbc_url
         self.username = username
         self.password_file = password_file
         self.compose_project = compose_project
         self.toxiproxy_url = toxiproxy_url.rstrip("/")
         self.inventory_url = inventory_url.rstrip("/")
+        if frozen_identity is not None:
+            required = {"gitCommit", "composeDigest", "modelConfigDigest"}
+            valid = (
+                set(frozen_identity) == required
+                and len(frozen_identity["gitCommit"]) == 40
+                and all(
+                    len(frozen_identity[field]) == 64
+                    for field in ("composeDigest", "modelConfigDigest")
+                )
+            )
+            if not valid:
+                raise ContractError(
+                    "FAULT_LAB_REPRODUCIBILITY_METADATA_INVALID",
+                    "frozen dataset identity",
+                )
+        self.frozen_identity = dict(frozen_identity) if frozen_identity is not None else None
 
     def reset(self, context: ExecutionContext) -> None:
         self._ensure_inventory_started()
@@ -190,10 +213,20 @@ class RealEnvironmentController:
                 _json_request("DELETE", self.toxiproxy_url + "/proxies/inventory-downstream/toxics/" + urllib.parse.quote(name))
 
     def _build_facts(self) -> dict[str, Any]:
-        compose_digest = os.environ.get("COMPOSE_DIGEST", "")
-        git_commit = os.environ.get("SOURCE_COMMIT", "")
-        if not compose_digest or len(compose_digest) != 64 or not git_commit or len(git_commit) != 40:
-            raise ContractError("FAULT_LAB_REPRODUCIBILITY_METADATA_MISSING", "COMPOSE_DIGEST/SOURCE_COMMIT")
+        if self.frozen_identity is None:
+            compose_digest = os.environ.get("COMPOSE_DIGEST", "")
+            git_commit = os.environ.get("SOURCE_COMMIT", "")
+            if not compose_digest or not git_commit:
+                detected_compose, detected_commit = self._deployment_identity()
+                compose_digest = compose_digest or detected_compose
+                git_commit = git_commit or detected_commit
+            if not compose_digest or len(compose_digest) != 64 or not git_commit or len(git_commit) != 40:
+                raise ContractError("FAULT_LAB_REPRODUCIBILITY_METADATA_MISSING", "COMPOSE_DIGEST/SOURCE_COMMIT")
+            model_config_digest = hashlib.sha256(b"fault-lab:no-model-client").hexdigest()
+        else:
+            git_commit = self.frozen_identity["gitCommit"]
+            compose_digest = self.frozen_identity["composeDigest"]
+            model_config_digest = self.frozen_identity["modelConfigDigest"]
         image_digests: dict[str, str] = {}
         for service in ("sample-gateway", "order-service", "inventory-service", "toxiproxy", "prometheus", "jaeger-v1"):
             result = subprocess.run([
@@ -211,8 +244,42 @@ class RealEnvironmentController:
             "gitCommit": git_commit,
             "composeDigest": compose_digest,
             "imageDigests": image_digests,
-            "modelConfigDigest": hashlib.sha256(b"fault-lab:no-model-client").hexdigest(),
+            "modelConfigDigest": model_config_digest,
         }
+
+    def _deployment_identity(self) -> tuple[str, str]:
+        containers = subprocess.run([
+            "docker", "ps", "-a",
+            "--filter", f"label=com.docker.compose.project={self.compose_project}",
+            "--format", "{{.ID}}",
+        ], capture_output=True, text=True, check=False, timeout=30)
+        container_ids = containers.stdout.split() if containers.returncode == 0 else []
+        if not container_ids:
+            raise ContractError("FAULT_LAB_REPRODUCIBILITY_METADATA_MISSING", "compose containers")
+        inspected = subprocess.run(
+            ["docker", "inspect", *container_ids], capture_output=True, text=True,
+            check=False, timeout=30,
+        )
+        try:
+            values = json.loads(inspected.stdout) if inspected.returncode == 0 else []
+        except json.JSONDecodeError as failure:
+            raise ContractError("FAULT_LAB_REPRODUCIBILITY_METADATA_INVALID", "docker inspect") from failure
+        services: list[dict[str, str]] = []
+        source_commits: set[str] = set()
+        for value in values:
+            config = value.get("Config", {})
+            labels = config.get("Labels") or {}
+            service = labels.get("com.docker.compose.service", "")
+            config_hash = labels.get("com.docker.compose.config-hash", "")
+            if service and len(config_hash) == 64:
+                services.append({"service": service, "configHash": config_hash})
+            for entry in config.get("Env") or []:
+                if entry.startswith("SOURCE_COMMIT=") and len(entry.removeprefix("SOURCE_COMMIT=")) == 40:
+                    source_commits.add(entry.removeprefix("SOURCE_COMMIT="))
+        if not services or len(source_commits) != 1:
+            raise ContractError("FAULT_LAB_REPRODUCIBILITY_METADATA_MISSING", "compose config/source commit")
+        services.sort(key=lambda item: (item["service"], item["configHash"]))
+        return sha256_bytes(canonical_json(services)), next(iter(source_commits))
 
 
 class RealLoadGenerator:
@@ -481,20 +548,12 @@ class RealTicketGenerator:
 
 def expose_dataset(dataset_dir: Path, agent_input_root: Path, ground_truth_root: Path) -> None:
     for source_name, target_root in (("input", agent_input_root), ("ground-truth", ground_truth_root)):
-        source = dataset_dir / source_name
-        target_root.mkdir(parents=True, exist_ok=True)
-        staging = target_root / f".current-{dataset_dir.name}"
-        current = target_root / "current"
-        if staging.exists():
-            shutil.rmtree(staging)
-        shutil.copytree(source, staging)
-        if current.exists():
-            shutil.rmtree(current)
-        os.replace(staging, current)
+        activate_dataset_zone(dataset_dir, source_name, target_root)
 
 
 def build_runner(scenario: dict[str, Any], ground_truth: dict[str, Any], dataset_root: Path,
-                 checkpoint_root: Path, compose_project: str) -> ScenarioRunner:
+                 checkpoint_root: Path, compose_project: str,
+                 frozen_identity: Mapping[str, str] | None = None) -> ScenarioRunner:
     contracts = ContractLoader()
     injection_type = scenario["injection"]["type"]
     injector = {
@@ -507,7 +566,7 @@ def build_runner(scenario: dict[str, Any], ground_truth: dict[str, Any], dataset
     registry = ComponentRegistry()
     registry.register("environment", "compose", "1.0.0", RealEnvironmentController(
         os.environ["JDBC_URL"], os.environ["DB_USERNAME"], Path(os.environ["DB_PASSWORD_FILE"]), compose_project,
-        os.environ["TOXIPROXY_URL"], os.environ["INVENTORY_SERVICE_URL"]))
+        os.environ["TOXIPROXY_URL"], os.environ["INVENTORY_SERVICE_URL"], frozen_identity))
     registry.register("health", "real", "1.0.0", RealHealthChecker(load, os.environ["SAMPLE_GATEWAY_URL"], os.environ["INVENTORY_SERVICE_URL"]))
     registry.register("load", "http", "1.0.0", load)
     registry.register("injector", injection_type, "1.0.0", injector)
