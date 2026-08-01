@@ -1,0 +1,184 @@
+{
+  "schemaVersion": "1.0.0",
+  "suiteId": "phase8-empty-outcome",
+  "suiteVersion": "1.0.0",
+  "runPurpose": "EMPTY_OUTCOME",
+  "snapshotDigest": "1e2b05c396ce5731f396aa25f89e94af2fac6e62e29d0ab8ce74e23c049c8d33",
+  "modelIdentity": {
+    "embeddingModelId": "BAAI/bge-small-zh-v1.5",
+    "embeddingRevision": "7999e1d3359715c523056ef9478215996d62a620",
+    "rerankModelId": "BAAI/bge-reranker-v2-m3",
+    "rerankRevision": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
+  },
+  "cases": [
+    {
+      "caseId": "empty-outcome-kb-empty-v1",
+      "caseKind": "KB_EMPTY",
+      "knowledge": {
+        "collectionId": "3eb2a9f3-6e9b-5439-a772-e2052d505fb5",
+        "revisionId": "01e066b2-ee42-57ea-8311-0efa2395537e",
+        "revisionKey": "phase8-empty-outcome/1.0.0/kb-empty",
+        "searchableChunkCount": 0
+      },
+      "query": {
+        "text": "库存服务在现场窗口出现健康检查失败和上游连接错误，请检索相关运维资料",
+        "filters": {"language": "zh", "service": "inventory-service", "documentType": "playbook"},
+        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "candidateK": 20,
+        "topK": 5
+      },
+      "fieldEvidence": [
+        {
+          "evidenceCode": "health.inventory.readiness_down",
+          "signalType": "HEALTH",
+          "sourceId": "sample-gateway-health",
+          "sourceKind": "HTTP",
+          "adapterId": "health-query-v1",
+          "toolName": "HealthQueryTool",
+          "claim": "inventory readiness was DOWN inside the incident window"
+        },
+        {
+          "evidenceCode": "log.order.inventory_connection_error",
+          "signalType": "LOG",
+          "sourceId": "phase0-jsonl",
+          "sourceKind": "FILE",
+          "adapterId": "jsonl-log",
+          "toolName": "LogQueryTool",
+          "claim": "order recorded an inventory connection error inside the incident window"
+        }
+      ],
+      "expectations": {
+        "knowledgeOutcome": "KB_EMPTY",
+        "candidateCount": 0,
+        "rerankCount": 0,
+        "historyResultCount": null,
+        "technicalChainFailures": 0,
+        "continueFieldInvestigation": true,
+        "fallbacks": {"keyword": 0, "fixedCandidate": 0, "otherProvider": 0},
+        "calls": {
+          "knowledgeAgentA2a": 1,
+          "knowledgeSearchTool": 1,
+          "catalogCheck": 1,
+          "embedding": 0,
+          "exactRecall": 0,
+          "rerank": 0,
+          "historyLookup": 0,
+          "fieldEvidenceTools": 2
+        }
+      }
+    },
+    {
+      "caseId": "empty-outcome-no-match-v1",
+      "caseKind": "NO_MATCH",
+      "knowledge": {
+        "collectionId": "5fe401bf-25da-5799-8a1a-9f7f5b699f14",
+        "revisionId": "c05677a6-f0c9-55c6-b78f-747244e01cc1",
+        "revisionKey": "phase8-empty-outcome/1.0.0/no-match",
+        "searchableChunkCount": 2
+      },
+      "query": {
+        "text": "检索当前库存调用延迟现场信号对应的隔离租户运维资料",
+        "filters": {"language": "zh", "service": "inventory-service", "tag": "phase8-isolated-no-match"},
+        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "candidateK": 20,
+        "topK": 5
+      },
+      "fieldEvidence": [
+        {
+          "evidenceCode": "trace.order.inventory_client_slow",
+          "signalType": "TRACE",
+          "sourceId": "jaeger-v1",
+          "sourceKind": "JAEGER",
+          "adapterId": "jaeger-trace-v1",
+          "toolName": "TraceQueryTool",
+          "claim": "order to inventory client spans were slow inside the incident window"
+        },
+        {
+          "evidenceCode": "metric.gateway.latency_high",
+          "signalType": "METRIC",
+          "sourceId": "prometheus-v1",
+          "sourceKind": "PROMETHEUS",
+          "adapterId": "prometheus-query-v1",
+          "toolName": "MetricQueryTool",
+          "claim": "gateway request latency was elevated inside the incident window"
+        }
+      ],
+      "expectations": {
+        "knowledgeOutcome": "NO_MATCH",
+        "candidateCount": 0,
+        "rerankCount": 0,
+        "historyResultCount": null,
+        "technicalChainFailures": 0,
+        "continueFieldInvestigation": true,
+        "fallbacks": {"keyword": 0, "fixedCandidate": 0, "otherProvider": 0},
+        "calls": {
+          "knowledgeAgentA2a": 1,
+          "knowledgeSearchTool": 1,
+          "catalogCheck": 1,
+          "embedding": 1,
+          "exactRecall": 1,
+          "rerank": 0,
+          "historyLookup": 0,
+          "fieldEvidenceTools": 2
+        }
+      }
+    },
+    {
+      "caseId": "empty-outcome-insufficient-history-v1",
+      "caseKind": "INSUFFICIENT_HISTORY",
+      "knowledge": {
+        "collectionId": "6b0f41a0-7593-58e5-9280-ba2e58ee5e5e",
+        "revisionId": "c8daf3d4-8664-549e-b27d-52f593e0f784",
+        "revisionKey": "phase8-empty-outcome/1.0.0/insufficient-history",
+        "searchableChunkCount": 3
+      },
+      "query": {
+        "text": "根据连接等待与超时现场信号检索排障资料，并核对历史相似案例",
+        "filters": {"language": "zh", "service": "order-service", "documentType": "playbook"},
+        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "candidateK": 20,
+        "topK": 5
+      },
+      "fieldEvidence": [
+        {
+          "evidenceCode": "metric.order.connection_pending",
+          "signalType": "METRIC",
+          "sourceId": "prometheus-v1",
+          "sourceKind": "PROMETHEUS",
+          "adapterId": "prometheus-query-v1",
+          "toolName": "MetricQueryTool",
+          "claim": "order database connection waiters were present inside the incident window"
+        },
+        {
+          "evidenceCode": "log.order.connection_timeout",
+          "signalType": "LOG",
+          "sourceId": "phase0-jsonl",
+          "sourceKind": "FILE",
+          "adapterId": "jsonl-log",
+          "toolName": "LogQueryTool",
+          "claim": "order recorded database connection timeouts inside the incident window"
+        }
+      ],
+      "expectations": {
+        "knowledgeOutcome": "MATCH",
+        "candidateCount": 3,
+        "rerankCount": 3,
+        "historyResultCount": 0,
+        "technicalChainFailures": 0,
+        "continueFieldInvestigation": true,
+        "fallbacks": {"keyword": 0, "fixedCandidate": 0, "otherProvider": 0},
+        "calls": {
+          "knowledgeAgentA2a": 1,
+          "knowledgeSearchTool": 1,
+          "catalogCheck": 1,
+          "embedding": 1,
+          "exactRecall": 1,
+          "rerank": 1,
+          "historyLookup": 1,
+          "fieldEvidenceTools": 2
+        }
+      }
+    }
+  ],
+  "manifestDigest": "73d4fab881763bd0da84e6132453e660c349dee455a7a456ec794700b85be235"
+}
