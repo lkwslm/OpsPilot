@@ -2,20 +2,27 @@ schema: spec-driven
 
 context: |
   项目：OpsPilot，本地可运行、可验证、可复现的智能运维演示系统。
-  当前变更只覆盖 docs/implementation-plan/07-fault-lab-rca-and-evaluation.md 定义的阶段 07。
+  环境：Windows + PowerShell，工作区根目录为 E:\Code\OpsPilot。
+  本地 JDK 21：E:\Code\OpsPilot\.tmp\jdk21\jdk-21.0.12+8；运行 Maven 前将 JAVA_HOME 设为该目录，并使用根目录的 .\mvnw.cmd（Maven 3.9.11）。
+  Fault Lab Python 环境：fault-lab\.venv\Scripts\python.exe；全套测试命令为 fault-lab\.venv\Scripts\python.exe -m pytest fault-lab\tests -q。
+  OpenSpec CLI 未加入 PATH，入口为 C:\Users\l\.codex\tools\openspec-1.6.0\node_modules\.bin\openspec.cmd。
+  合同验证依赖锁位于 scripts\contracts\requirements.lock.txt；完整门禁使用 uv run --no-project --with-requirements scripts\contracts\requirements.lock.txt python scripts\contracts\run_contracts.py，并为 report-dir 与 summary 指定任务级临时输出路径。
+  环境记录只保存稳定、非敏感的本地工具路径与验证入口；Secret、connectionRef 解析值、临时端口和瞬时容器状态不得写入本配置。
+  当前变更只覆盖 docs/implementation-plan/08-quality-security-and-release-gates.md 定义的阶段 08。
   事实源优先级：docs/design/contracts/ 中的 OpenAPI 与 JSON Schema，其次为设计中的状态矩阵、不变量和模块边界，再其次为阶段计划。
-  本阶段实现 Python 3.11+ Fault Lab、可恢复场景状态机、可复现且隔离的数据集、三个冻结故障场景、确定性 Evidence Code/Ground Truth、封账 Run 的结构化 RCA，以及独立 Evaluation 进程和八类确定性指标。
-  本阶段不增加第四场景，不改变三个冻结场景的参数、required Evidence、Root Cause Code 或阈值，不允许 Agent 接触 Ground Truth/execution/卷凭证/Docker socket，不建立重复 RCA 输入快照，也不宣称完成阶段 08 的每场景 5 次发布聚合门禁。
-  Fault Lab、数据集、三个场景、Ground Truth、RCA 与 Evaluation 必须通过 Schema/单元、场景集成、恢复、隔离安全、三场景正常链路 E2E 和可复现性验证；不得使用 LLM-as-a-Judge、自然语言相似度、Mock 结果或未封账数据冒充确定性验收。
+  本阶段冻结发布评测基线，执行三场景各 5 次独立质量 Run，并完成正常空结果、技术失败、状态并发恢复、安全、可观测性与账本、调查效率、性能资源、条件 ANN、可移植性和发布证据门禁。
+  正常质量 Run 必须使用真实多 Agent/RAG 链和独立 Evaluation；故障注入与负向测试使用独立 Run，不进入 15 次质量聚合分母。Profile、模型、Prompt、知识 revision、场景和硬件身份在发布运行开始后不得漂移。
+  本阶段不降低阈值、不删减 required Evidence、不关闭 Rerank、不以 Mock/vector-only/关键词/固定结果替代真实链路；精确检索达到 SLO 时不引入 ANN，性能目标不解释为生产 SLO。
+  任一硬安全、质量、调查效率、性能或证据完整性门禁失败均使阶段失败；缺少 Secret、Runner 或真实模型时必须标记 BLOCKED，不得伪装为 PASSED 或 SKIPPED。
   文档、需求、场景、设计决策和任务说明统一使用中文；协议字段名、代码标识符、路径、命令及标准术语保留原文。
 
 rules:
   proposal:
-    - 明确阶段 07 的 Fault Lab、数据集、三个冻结场景、Ground Truth、结构化 RCA 和确定性 Evaluation 边界、非目标、前置门禁和可验证结果。
+    - 明确阶段 08 的冻结基线、15 次质量运行、负向矩阵、恢复安全效率性能门禁、条件 ANN、发布证据边界、非目标、前置门禁和可验证结果。
   specs:
-    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留阶段计划中的统一执行序列、finally 恢复、三时间窗、数据集与凭证隔离、三个场景冻结参数、Evidence Code 精确匹配、RCA 封账与同源渲染、八指标公式和 Evaluation 独立身份约束。
+    - 每项需求至少包含一个 GIVEN/WHEN/THEN 场景，并保留质量聚合分母、空结果/技术失败语义、能力关键性、CAS/租约/outbox 恢复、安全攻击面、泄密扫描、可观测账本、逐维效率、固定负载性能、条件 ANN 和 Release Manifest 约束。
   design:
-    - 记录 07-WP01 至 07-WP09 的依赖、Fault Lab 组件边界、runner/checkpoint/recovery 状态、数据集目录与身份隔离、三个场景的注入/负载/采集/恢复合同、Evidence Code/Ground Truth 数据流、RCA 封账查询与双格式渲染、Evaluation 进程/指标/去重/聚合和阻塞条件，不扩展阶段范围。
+    - 记录 08-WP01 至 08-WP09 的依赖、基线与 Run ledger、15 Run 编排聚合、空结果和失败矩阵、状态恢复、安全目录、可观测与效率复算、性能方法、ANN 条件决策、证据清单和阻塞条件，不扩展阶段范围。
   tasks:
-    - 保留 07-WPxx.Tx 编号，任务必须能追溯到实施落点、验证命令或证据。
+    - 保留 08-WPxx.Tx 编号；可将原任务拆成多个可验证子任务，但每项都必须追溯到实施落点、验证命令或证据。
     - 使用未勾选复选框，不把规划工作误标为已完成。
