@@ -40,6 +40,26 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-a2a</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-adapter-code-java</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-adapter-knowledge-pgvector</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.opspilot</groupId>
+            <artifactId>opspilot-adapter-retrieval-infinity</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>

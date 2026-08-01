@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from fault_lab.adapters import (
 from fault_lab.contracts import ContractError
 from fault_lab.model import ExecutionContext
 from fault_lab.outcomes import ScenarioOutcomeValidator
-from fault_lab.runtime import RealArtifactCollector, RealLoadGenerator
+from fault_lab.runtime import RealArtifactCollector, RealEnvironmentController, RealLoadGenerator
 
 
 def context(injection_type: str, parameters: dict[str, object], duration: int = 120) -> ExecutionContext:
@@ -103,6 +104,58 @@ def test_container_recovery_waits_for_real_readiness(monkeypatch) -> None:
     load._await_inventory_recovery(10)
 
     assert clock[0] == 2.0
+
+
+def test_environment_identity_is_derived_from_compose_config_hashes(monkeypatch, tmp_path) -> None:
+    commit = "a" * 40
+    inspected = [{
+        "Config": {
+            "Labels": {
+                "com.docker.compose.service": "order-service",
+                "com.docker.compose.config-hash": "b" * 64,
+            },
+            "Env": [f"SOURCE_COMMIT={commit}"],
+        },
+    }, {
+        "Config": {
+            "Labels": {
+                "com.docker.compose.service": "postgres",
+                "com.docker.compose.config-hash": "c" * 64,
+            },
+            "Env": [],
+        },
+    }]
+
+    def run(command, **kwargs):
+        if command[:3] == ["docker", "ps", "-a"]:
+            return subprocess.CompletedProcess(command, 0, "one\ntwo\n", "")
+        return subprocess.CompletedProcess(command, 0, json.dumps(inspected), "")
+
+    monkeypatch.setattr(runtime_module.subprocess, "run", run)
+    controller = RealEnvironmentController(
+        "jdbc:postgresql://postgres/opspilot", "fault_lab", tmp_path / "password",
+        "opspilot", "http://toxiproxy:8474", "http://inventory-service:8080",
+    )
+
+    compose_digest, source_commit = controller._deployment_identity()
+
+    assert len(compose_digest) == 64
+    assert source_commit == commit
+
+
+def test_environment_uses_explicit_frozen_dataset_identity(tmp_path) -> None:
+    identity = {
+        "gitCommit": "a" * 40,
+        "composeDigest": "b" * 64,
+        "modelConfigDigest": "c" * 64,
+    }
+    controller = RealEnvironmentController(
+        "jdbc:postgresql://postgres/opspilot", "fault_lab", tmp_path / "password",
+        "opspilot", "http://toxiproxy:8474", "http://inventory-service:8080",
+        frozen_identity=identity,
+    )
+
+    assert controller._build_facts() | {"imageDigests": {}} == identity | {"imageDigests": {}}
 
 
 def test_remove_volume_is_denied_before_command() -> None:

@@ -18,7 +18,9 @@ contracts/
     ├── observation-batch.schema.json
     ├── evidence-bundle.schema.json
     └── release-manifest.schema.json
-├── profiles/mvp-v1.yaml
+├── profiles/
+    ├── mvp-v1.yaml
+    └── mvp-v2.yaml
 └── examples/
     ├── scenarios/
     ├── ground-truth/

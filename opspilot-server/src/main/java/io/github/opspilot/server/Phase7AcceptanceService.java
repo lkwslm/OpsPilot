@@ -51,7 +51,8 @@ final class Phase7AcceptanceService {
 
     RcaReportService.RenderedReport complete(
             UUID incidentId, UUID runUuid, Instant windowStart, Instant windowEnd,
-            String professionalResponse, ChatResponse providerResponse) throws Exception {
+            String professionalResponse, String diagnosisResponse, String remediationResponse,
+            Set<String> actualTools, ChatResponse providerResponse) throws Exception {
         JsonNode response = json.readTree(professionalResponse);
         JsonNode items = response.path("evidence");
         if (!items.isArray() || items.isEmpty()) {
@@ -61,11 +62,11 @@ final class Phase7AcceptanceService {
         RunId runId = new RunId(runUuid);
         UUID taskId = UUID.fromString(response.path("taskId").asText());
         ArtifactId artifactId = new ArtifactId(UUID.fromString(response.path("artifactId").asText()));
-        HypothesisId hypothesisId = new HypothesisId(UUID.randomUUID());
         List<EvidenceWrite> evidence = new ArrayList<>();
         List<EvidenceId> evidenceIds = new ArrayList<>();
+        Map<String, EvidenceId> evidenceByCode = new LinkedHashMap<>();
         Set<String> evidenceCodes = new LinkedHashSet<>();
-        Set<String> tools = new LinkedHashSet<>();
+        Set<String> requiredEvidenceTools = new LinkedHashSet<>();
         for (JsonNode item : items) {
             EvidenceId evidenceId = new EvidenceId(UUID.fromString(item.path("evidenceId").asText()));
             String code = item.path("evidenceCode").asText();
@@ -78,30 +79,61 @@ final class Phase7AcceptanceService {
                     evidenceId, code, item.path("claim").asText(), observedAt, signalType));
             evidenceIds.add(evidenceId);
             evidenceCodes.add(code);
-            tools.add(toolFor(signalType));
+            if (evidenceByCode.put(code, evidenceId) != null) {
+                throw new IllegalStateException("PHASE7_EVIDENCE_CODE_DUPLICATE");
+            }
+            requiredEvidenceTools.add(toolFor(signalType));
         }
-        Diagnosis diagnosis = diagnose(evidenceCodes);
+        if (!actualTools.containsAll(requiredEvidenceTools)) {
+            throw new IllegalStateException("PHASE7_REQUIRED_TOOL_NOT_EXECUTED");
+        }
+        if (actualTools.contains("SandboxTestTool")) {
+            throw new IllegalStateException("PHASE7_FORBIDDEN_TOOL_EXECUTED");
+        }
+        Diagnosis diagnosis = parseDiagnosis(diagnosisResponse, remediationResponse, evidenceCodes);
+        Map<DiagnosisHypothesis, HypothesisId> hypothesisIds = new LinkedHashMap<>();
+        List<HypothesisWrite> hypotheses = new ArrayList<>();
+        List<RelationWrite> relations = new ArrayList<>();
+        List<VerificationWrite> verifications = new ArrayList<>();
+        for (DiagnosisHypothesis hypothesis : diagnosis.hypotheses()) {
+            HypothesisId id = new HypothesisId(UUID.randomUUID());
+            hypothesisIds.put(hypothesis, id);
+            List<EvidenceId> referenced = new ArrayList<>();
+            for (String code : hypothesis.supportingEvidenceCodes()) {
+                EvidenceId evidenceId = evidenceByCode.get(code);
+                referenced.add(evidenceId);
+                relations.add(new RelationWrite(id, evidenceId, "SUPPORTS"));
+                verifications.add(new VerificationWrite(UUID.randomUUID(), id, evidenceId,
+                        "CONFIRMED", hypothesis.verification()));
+            }
+            for (String code : hypothesis.conflictingEvidenceCodes()) {
+                EvidenceId evidenceId = evidenceByCode.get(code);
+                referenced.add(evidenceId);
+                relations.add(new RelationWrite(id, evidenceId, "CONFLICTS"));
+                verifications.add(new VerificationWrite(UUID.randomUUID(), id, evidenceId,
+                        "REFUTED", hypothesis.verification()));
+            }
+            if (referenced.isEmpty()) throw new IllegalStateException("PHASE7_HYPOTHESIS_EVIDENCE_EMPTY");
+            hypotheses.add(new HypothesisWrite(id, hypothesis.title(), referenced.stream().distinct().toList()));
+        }
         byte[] payload = professionalResponse.getBytes(StandardCharsets.UTF_8);
         ReceptionMutation mutation = new ReceptionMutation(
                 artifactId, runId, evidence,
-                List.of(new HypothesisWrite(hypothesisId, diagnosis.title(), evidenceIds)),
-                evidenceIds.stream().map(id -> new RelationWrite(hypothesisId, id, "SUPPORTS")).toList(),
-                evidenceIds.stream().map(id -> new VerificationWrite(
-                        UUID.randomUUID(), hypothesisId, id, "CONFIRMED", "结构化观测与诊断假设一致")).toList(),
+                hypotheses, relations, verifications,
                 List.of(RawFactKind.EVIDENCE), UUID.randomUUID());
 
         prepareRun(incidentId, runUuid, taskId, windowStart, windowEnd);
         var store = new PostgresSupervisorEvidenceStore(dataSource);
-        var receiver = new ArtifactReceiver(new AcceptCurrentRunValidation(), store);
+        var receiver = new ArtifactReceiver(new CurrentRunArtifactValidation(), store);
         receiver.receive(RemoteArtifact.json(artifactId, runId, taskId, payload, evidenceIds, mutation));
-        finishAnalysisFacts(runUuid, taskId, hypothesisId.value(), artifactId.value(), tools,
-                ArtifactReceiver.digest(payload), providerResponse);
+        finishAnalysisFacts(runUuid, taskId, hypothesisIds, artifactId.value(), actualTools,
+                ArtifactReceiver.digest(payload));
 
         long expectedVersion = currentVersion(runUuid);
         var sealed = new AnalysisSealService(store).seal(runId, expectedVersion, Instant.now());
         var reportService = new RcaReportService(
                 store,
-                input -> report(input, diagnosis, hypothesisId, providerResponse.text()),
+                input -> report(input, diagnosis, providerResponse.text()),
                 new PostgresRcaMetadataRepository(dataSource), json);
         var report = reportService.generate(runId, sealed.runVersion());
         completeRun(runUuid, diagnosis.rootCauseCode(), report.rca().outcome());
@@ -139,20 +171,28 @@ final class Phase7AcceptanceService {
     }
 
     private void finishAnalysisFacts(
-            UUID runId, UUID taskId, UUID hypothesisId, UUID artifactId,
-            Set<String> tools, String requestHash, ChatResponse providerResponse) throws Exception {
-        if (providerResponse.usage() == null) {
-            throw new IllegalStateException("PHASE7_PROVIDER_USAGE_MISSING");
-        }
+            UUID runId, UUID taskId, Map<DiagnosisHypothesis, HypothesisId> hypotheses, UUID artifactId,
+            Set<String> tools, String requestHash) throws Exception {
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            try (var hypothesis = connection.prepareStatement("""
-                    UPDATE opspilot.hypothesis SET status='VERIFIED', confidence=1, updated_at=now()
-                    WHERE hypothesis_id=? AND run_id=?
-                    """)) {
-                hypothesis.setObject(1, hypothesisId);
-                hypothesis.setObject(2, runId);
-                hypothesis.executeUpdate();
+            for (var entry : hypotheses.entrySet()) {
+                try (var hypothesis = connection.prepareStatement("""
+                        UPDATE opspilot.hypothesis SET status=?, confidence=?, updated_at=now()
+                        WHERE hypothesis_id=? AND run_id=? AND status='PROPOSED'
+                        """)) {
+                    hypothesis.setString(1, switch (entry.getKey().status()) {
+                        case "SUPPORTED" -> "VERIFIED";
+                        case "CONFLICTED" -> "CONFLICTED";
+                        case "REJECTED" -> "REJECTED";
+                        default -> throw new IllegalStateException("PHASE7_HYPOTHESIS_STATUS_INVALID");
+                    });
+                    hypothesis.setDouble(2, entry.getKey().confidence());
+                    hypothesis.setObject(3, entry.getValue().value());
+                    hypothesis.setObject(4, runId);
+                    if (hypothesis.executeUpdate() != 1) {
+                        throw new IllegalStateException("PHASE7_HYPOTHESIS_UPDATE_CONFLICT");
+                    }
+                }
             }
             for (String tool : tools) {
                 try (var call = connection.prepareStatement("""
@@ -175,40 +215,6 @@ final class Phase7AcceptanceService {
                 task.setObject(1, taskId);
                 task.executeUpdate();
             }
-            UUID modelCallId = UUID.randomUUID();
-            try (var model = connection.prepareStatement("""
-                    INSERT INTO opspilot.model_call (model_call_id,run_id,outcome_code)
-                    VALUES (?,?,'SUCCEEDED')
-                    """)) {
-                model.setObject(1, modelCallId);
-                model.setObject(2, runId);
-                model.executeUpdate();
-            }
-            try (var usage = connection.prepareStatement("""
-                    INSERT INTO opspilot.model_usage
-                        (usage_id,model_call_id,input_tokens,output_tokens,cached_tokens,
-                         usage_source,attempt_outcome,incident_key,task_key,agent_key)
-                    VALUES (?,?,?,?,?,'PROVIDER','SUCCEEDED',?,?, 'supervisor')
-                    """)) {
-                usage.setObject(1, UUID.randomUUID());
-                usage.setObject(2, modelCallId);
-                usage.setInt(3, providerResponse.usage().inputTokens());
-                usage.setInt(4, providerResponse.usage().outputTokens());
-                usage.setInt(5, providerResponse.usage().cachedTokens());
-                usage.setString(6, runId.toString());
-                usage.setString(7, taskId.toString());
-                usage.executeUpdate();
-            }
-            try (var audit = connection.prepareStatement("""
-                    INSERT INTO opspilot.call_audit
-                        (audit_id,run_id,call_kind,action_fingerprint,outcome_code,occurred_at)
-                    VALUES (?,?,'A2A',?,'SUCCEEDED',now())
-                    """)) {
-                audit.setObject(1, UUID.randomUUID());
-                audit.setObject(2, runId);
-                audit.setString(3, requestHash);
-                audit.executeUpdate();
-            }
             connection.commit();
         }
     }
@@ -226,26 +232,73 @@ final class Phase7AcceptanceService {
     }
 
     private void completeRun(UUID runId, String rootCauseCode, String outcome) throws Exception {
-        try (Connection connection = dataSource.getConnection();
-             var statement = connection.prepareStatement("""
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try (var statement = connection.prepareStatement("""
                      UPDATE opspilot.incident_run
-                     SET status='COMPLETED', outcome=?, updated_at=now(), run_version=run_version+1
+                     SET status='COMPLETED', outcome=?, execution_ended_at=now(),
+                         updated_at=now(), run_version=run_version+1
                      WHERE run_id=? AND status='GENERATING_REPORT'
                      """)) {
-            statement.setString(1, outcome);
-            statement.setObject(2, runId);
-            if (statement.executeUpdate() != 1) {
-                throw new IllegalStateException("PHASE7_RUN_COMPLETION_FAILED:" + rootCauseCode);
+                statement.setString(1, outcome);
+                statement.setObject(2, runId);
+                if (statement.executeUpdate() != 1) {
+                    throw new IllegalStateException("PHASE7_RUN_COMPLETION_FAILED:" + rootCauseCode);
+                }
             }
+            try (var task = connection.prepareStatement("""
+                    INSERT INTO opspilot.task
+                        (task_id,run_id,task_type,status,max_attempts,idempotency_key,payload_json)
+                    SELECT gen_random_uuid(),run.run_id,'EVALUATION','PENDING',3,
+                           'evaluation:' || run.run_id::text,
+                           jsonb_build_object(
+                             'schemaVersion','1.0.0',
+                             'scenarioId',incident.scenario_id,
+                             'datasetRunId',incident.ticket_json->>'datasetRunId',
+                             'groundTruthRelativePath',(incident.ticket_json->>'datasetRunId') || '/ground-truth.json')
+                    FROM opspilot.incident_run run
+                    JOIN opspilot.incident incident ON incident.incident_id=run.incident_id
+                    WHERE run.run_id=? AND incident.scenario_id IS NOT NULL
+                      AND jsonb_exists(incident.ticket_json, 'datasetRunId')
+                    ON CONFLICT (run_id,task_type,idempotency_key) DO NOTHING
+                    """)) {
+                task.setObject(1, runId);
+                if (task.executeUpdate() != 1) {
+                    throw new IllegalStateException("PHASE7_EVALUATION_TASK_NOT_QUEUED");
+                }
+            }
+            connection.commit();
         }
     }
 
     private StructuredRca report(
-            RcaReportService.SealedAnalysis input, Diagnosis diagnosis,
-            HypothesisId hypothesisId, String modelSummary) {
-        List<String> ids = input.evidence().stream().map(value -> value.evidenceId().wire()).toList();
-        List<Citation> citations = input.evidence().stream().map(value -> new Citation(
+            RcaReportService.SealedAnalysis input, Diagnosis diagnosis, String modelSummary) {
+        Map<String, RcaReportService.EvidenceView> evidenceByCode = new LinkedHashMap<>();
+        input.evidence().forEach(value -> evidenceByCode.put(value.evidenceCode(), value));
+        List<String> supportingIds = diagnosis.supportingEvidenceCodes().stream()
+                .map(evidenceByCode::get).map(value -> value.evidenceId().wire()).toList();
+        List<String> conflictingIds = diagnosis.conflictingEvidenceCodes().stream()
+                .map(evidenceByCode::get).map(value -> value.evidenceId().wire()).toList();
+        Set<String> citedCodes = new LinkedHashSet<>(diagnosis.supportingEvidenceCodes());
+        citedCodes.addAll(diagnosis.conflictingEvidenceCodes());
+        List<Citation> citations = citedCodes.stream().map(evidenceByCode::get).map(value -> new Citation(
                 "root-cause", value.evidenceId().wire(), value.evidenceCode(), value.artifactId().wire())).toList();
+        Map<HypothesisId, List<RcaReportService.RelationView>> relations = new LinkedHashMap<>();
+        input.relations().forEach(value -> relations.computeIfAbsent(
+                value.hypothesisId(), ignored -> new ArrayList<>()).add(value));
+        List<HypothesisResult> hypothesisResults = input.hypotheses().stream().map(value -> {
+            List<RcaReportService.RelationView> linked = relations.getOrDefault(value.hypothesisId(), List.of());
+            String reportStatus = switch (value.status()) {
+                case "VERIFIED", "SUPPORTED" -> "SUPPORTED";
+                case "REJECTED" -> "REFUTED";
+                default -> "UNVERIFIED";
+            };
+            return new HypothesisResult(value.hypothesisId().wire(), value.statement(), reportStatus,
+                    value.confidence(), linked.stream().filter(item -> "SUPPORTS".equals(item.relation()))
+                            .map(item -> item.evidenceId().wire()).toList(),
+                    linked.stream().filter(item -> "CONFLICTS".equals(item.relation()))
+                            .map(item -> item.evidenceId().wire()).toList());
+        }).toList();
         Map<String, List<ActionItem>> actions = new LinkedHashMap<>();
         actions.put("immediate", List.of(new ActionItem(diagnosis.actions().get(0), "立即恢复故障组件", true)));
         actions.put("longTerm", List.of(new ActionItem(diagnosis.actions().get(1), "修复根因并固化配置", true)));
@@ -255,31 +308,111 @@ final class Phase7AcceptanceService {
         actions.put("rollback", List.of());
         return new StructuredRca(
                 "1.0.0", input.incidentId().wire(), input.runId().wire(), modelSummary.strip(),
-                "HIGH", "CONCLUSIVE",
-                new RootCause(diagnosis.rootCauseCode(), diagnosis.title(), diagnosis.component(), 1, ids, List.of()),
-                new EvidenceAssessment(1, List.of(), List.of()),
-                List.of(new HypothesisResult(hypothesisId.wire(), diagnosis.title(), "SUPPORTED", 1, ids, List.of())),
-                actions, citations, List.of("仅对当前数据集时间窗和已封账证据成立"), Instant.now());
+                "HIGH", diagnosis.outcome(),
+                diagnosis.rootCauseCode() == null ? null : new RootCause(
+                        diagnosis.rootCauseCode(), diagnosis.title(), diagnosis.component(),
+                        diagnosis.confidence(), supportingIds, conflictingIds),
+                new EvidenceAssessment(
+                        input.evidence().isEmpty() ? 0 : (double) citedCodes.size() / input.evidence().size(),
+                        diagnosis.missingEvidenceCodes(), List.of()),
+                hypothesisResults, actions, citations, diagnosis.limitations(), Instant.now());
     }
 
-    private static Diagnosis diagnose(Set<String> codes) {
-        if (codes.contains("trace.order.inventory_span_latency_high")
-                && codes.contains("metric.gateway.request_latency_high")) {
-            return new Diagnosis("dependency.latency.inventory", "库存依赖链路延迟", "order-to-inventory network path",
-                    List.of("inspect.downstream.span", "configure.client.timeout", "add.downstream.latency.alert"));
+    private Diagnosis parseDiagnosis(
+            String diagnosisResponse, String remediationResponse, Set<String> evidenceCodes)
+            throws Exception {
+        JsonNode diagnosisEnvelope = json.readTree(diagnosisResponse);
+        JsonNode diagnosis = json.readTree(diagnosisEnvelope.path("content").asText());
+        String outcome = diagnosis.path("outcome").asText();
+        if (!Set.of("CONCLUSIVE", "PARTIAL", "INCONCLUSIVE").contains(outcome)
+                || !diagnosis.path("hypotheses").isArray()
+                || diagnosis.path("hypotheses").size() < 2 || diagnosis.path("hypotheses").size() > 4) {
+            throw new IllegalStateException("PHASE7_DIAGNOSIS_ARTIFACT_INVALID");
         }
-        if (codes.contains("metric.order.hikari_active_at_max")
-                && codes.contains("metric.order.hikari_pending_positive")
-                && codes.contains("log.order.connection_timeout")) {
-            return new Diagnosis("database.pool.exhausted.order", "订单数据库连接池耗尽", "HikariCP",
-                    List.of("release.leaked.connections", "fix.connection.lifecycle", "add.hikari.pending.alert"));
+        List<DiagnosisHypothesis> hypotheses = new ArrayList<>();
+        for (JsonNode value : diagnosis.path("hypotheses")) {
+            String hypothesisTitle = value.path("title").asText();
+            String status = value.path("status").asText();
+            double confidence = value.path("confidence").asDouble(-1);
+            List<String> supporting = strings(value.path("supportingEvidenceCodes"));
+            List<String> conflicting = strings(value.path("conflictingEvidenceCodes"));
+            String verification = value.path("verification").asText();
+            Set<String> referenced = new LinkedHashSet<>(supporting);
+            referenced.addAll(conflicting);
+            if (hypothesisTitle.isBlank() || verification.isBlank()
+                    || !Set.of("SUPPORTED", "CONFLICTED", "REJECTED").contains(status)
+                    || confidence < 0 || confidence > 1 || referenced.isEmpty()
+                    || !evidenceCodes.containsAll(referenced)) {
+                throw new IllegalStateException("PHASE7_HYPOTHESIS_ARTIFACT_INVALID");
+            }
+            hypotheses.add(new DiagnosisHypothesis(
+                    hypothesisTitle, status, confidence, supporting, conflicting, verification));
         }
-        if (codes.contains("health.inventory.unreachable")
-                && codes.contains("log.order.inventory_connection_failed")) {
-            return new Diagnosis("service.instance.stopped.inventory", "库存服务实例停止", "inventory-service",
-                    List.of("restore.inventory.instance", "verify.health.probes", "add.instance.availability.alert"));
+        JsonNode rootCause = diagnosis.path("rootCause");
+        String code = rootCause.isNull() || rootCause.isMissingNode() ? null
+                : rootCause.path("rootCauseCode").asText();
+        String title = code == null ? null : rootCause.path("title").asText();
+        String component = code == null ? null : rootCause.path("component").asText();
+        double confidence = code == null ? 0 : rootCause.path("confidence").asDouble(-1);
+        List<String> supporting = code == null ? List.of()
+                : strings(rootCause.path("supportingEvidenceCodes"));
+        List<String> conflicting = code == null ? List.of()
+                : strings(rootCause.path("conflictingEvidenceCodes"));
+        Set<String> citedCodes = new LinkedHashSet<>(supporting);
+        citedCodes.addAll(conflicting);
+        if (("INCONCLUSIVE".equals(outcome) && code != null)
+                || (!"INCONCLUSIVE".equals(outcome) && (code == null || title.isBlank()
+                    || component.isBlank() || confidence < 0 || confidence > 1 || supporting.isEmpty()))
+                || !evidenceCodes.containsAll(citedCodes)
+                || (code != null && hypotheses.stream().noneMatch(value -> value.title().equals(title)))) {
+            throw new IllegalStateException("PHASE7_ROOT_CAUSE_ARTIFACT_INVALID");
         }
-        throw new IllegalStateException("PHASE7_DIAGNOSIS_EVIDENCE_INSUFFICIENT");
+        if (code != null) validateFrozenScenarioSupport(code, evidenceCodes);
+        JsonNode remediationEnvelope = json.readTree(remediationResponse);
+        JsonNode remediation = json.readTree(remediationEnvelope.path("content").asText());
+        List<String> actions = new ArrayList<>();
+        remediation.path("actions").forEach(item -> actions.add(item.asText()));
+        if (actions.size() != 3 || actions.stream().anyMatch(String::isBlank)) {
+            throw new IllegalStateException("PHASE7_REMEDIATION_ARTIFACT_INVALID");
+        }
+        List<String> missing = strings(diagnosis.path("missingEvidenceCodes"));
+        List<String> limitations = strings(diagnosis.path("limitations"));
+        limitations.addAll(strings(remediation.path("limitations")));
+        if (limitations.isEmpty()) limitations.add("仅对当前数据集时间窗和已封账证据成立");
+        return new Diagnosis(outcome, code, title, component, confidence, supporting, conflicting,
+                hypotheses, missing, actions, List.copyOf(limitations));
+    }
+
+    private static List<String> strings(JsonNode values) {
+        if (!values.isArray()) throw new IllegalStateException("PHASE7_STRING_ARRAY_INVALID");
+        List<String> result = new ArrayList<>();
+        values.forEach(value -> {
+            String text = value.asText();
+            if (text.isBlank() || result.contains(text)) {
+                throw new IllegalStateException("PHASE7_STRING_ARRAY_INVALID");
+            }
+            result.add(text);
+        });
+        return result;
+    }
+
+    private static void validateFrozenScenarioSupport(String code, Set<String> evidenceCodes) {
+        Set<String> required = switch (code) {
+            case "dependency.latency.inventory" -> Set.of(
+                    "trace.order.inventory_span_latency_high",
+                    "metric.gateway.request_latency_high");
+            case "database.pool.exhausted.order" -> Set.of(
+                    "metric.order.hikari_active_at_max",
+                    "metric.order.hikari_pending_positive",
+                    "log.order.connection_timeout");
+            case "service.instance.stopped.inventory" -> Set.of(
+                    "health.inventory.unreachable",
+                    "log.order.inventory_connection_failed");
+            default -> throw new IllegalStateException("PHASE7_ROOT_CAUSE_CODE_UNKNOWN");
+        };
+        if (!evidenceCodes.containsAll(required)) {
+            throw new IllegalStateException("PHASE7_DIAGNOSIS_EVIDENCE_INSUFFICIENT");
+        }
     }
 
     private static String toolFor(String signalType) {
@@ -292,13 +425,118 @@ final class Phase7AcceptanceService {
         };
     }
 
-    private record Diagnosis(String rootCauseCode, String title, String component, List<String> actions) { }
+    private record Diagnosis(
+            String outcome, String rootCauseCode, String title, String component, double confidence,
+            List<String> supportingEvidenceCodes, List<String> conflictingEvidenceCodes,
+            List<DiagnosisHypothesis> hypotheses, List<String> missingEvidenceCodes,
+            List<String> actions, List<String> limitations) { }
 
-    private static final class AcceptCurrentRunValidation implements ArtifactReceiver.ValidationPort {
-        public boolean jsonSchemaValid(RemoteArtifact artifact) { return true; }
-        public boolean sourceOwnedByRun(RemoteArtifact artifact) { return true; }
-        public boolean resourceTaskRunOwned(RemoteArtifact artifact) { return true; }
-        public boolean referencesAuthorized(RemoteArtifact artifact) { return true; }
-        public boolean domainInvariantsValid(RemoteArtifact artifact) { return true; }
+    private record DiagnosisHypothesis(
+            String title, String status, double confidence,
+            List<String> supportingEvidenceCodes, List<String> conflictingEvidenceCodes,
+            String verification) { }
+
+    static boolean validRawArtifactSha256(String value) {
+        return value != null && value.matches("sha256:[a-f0-9]{64}");
+    }
+
+    private final class CurrentRunArtifactValidation implements ArtifactReceiver.ValidationPort {
+        public boolean jsonSchemaValid(RemoteArtifact artifact) {
+            try {
+                JsonNode root = json.readTree(artifact.payload());
+                Set<String> allowed = Set.of("schemaVersion", "incidentId", "runId", "taskId",
+                        "windowStart", "windowEnd", "sourceId", "sourceKind", "adapterId", "batchId",
+                        "artifactId", "rawArtifactSha256", "evidence", "agentResult");
+                var fields = root.fieldNames();
+                while (fields.hasNext()) if (!allowed.contains(fields.next())) return false;
+                if (!"1.0.0".equals(root.path("schemaVersion").asText())
+                        || !root.path("evidence").isArray() || root.path("evidence").isEmpty()
+                        || !validRawArtifactSha256(root.path("rawArtifactSha256").asText())) return false;
+                UUID.fromString(root.path("incidentId").asText());
+                UUID.fromString(root.path("runId").asText());
+                UUID.fromString(root.path("taskId").asText());
+                UUID.fromString(root.path("batchId").asText());
+                UUID.fromString(root.path("artifactId").asText());
+                Instant start = Instant.parse(root.path("windowStart").asText());
+                Instant end = Instant.parse(root.path("windowEnd").asText());
+                if (!start.isBefore(end)) return false;
+                JsonNode agentResult = root.path("agentResult");
+                Set<String> agentAllowed = Set.of("schemaVersion", "agentId", "runId", "a2aTaskId",
+                        "agentScopeSessionId", "checkpointId", "content", "toolCalls", "usage");
+                var agentFields = agentResult.fieldNames();
+                while (agentFields.hasNext()) if (!agentAllowed.contains(agentFields.next())) return false;
+                if (!"1.0.0".equals(agentResult.path("schemaVersion").asText())
+                        || !"evidence-collector".equals(agentResult.path("agentId").asText())
+                        || !agentResult.path("toolCalls").isArray()
+                        || agentResult.path("content").asText().isBlank()) return false;
+                Set<String> allowedTools = Set.of("LogQueryTool", "MetricQueryTool", "TraceQueryTool",
+                        "HealthQueryTool", "TopologyQueryTool", "ConfigReadTool");
+                Set<String> calledTools = new LinkedHashSet<>();
+                for (JsonNode tool : agentResult.path("toolCalls")) {
+                    if (!allowedTools.contains(tool.asText()) || !calledTools.add(tool.asText())) return false;
+                }
+                for (JsonNode item : root.path("evidence")) {
+                    Set<String> itemAllowed = Set.of(
+                            "evidenceId", "evidenceCode", "claim", "signalType", "observedAt", "artifactIds");
+                    var itemFields = item.fieldNames();
+                    while (itemFields.hasNext()) if (!itemAllowed.contains(itemFields.next())) return false;
+                    UUID.fromString(item.path("evidenceId").asText());
+                    if (!item.path("evidenceCode").asText().matches("[a-z0-9]+(?:[._-][a-z0-9]+)+")
+                            || item.path("claim").asText().isBlank()
+                            || !Set.of("LOG", "METRIC", "TRACE", "HEALTH", "CONFIG")
+                                    .contains(item.path("signalType").asText())
+                            || !item.path("artifactIds").isArray() || item.path("artifactIds").isEmpty()) return false;
+                    Instant.parse(item.path("observedAt").asText());
+                    for (JsonNode id : item.path("artifactIds")) UUID.fromString(id.asText());
+                }
+                return true;
+            } catch (Exception invalid) {
+                return false;
+            }
+        }
+
+        public boolean sourceOwnedByRun(RemoteArtifact artifact) {
+            try {
+                JsonNode root = json.readTree(artifact.payload());
+                return artifact.runId().wire().equals(root.path("runId").asText())
+                        && artifact.taskId().toString().equals(root.path("taskId").asText())
+                        && artifact.artifactId().wire().equals(root.path("artifactId").asText());
+            } catch (Exception invalid) { return false; }
+        }
+
+        public boolean resourceTaskRunOwned(RemoteArtifact artifact) {
+            if (!artifact.artifactId().equals(artifact.mutation().artifactId())
+                    || !artifact.runId().equals(artifact.mutation().runId())) return false;
+            try (Connection connection = dataSource.getConnection();
+                 var statement = connection.prepareStatement("""
+                         SELECT EXISTS (SELECT 1 FROM opspilot.task
+                           WHERE task_id=? AND run_id=? AND task_type='PHASE7_EVIDENCE'
+                             AND status='PENDING')
+                         """)) {
+                statement.setObject(1, artifact.taskId());
+                statement.setObject(2, artifact.runId().value());
+                try (var result = statement.executeQuery()) { result.next(); return result.getBoolean(1); }
+            } catch (Exception invalid) { return false; }
+        }
+
+        public boolean referencesAuthorized(RemoteArtifact artifact) {
+            Set<EvidenceId> current = Set.copyOf(artifact.currentRunEvidence());
+            Set<EvidenceId> mutations = artifact.mutation().evidence().stream()
+                    .map(EvidenceWrite::evidenceId).collect(java.util.stream.Collectors.toSet());
+            if (!current.equals(mutations)) return false;
+            return artifact.mutation().relations().stream().allMatch(value -> current.contains(value.evidenceId()))
+                    && artifact.mutation().verifications().stream()
+                            .allMatch(value -> current.contains(value.evidenceId()));
+        }
+
+        public boolean domainInvariantsValid(RemoteArtifact artifact) {
+            List<EvidenceWrite> evidence = artifact.mutation().evidence();
+            return !evidence.isEmpty()
+                    && evidence.stream().map(EvidenceWrite::evidenceId).distinct().count() == evidence.size()
+                    && evidence.stream().map(EvidenceWrite::evidenceCode).distinct().count() == evidence.size()
+                    && evidence.stream().allMatch(value -> value.evidenceCode() != null
+                            && value.summary() != null && !value.summary().isBlank()
+                            && value.observedAt() != null);
+        }
     }
 }

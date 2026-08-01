@@ -58,6 +58,20 @@ class DeterministicEvaluationEngineTest {
     }
 
     @Test
+    void emptyOutcomeWithoutCitationsHasLegitimateNotApplicableCitationValidity() {
+        EvaluationInput input = new EvaluationInput(
+                "empty-outcome-run", truth().scenarioId(), "INCONCLUSIVE", null,
+                List.of(), Set.of("KnowledgeSearchTool"), "COMPLETED", true, true, true,
+                List.of(), validInput().efficiency());
+
+        var result = engine.evaluate(input, truth(), profile());
+
+        assertTrue(result.citationValidity().notApplicable());
+        assertEquals(0, result.citationValidity().denominator());
+        assertEquals(0, result.citationValidity().value());
+    }
+
+    @Test
     void invalidCrossRunCitationCountsAsPrecisionAndValidityFalsePositive() {
         var original = validInput();
         var invalid = new EvaluationInput(original.runId(), original.scenarioId(), original.outcome(),
@@ -119,6 +133,18 @@ class DeterministicEvaluationEngineTest {
         var result = engine.evaluate(overBudget, truth(), profile());
         assertFalse(result.investigationEfficiency().withinLimits().get("supervisor_rounds"));
         assertTrue(result.hardGateFailures().contains("EFFICIENCY_LIMIT:supervisor_rounds"));
+    }
+
+    @Test
+    void phase8TotalTokenLimitUsesInputAndOutputTokenSum() {
+        var original = validInput();
+        var profile = new EvaluationProfile("1.0.0", "mvp-v2", "1.0.0", 5, 0, true,
+                Map.of(), Map.of(), Map.of("total_tokens", 149), "a".repeat(64));
+
+        var result = engine.evaluate(original, truth(), profile);
+
+        assertFalse(result.investigationEfficiency().withinLimits().get("total_tokens"));
+        assertTrue(result.hardGateFailures().contains("EFFICIENCY_LIMIT:total_tokens"));
     }
 
     private static EvaluationInput validInput() {

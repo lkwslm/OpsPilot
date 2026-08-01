@@ -57,6 +57,9 @@ instances:
   - path: profiles/mvp-v1.yaml
     schema: schemas/evaluation-profile.schema.json
     category: EVALUATION
+  - path: profiles/mvp-v2.yaml
+    schema: schemas/evaluation-profile.schema.json
+    category: EVALUATION
   - path: examples/release-manifest/opspilot-0.1.0-rc.1.json
     schema: schemas/release-manifest.schema.json
     category: RELEASE_MANIFEST

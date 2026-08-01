@@ -25,9 +25,17 @@ public final class OpenAiChatDtos {
     }
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Message(String role, String content, @JsonProperty("tool_calls") List<ToolCall> toolCalls) {
+    public record Message(
+            String role,
+            String content,
+            @JsonProperty("tool_calls") List<ToolCall> toolCalls,
+            @JsonProperty("tool_call_id") String toolCallId) {
         public Message {
             toolCalls = toolCalls == null ? null : List.copyOf(toolCalls);
+        }
+
+        public Message(String role, String content, List<ToolCall> toolCalls) {
+            this(role, content, toolCalls, null);
         }
     }
 

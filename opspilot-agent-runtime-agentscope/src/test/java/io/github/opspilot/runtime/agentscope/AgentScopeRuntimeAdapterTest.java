@@ -42,6 +42,20 @@ final class AgentScopeRuntimeAdapterTest {
         Msg user = Msg.builderForRole(MsgRole.USER)
                 .content(TextBlock.builder().text("diagnose").build())
                 .build();
+        Msg assistant = Msg.builderForRole(MsgRole.ASSISTANT)
+                .content(ToolUseBlock.builder()
+                        .id("call-history")
+                        .name("MetricQueryTool")
+                        .input(Map.of("query", "up"))
+                        .build())
+                .build();
+        Msg toolResult = Msg.builderForRole(MsgRole.TOOL)
+                .content(ToolResultBlock.builder()
+                        .id("call-history")
+                        .name("MetricQueryTool")
+                        .output(TextBlock.builder().text("metric result").build())
+                        .build())
+                .build();
         ToolSchema tool = ToolSchema.builder()
                 .name("MetricQueryTool")
                 .description("query metrics")
@@ -49,12 +63,19 @@ final class AgentScopeRuntimeAdapterTest {
                 .build();
 
         io.agentscope.core.model.ChatResponse response = model
-                .stream(List.of(user), List.of(tool), GenerateOptions.builder().build())
+                .stream(List.of(user, assistant, toolResult), List.of(tool),
+                        GenerateOptions.builder().build())
                 .blockFirst();
 
         assertNotNull(response);
         assertEquals("chat-fixed", captured.get().modelId());
+        assertEquals("user", captured.get().messages().getFirst().role());
         assertEquals("diagnose", captured.get().messages().getFirst().content());
+        assertEquals("assistant", captured.get().messages().get(1).role());
+        assertEquals("call-history", captured.get().messages().get(1).toolCalls().getFirst().id());
+        assertEquals("tool", captured.get().messages().get(2).role());
+        assertEquals("call-history", captured.get().messages().get(2).toolCallId());
+        assertEquals("metric result", captured.get().messages().get(2).content());
         assertEquals("MetricQueryTool", captured.get().tools().getFirst().name());
         assertEquals("checking metrics", ((TextBlock) response.getContent().getFirst()).getText());
         assertEquals("MetricQueryTool", ((ToolUseBlock) response.getContent().get(1)).getName());

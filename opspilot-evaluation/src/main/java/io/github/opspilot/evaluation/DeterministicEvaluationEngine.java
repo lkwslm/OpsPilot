@@ -95,6 +95,7 @@ public final class DeterministicEvaluationEngine {
                 "professional_a2a_attempts", (long) input.efficiency().a2aAttempts(),
                 "total_tool_calls", (long) input.efficiency().toolCalls(),
                 "tokens", input.efficiency().inputTokens() + input.efficiency().outputTokens(),
+                "total_tokens", input.efficiency().inputTokens() + input.efficiency().outputTokens(),
                 "wall_clock_seconds", input.efficiency().wallClockMillis() / 1000,
                 "estimated_cost_micros", input.efficiency().estimatedCostMicros());
         Map<String, Boolean> result = new LinkedHashMap<>();

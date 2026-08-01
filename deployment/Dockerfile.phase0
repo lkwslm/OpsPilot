@@ -7,6 +7,7 @@ COPY opspilot-evaluation/target/opspilot-evaluation-0.1.0-SNAPSHOT.jar /app/opsp
 COPY opspilot-evaluation/target/dependency/ /app/evaluation-lib/
 COPY opspilot-adapters/persistence-postgres/src/main/resources/db/migration/ /app/migrations/
 COPY deployment/agents/agent-directory.yaml /app/config/agent-directory.yaml
+COPY sample-system/ /app/code-snapshot/sample-system/
 
 USER 10001:10001
 

@@ -269,6 +269,55 @@ class SupervisorEvidenceOrchestrationTest {
     }
 
     @Test
+    void reportRejectsUncitedConclusionCrossRunCitationAndFabricatedEvidenceCode() {
+        RunId runId = new RunId(UUID.randomUUID());
+        IncidentId incidentId = new IncidentId(UUID.randomUUID());
+        EvidenceId evidenceId = new EvidenceId(UUID.randomUUID());
+        ArtifactId artifactId = new ArtifactId(UUID.randomUUID());
+        HypothesisId hypothesisId = new HypothesisId(UUID.randomUUID());
+        var input = new RcaReportService.SealedAnalysis(
+                incidentId, runId, 1, "GENERATING_REPORT", DEADLINE,
+                DEADLINE.minusSeconds(60), DEADLINE.plusSeconds(60),
+                List.of(new RcaReportService.EvidenceView(evidenceId, "db.pool.wait.high", "fact",
+                        artifactId, "c".repeat(64), true, DEADLINE)),
+                List.of(new RcaReportService.HypothesisView(hypothesisId, "cause", "SUPPORTED", 0.8)),
+                List.of(), List.of(), List.of("trace.unavailable"));
+
+        var uncited = new RcaReportService((id, version) -> input, ignored -> {
+            var valid = validRca(input, evidenceId, artifactId, hypothesisId);
+            return new RcaReportService.StructuredRca(
+                    valid.schemaVersion(), valid.incidentId(), valid.runId(), valid.summary(),
+                    valid.severity(), valid.outcome(), valid.rootCause(), valid.evidenceAssessment(),
+                    valid.hypotheses(), valid.actions(), List.of(), valid.limitations(), valid.generatedAt());
+        }, new ObjectMapper().findAndRegisterModules());
+        var crossRun = new RcaReportService((id, version) -> input, ignored -> {
+            var valid = validRca(input, evidenceId, artifactId, hypothesisId);
+            return new RcaReportService.StructuredRca(
+                    valid.schemaVersion(), valid.incidentId(), valid.runId(), valid.summary(),
+                    valid.severity(), valid.outcome(), valid.rootCause(), valid.evidenceAssessment(),
+                    valid.hypotheses(), valid.actions(), List.of(new RcaReportService.Citation(
+                            "root", UUID.randomUUID().toString(), "db.pool.wait.high", artifactId.wire())),
+                    valid.limitations(), valid.generatedAt());
+        }, new ObjectMapper().findAndRegisterModules());
+        var fabricatedCode = new RcaReportService((id, version) -> input, ignored -> {
+            var valid = validRca(input, evidenceId, artifactId, hypothesisId);
+            return new RcaReportService.StructuredRca(
+                    valid.schemaVersion(), valid.incidentId(), valid.runId(), valid.summary(),
+                    valid.severity(), valid.outcome(), valid.rootCause(), valid.evidenceAssessment(),
+                    valid.hypotheses(), valid.actions(), List.of(new RcaReportService.Citation(
+                            "root", evidenceId.wire(), "db.pool.wait.fabricated", artifactId.wire())),
+                    valid.limitations(), valid.generatedAt());
+        }, new ObjectMapper().findAndRegisterModules());
+
+        assertEquals("RCA_ROOT_CAUSE_EVIDENCE_INVALID",
+                assertThrows(IllegalArgumentException.class, () -> uncited.generate(runId, 1)).getMessage());
+        assertEquals("RCA_CITATION_INVALID",
+                assertThrows(IllegalArgumentException.class, () -> crossRun.generate(runId, 1)).getMessage());
+        assertEquals("RCA_CITATION_INVALID",
+                assertThrows(IllegalArgumentException.class, () -> fabricatedCode.generate(runId, 1)).getMessage());
+    }
+
+    @Test
     void insufficientEvidenceAllowsInconclusiveWithoutInventingRootCause() {
         RunId runId = new RunId(UUID.randomUUID());
         IncidentId incidentId = new IncidentId(UUID.randomUUID());
@@ -290,7 +339,11 @@ class SupervisorEvidenceOrchestrationTest {
                                 "tests", List.of(), "humanNextSteps", List.of(), "rollback", List.of()),
                         List.of(), List.of("trace unavailable"), DEADLINE),
                 new ObjectMapper().findAndRegisterModules());
-        assertEquals("INCONCLUSIVE", service.generate(runId, 2).rca().outcome());
+        var rca = service.generate(runId, 2).rca();
+        assertEquals("INCONCLUSIVE", rca.outcome());
+        assertEquals(null, rca.rootCause());
+        assertTrue(rca.citations().isEmpty());
+        assertEquals(List.of("trace.unavailable"), rca.evidenceAssessment().missingEvidenceCodes());
     }
 
     private static RcaReportService.StructuredRca validRca(

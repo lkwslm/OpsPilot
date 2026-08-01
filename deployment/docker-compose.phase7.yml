@@ -1,4 +1,22 @@
 services:
+  retrieval-inference:
+    image: michaelf34/infinity@sha256:11e8b3921b9f1a58965afaad4a844c435c9807cbc82c51e47cb147b7d977fc88
+    profiles: ["phase7"]
+    command: ["v2", "--host", "0.0.0.0", "--port", "7997"]
+    environment:
+      INFINITY_MODEL_ID: "BAAI/bge-small-zh-v1.5;BAAI/bge-reranker-v2-m3;"
+      INFINITY_SERVED_MODEL_NAME: "embedding-bge-small-zh-v1.5;reranker-bge-v2-m3;"
+      INFINITY_REVISION: "7999e1d3359715c523056ef9478215996d62a620;953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e;"
+      INFINITY_BATCH_SIZE: "4;4;"
+      INFINITY_MODEL_WARMUP: "false;false;"
+      INFINITY_ANONYMOUS_USAGE_STATS: "0"
+    volumes:
+      - retrieval-model-cache:/app/.cache
+    networks: [opspilot-backend, opspilot-provider-egress]
+    cpus: 4.0
+    mem_limit: 10g
+    pids_limit: 256
+
   postgres:
     environment:
       FAULT_LAB_PASSWORD_FILE: /run/secrets/fault-lab-db-password
@@ -7,9 +25,22 @@ services:
       - fault-lab-db-password
       - evaluation-db-password
 
+  inventory-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: fault-lab
+
+  order-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: fault-lab
+
   evidence-agent:
     environment:
       SOURCE_PATH: /datasets/input/current/observability.jsonl
+
+  knowledge-agent:
+    depends_on:
+      retrieval-inference:
+        condition: service_started
 
   fault-lab:
     image: opspilot-fault-lab:0.1.0
@@ -36,6 +67,7 @@ services:
       JAEGER_URL: http://jaeger-v1:16686
       COMPOSE_PROJECT: opspilot-phase0
       OPSPILOT_REPOSITORY_ROOT: /workspace
+      OPSPILOT_PRODUCT_API_URL: http://opspilot-server:8080
     secrets: [fault-lab-db-password]
     volumes:
       - type: bind
@@ -47,6 +79,13 @@ services:
       - type: bind
         source: ../.tmp/phase7-ground-truth
         target: /exports/ground-truth
+      - type: bind
+        source: ../.tmp/phase8
+        target: /phase8
+        read_only: true
+      - type: bind
+        source: ../outputs
+        target: /workspace/outputs
       - type: bind
         source: //var/run/docker.sock
         target: /var/run/docker.sock
@@ -78,7 +117,7 @@ services:
     secrets: [evaluation-db-password]
     volumes:
       - ../.tmp/phase7-ground-truth:/datasets/ground-truth:ro
-      - ../docs/design/contracts/profiles/mvp-v1.yaml:/app/config/evaluation-profile.yaml:ro
+      - ../docs/design/contracts/profiles/mvp-v2.yaml:/app/config/evaluation-profile.yaml:ro
     depends_on:
       db-migrate:
         condition: service_completed_successfully
@@ -89,3 +128,6 @@ secrets:
     file: ../.tmp/secrets/fault-lab-db-password.txt
   evaluation-db-password:
     file: ../.tmp/secrets/evaluation-db-password.txt
+
+volumes:
+  retrieval-model-cache:
