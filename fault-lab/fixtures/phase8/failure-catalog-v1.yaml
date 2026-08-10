@@ -1,0 +1,182 @@
+schemaVersion: "1.0.0"
+suiteId: phase8-capability-failure-matrix
+suiteVersion: "1.0.0"
+runPurpose: FAILURE_INJECTION
+faultProfiles:
+  UNAVAILABLE:
+    injector: controlled-unavailable-v1
+    upstreamStatus: UNAVAILABLE
+  TIMEOUT:
+    injector: toxiproxy-deadline-v1
+    upstreamStatus: TIMEOUT
+  AUTH:
+    injector: isolated-invalid-credential-v1
+    upstreamStatus: AUTH_FAILED
+  SCHEMA:
+    injector: malformed-contract-response-v1
+    upstreamStatus: SCHEMA_INVALID
+targets:
+  - &mandatory_model
+    componentId: model:chat
+    componentKind: MODEL_PROVIDER
+    endpoint: https://api.deepseek.com
+    sourceId: deepseek
+    sourceKind: MODEL_PROVIDER
+    adapterId: openai-chat-completions
+    criticality: MANDATORY
+    expectedTerminalState: FAILED
+    restorer: restore-model-route-v1
+    assertions: [bounded-attempts, parent-deadline, chain-failure, incident-failed, no-hidden-fallback, excluded-quality-denominator]
+  - &candidate_model
+    componentId: model:embedding
+    componentKind: MODEL_PROVIDER
+    endpoint: model://BAAI/bge-small-zh-v1.5
+    sourceId: infinity-local
+    sourceKind: MODEL_PROVIDER
+    adapterId: infinity-embedding
+    criticality: MANDATORY_WHEN_CANDIDATES_EXIST
+    expectedTerminalState: FAILED
+    restorer: restore-model-route-v1
+    assertions: [candidates-exist, bounded-attempts, parent-deadline, chain-failure, incident-failed, no-hidden-fallback, excluded-quality-denominator]
+  - <<: *candidate_model
+    componentId: model:rerank
+    endpoint: model://BAAI/bge-reranker-v2-m3
+    adapterId: infinity-rerank
+
+  - &mandatory_a2a
+    componentId: a2a:evidence-collector
+    componentKind: A2A_ENDPOINT
+    endpoint: http://evidence-agent:8081/.well-known/agent-card.json
+    sourceId: not-applicable
+    sourceKind: NOT_APPLICABLE
+    adapterId: a2a-http-json
+    criticality: MANDATORY
+    expectedTerminalState: FAILED
+    restorer: restore-a2a-endpoint-v1
+    assertions: [bounded-attempts, parent-deadline, get-or-subscribe-original-task, idempotent-message-id, chain-failure, incident-failed, excluded-quality-denominator]
+  - <<: *mandatory_a2a
+    componentId: a2a:code-analysis
+    endpoint: http://code-agent:8082/.well-known/agent-card.json
+  - <<: *mandatory_a2a
+    componentId: a2a:knowledge
+    endpoint: http://knowledge-agent:8083/.well-known/agent-card.json
+  - <<: *mandatory_a2a
+    componentId: a2a:diagnosis
+    endpoint: http://diagnosis-agent:8084/.well-known/agent-card.json
+  - <<: *mandatory_a2a
+    componentId: a2a:remediation
+    endpoint: http://remediation-agent:8085/.well-known/agent-card.json
+
+  - &mandatory_tool
+    componentId: tool:LogQueryTool
+    componentKind: TOOL
+    endpoint: tool://LogQueryTool
+    sourceId: not-applicable
+    sourceKind: NOT_APPLICABLE
+    adapterId: tool-runtime
+    criticality: MANDATORY
+    expectedTerminalState: FAILED
+    restorer: restore-tool-fixture-v1
+    assertions: [bounded-attempts, parent-deadline, chain-failure, incident-failed, correlated-error, excluded-quality-denominator]
+  - &conditional_tool
+    componentId: tool:MetricQueryTool
+    componentKind: TOOL
+    endpoint: tool://MetricQueryTool
+    sourceId: not-applicable
+    sourceKind: NOT_APPLICABLE
+    adapterId: tool-runtime
+    criticality: CONDITIONAL
+    expectedTerminalState: COMPLETED_LIMITED
+    restorer: restore-tool-fixture-v1
+    assertions: [independent-source-succeeded, chain-failure, missing-evidence, limitations, correlated-error, excluded-quality-denominator]
+  - <<: *conditional_tool
+    componentId: tool:TraceQueryTool
+    endpoint: tool://TraceQueryTool
+  - <<: *mandatory_tool
+    componentId: tool:HealthQueryTool
+    endpoint: tool://HealthQueryTool
+  - <<: *conditional_tool
+    componentId: tool:TopologyQueryTool
+    endpoint: tool://TopologyQueryTool
+  - <<: *conditional_tool
+    componentId: tool:ConfigReadTool
+    endpoint: tool://ConfigReadTool
+  - <<: *conditional_tool
+    componentId: tool:CodeSearchTool
+    endpoint: tool://CodeSearchTool
+    expectedTerminalState: FAILED
+    assertions: [invocation-started, bounded-attempts, chain-failure, incident-failed, correlated-error, excluded-quality-denominator]
+  - <<: *candidate_model
+    componentId: tool:KnowledgeSearchTool
+    componentKind: TOOL
+    endpoint: tool://KnowledgeSearchTool
+    sourceId: not-applicable
+    sourceKind: NOT_APPLICABLE
+    adapterId: tool-runtime
+    restorer: restore-tool-fixture-v1
+  - &approved_tool
+    componentId: tool:SandboxTestTool
+    componentKind: TOOL
+    endpoint: tool://SandboxTestTool
+    sourceId: not-applicable
+    sourceKind: NOT_APPLICABLE
+    adapterId: tool-runtime
+    criticality: OPTIONAL_APPROVED
+    expectedTerminalState: FAILED
+    restorer: restore-tool-fixture-v1
+    assertions: [approval-granted, invocation-started, bounded-attempts, chain-failure, incident-failed, correlated-error, excluded-quality-denominator]
+
+  - &conditional_source
+    componentId: source:phase0-prometheus
+    componentKind: SOURCE
+    endpoint: observability-source://phase0/prometheus
+    sourceId: phase0-prometheus
+    sourceKind: PROMETHEUS
+    adapterId: prometheus-metric
+    criticality: CONDITIONAL
+    expectedTerminalState: COMPLETED_LIMITED
+    restorer: restore-source-route-v1
+    assertions: [independent-source-succeeded, chain-failure, missing-evidence, limitations, source-identity-recorded, excluded-quality-denominator]
+  - <<: *conditional_source
+    componentId: source:phase0-jaeger-v1
+    endpoint: observability-source://phase0/jaeger-v1
+    sourceId: phase0-jaeger-v1
+    sourceKind: JAEGER
+    adapterId: jaeger-trace-v1
+  - <<: *conditional_source
+    componentId: source:phase0-jaeger-v2
+    endpoint: observability-source://phase0/jaeger-v2
+    sourceId: phase0-jaeger-v2
+    sourceKind: JAEGER
+    adapterId: jaeger-trace-v2
+  - <<: *conditional_source
+    componentId: source:phase0-jsonl
+    endpoint: observability-source://phase0/jsonl
+    sourceId: phase0-jsonl
+    sourceKind: FILE
+    adapterId: jsonl-log
+  - <<: *conditional_source
+    componentId: source:sample-actuator
+    endpoint: observability-source://sample/actuator
+    sourceId: sample-actuator
+    sourceKind: HTTP
+    adapterId: spring-actuator-health
+  - <<: *conditional_source
+    componentId: source:phase0-compose
+    endpoint: observability-source://phase0/compose
+    sourceId: phase0-compose
+    sourceKind: FILE
+    adapterId: static-compose-topology
+  - <<: *conditional_source
+    componentId: source:sample-http-health
+    endpoint: observability-source://sample/http-health
+    sourceId: sample-http-health
+    sourceKind: HTTP
+    adapterId: http-health
+  - <<: *conditional_source
+    componentId: source:sample-file-config
+    endpoint: observability-source://sample/file-config
+    sourceId: sample-file-config
+    sourceKind: FILE
+    adapterId: controlled-file-config
+catalogDigest: 4fe3c3000dc60b37001ca38086ec81c324211c470a4bd2060a698ed64a66a164

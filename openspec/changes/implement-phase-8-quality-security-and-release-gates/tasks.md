@@ -36,14 +36,14 @@
 
 ## 4. 08-WP04：执行技术失败与关键性矩阵
 
-- [ ] 4.1 `08-WP04.T1` 定义并严格校验版本化 failure catalog，字段包含 caseId、组件/endpoint、`sourceId/sourceKind/adapterId`、故障类型、injector、恢复器、criticality、期望终态和断言。
-- [ ] 4.2 `08-WP04.T1` 从冻结 Model Provider、五个专业 Agent Card/A2A endpoint、Tool Registry、Source Registry 生成覆盖快照，对每项展开 unavailable/timeout/auth/schema case，并用 registry diff 阻断遗漏或未登记新增项。
-- [ ] 4.3 `08-WP04.T1` 为 LLM、Embedding、Rerank 和 KnowledgeAgent 实现受控真实故障 injector/fixture 与恢复检查，覆盖有限重试、deadline、usage、上游状态和模型身份。
-- [ ] 4.4 `08-WP04.T1` 为五个专业 A2A endpoint 实现断连、超时、鉴权、Schema/required extension 故障 case，断言先 Get/Subscribe 原 Task、不盲重发且 messageId 幂等。
-- [ ] 4.5 `08-WP04.T1` 为每个 Tool/Source 实现四类故障 case，并核对错误含 `sourceId/sourceKind/adapterId`、attempt、checkpoint、关联 ID 与 `logArtifactId`。
-- [ ] 4.6 `08-WP04.T2` 实现 criticality assertion engine，分别验证 `MANDATORY`、有候选时 `MANDATORY_WHEN_CANDIDATES_EXIST`、允许/不允许继续的 `CONDITIONAL` 和未批准/已批准的 `OPTIONAL_APPROVED`。
-- [ ] 4.7 `08-WP04.T2` 增加关键能力有限重试后 `FAILED`、允许缺失时 `ChainFailure + missingEvidence + limitations`、空结果不得误判故障以及父子 deadline/重试次数边界测试。
-- [ ] 4.8 `08-WP04.T3` 实现调用路由审计，检测自动 Provider/Source failover、vector-only、关键词、固定排序/结果、跳过 Rerank 或未记录跳步，并证明 failure Run 的 `runPurpose` 不能进入质量分母。
+- [x] 4.1 `08-WP04.T1` 定义并严格校验版本化 failure catalog，字段包含 caseId、组件/endpoint、`sourceId/sourceKind/adapterId`、故障类型、injector、恢复器、criticality、期望终态和断言。
+- [x] 4.2 `08-WP04.T1` 从冻结 Model Provider、五个专业 Agent Card/A2A endpoint、Tool Registry、Source Registry 生成覆盖快照，对每项展开 unavailable/timeout/auth/schema case，并用 registry diff 阻断遗漏或未登记新增项。
+- [x] 4.3 `08-WP04.T1` 为 LLM、Embedding、Rerank 和 KnowledgeAgent 实现受控真实故障 injector/fixture 与恢复检查，覆盖有限重试、deadline、usage、上游状态和模型身份。
+- [x] 4.4 `08-WP04.T1` 为五个专业 A2A endpoint 实现断连、超时、鉴权、Schema/required extension 故障 case，断言先 Get/Subscribe 原 Task、不盲重发且 messageId 幂等。
+- [x] 4.5 `08-WP04.T1` 为每个 Tool/Source 实现四类故障 case，并核对错误含 `sourceId/sourceKind/adapterId`、attempt、checkpoint、关联 ID 与 `logArtifactId`。
+- [x] 4.6 `08-WP04.T2` 实现 criticality assertion engine，分别验证 `MANDATORY`、有候选时 `MANDATORY_WHEN_CANDIDATES_EXIST`、允许/不允许继续的 `CONDITIONAL` 和未批准/已批准的 `OPTIONAL_APPROVED`。
+- [x] 4.7 `08-WP04.T2` 增加关键能力有限重试后 `FAILED`、允许缺失时 `ChainFailure + missingEvidence + limitations`、空结果不得误判故障以及父子 deadline/重试次数边界测试。
+- [x] 4.8 `08-WP04.T3` 实现调用路由审计，检测自动 Provider/Source failover、vector-only、关键词、固定排序/结果、跳过 Rerank 或未记录跳步，并证明 failure Run 的 `runPurpose` 不能进入质量分母。
 - [ ] 4.9 `08-WP04.T1-T3` 在真实 Compose 逐 case 运行组件×故障×关键性矩阵，case 之间执行恢复/健康校验，输出 `outputs/phase8/08-WP04/cases/` 与 `criticality-matrix.json`。
 
 ## 5. 08-WP05：完成状态、并发与恢复矩阵
