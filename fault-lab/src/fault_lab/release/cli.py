@@ -14,6 +14,18 @@ from ..product import ProductInvestigationClient
 from .baseline import BaselineRunner, PostgresBaselineUsageReader
 from .empty_outcome import EmptyOutcomeManifest
 from .empty_outcome_run import EmptyOutcomeRunner, KnowledgeControlPlaneClient
+from .failure_catalog import FailureCatalog
+from .failure_matrix import (
+    FailureControlPlane,
+    FailureMatrixRunner,
+    SubprocessFailureDriver,
+    UnavailableFailureRouteDataPlane,
+)
+from .failure_plan import FailurePlan, FailureRouteTopology, FailureTriggerCatalog
+from .failure_invocation import (
+    SubprocessFailurePreconditioner,
+    UnavailableFailurePreconditioner,
+)
 from .ledger import RunLedger
 from .model import ReleaseErrorCode, ReleaseStatus, RunPurpose
 from .quality import QualityBatchPlanner
@@ -91,7 +103,6 @@ def add_release_parser(subcommands: Any) -> None:
             workflow.add_argument(
                 "--output-root",
                 type=Path,
-                default=Path("outputs/phase8/08-WP02"),
             )
             workflow.add_argument("--product-api", default=os.environ.get("OPSPILOT_PRODUCT_API_URL"))
             workflow.add_argument("--jdbc-url", default=os.environ.get("JDBC_URL"))
@@ -109,6 +120,40 @@ def add_release_parser(subcommands: Any) -> None:
             workflow.add_argument("--deadline-seconds", type=int, default=600)
             workflow.add_argument("--empty-outcome-manifest", type=Path)
             workflow.add_argument("--quality-run-report", type=Path)
+            workflow.add_argument(
+                "--failure-catalog",
+                type=Path,
+                default=Path(__file__).resolve().parents[3]
+                / "fixtures"
+                / "phase8"
+                / "failure-catalog-v1.yaml",
+            )
+            workflow.add_argument(
+                "--failure-driver-command",
+                nargs="+",
+                help="版本化 Compose 故障驱动 argv；不通过 shell 执行",
+            )
+            workflow.add_argument(
+                "--failure-route-topology",
+                type=Path,
+                default=Path(__file__).resolve().parents[3]
+                / "fixtures"
+                / "phase8"
+                / "failure-route-topology-v1.yaml",
+            )
+            workflow.add_argument(
+                "--failure-trigger-catalog",
+                type=Path,
+                default=Path(__file__).resolve().parents[3]
+                / "fixtures"
+                / "phase8"
+                / "failure-trigger-catalog-v1.yaml",
+            )
+            workflow.add_argument(
+                "--failure-precondition-command",
+                nargs="+",
+                help="故障激活前置条件探针 argv；不通过 shell 执行",
+            )
             workflow.add_argument(
                 "--knowledge-control-url",
                 default=os.environ.get("KNOWLEDGE_CONTROL_URL"),
@@ -128,6 +173,8 @@ def run_release_command(args: argparse.Namespace) -> int:
         return _run_quality(args)
     if args.release_command == "run" and args.run_purpose == RunPurpose.EMPTY_OUTCOME.value:
         return _run_empty_outcome(args)
+    if args.release_command == "run" and args.run_purpose == RunPurpose.FAILURE_INJECTION.value:
+        return _run_failure_matrix(args)
     payload = {
         "releaseBatchId": args.release_batch_id,
         "runPurpose": (
@@ -146,6 +193,7 @@ def run_release_command(args: argparse.Namespace) -> int:
 
 
 def _run_quality(args: argparse.Namespace) -> int:
+    output_root = args.output_root or Path("outputs/phase8/08-WP02")
     required = (
         ("snapshot", args.snapshot),
         ("wp01-gate", args.wp01_gate),
@@ -188,7 +236,7 @@ def _run_quality(args: argparse.Namespace) -> int:
             probe,
             agent_input_root=args.agent_input_export,
         )
-        ledger = RunLedger(args.output_root / "run-ledger")
+        ledger = RunLedger(output_root / "run-ledger")
         executor = QualityRunExecutor(
             ProductInvestigationClient(args.product_api, principal="fault-lab:phase8"),
             PostgresRunIdentityReader(
@@ -199,7 +247,7 @@ def _run_quality(args: argparse.Namespace) -> int:
             ledger,
             datasets,
         )
-        sealed_root = args.output_root / "runs"
+        sealed_root = output_root / "runs"
         evidence = QualityEvidenceCollector(
             PostgresRunEvidenceReader(
                 args.jdbc_url,
@@ -207,7 +255,7 @@ def _run_quality(args: argparse.Namespace) -> int:
                 args.db_password_file,
             ),
             QualityRunEvidenceSealer(sealed_root),
-            args.output_root / "raw",
+            output_root / "raw",
             sealed_root,
             evaluation_profile_id=profile["profile_id"],
             evaluation_profile_digest=snapshot["evaluationProfile"]["digest"],
@@ -216,7 +264,7 @@ def _run_quality(args: argparse.Namespace) -> int:
         report = QualityBatchRunner(
             executor,
             evidence,
-            args.output_root / "batches",
+            output_root / "batches",
         ).execute(
             plan,
             snapshot,
@@ -270,7 +318,7 @@ def _run_empty_outcome(args: argparse.Namespace) -> int:
                 args.db_username,
                 args.db_password_file,
             ),
-            args.output_root,
+            args.output_root or Path("outputs/phase8/08-WP03"),
         ).execute(
             args.release_batch_id,
             EmptyOutcomeManifest.load(args.empty_outcome_manifest),
@@ -292,6 +340,71 @@ def _run_empty_outcome(args: argparse.Namespace) -> int:
         return 1
     print(json.dumps(report, ensure_ascii=False))
     return 0
+
+
+def _run_failure_matrix(args: argparse.Namespace) -> int:
+    try:
+        catalog = FailureCatalog.load(args.failure_catalog)
+        plan = FailurePlan(
+            catalog,
+            FailureRouteTopology.load(args.failure_route_topology),
+            FailureTriggerCatalog.load(args.failure_trigger_catalog),
+        )
+        if args.failure_driver_command:
+            drivers = {
+                route_kind: SubprocessFailureDriver(
+                    tuple(args.failure_driver_command), route_kind
+                )
+                for route_kind in (
+                    "NETWORK_PROXY",
+                    "FILE_FIXTURE",
+                    "PROCESS_FIXTURE",
+                )
+            }
+            executor = lambda case, run, activation: drivers[
+                case["routeKind"]
+            ].execute_case(case, run, activation)
+        else:
+            drivers = {
+                route_kind: UnavailableFailureRouteDataPlane(
+                    "real Compose failure driver is not configured"
+                )
+                for route_kind in (
+                    "NETWORK_PROXY",
+                    "FILE_FIXTURE",
+                    "PROCESS_FIXTURE",
+                )
+            }
+            executor = lambda case, run, activation: {}
+        report = FailureMatrixRunner(
+            FailureControlPlane(drivers),
+            executor,
+            args.output_root or Path("outputs/phase8/08-WP04"),
+            preconditioner=(
+                SubprocessFailurePreconditioner(
+                    tuple(args.failure_precondition_command)
+                )
+                if args.failure_precondition_command
+                else UnavailableFailurePreconditioner(
+                    "real failure precondition probe is not configured"
+                )
+            ),
+        ).execute(args.release_batch_id, plan)
+    except ContractError as exc:
+        payload = {
+            "releaseBatchId": args.release_batch_id,
+            "runPurpose": RunPurpose.FAILURE_INJECTION.value,
+            "status": ReleaseStatus.BLOCKED.value,
+            "errorCode": exc.code,
+            "detail": exc.detail,
+            "workflow": "run",
+        }
+        print(json.dumps(payload, ensure_ascii=False))
+        return 2
+    print(json.dumps(report, ensure_ascii=False))
+    if report["status"] == ReleaseStatus.PASSED.value:
+        return 0
+    return 2 if report["status"] == ReleaseStatus.BLOCKED.value else 1
 
 
 def _run_baseline(args: argparse.Namespace) -> int:

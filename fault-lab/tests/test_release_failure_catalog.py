@@ -37,6 +37,11 @@ def test_loads_versioned_catalog_and_expands_complete_failure_matrix() -> None:
     assert len(cases) == 100
     assert len({case["caseId"] for case in cases}) == 100
     assert {case["faultType"] for case in cases} == FAULT_TYPES
+    assert {case["routeKind"] for case in cases} == {
+        "NETWORK_PROXY",
+        "FILE_FIXTURE",
+        "PROCESS_FIXTURE",
+    }
     assert {
         (case["componentId"], case["faultType"]) for case in cases
     } == {
@@ -57,6 +62,8 @@ def test_loads_versioned_catalog_and_expands_complete_failure_matrix() -> None:
                 "sourceId",
                 "sourceKind",
                 "adapterId",
+                "routeKind",
+                "routeRef",
                 "faultType",
                 "injector",
                 "restorer",
@@ -113,8 +120,18 @@ def test_registry_diff_rejects_unregistered_new_tool() -> None:
         lambda value: value["targets"][0].update(criticality="UNKNOWN"),
         lambda value: value["faultProfiles"].pop("AUTH"),
         lambda value: value["targets"][0].update(componentId=value["targets"][1]["componentId"]),
+        lambda value: value["targets"][0].update(routeKind="FILE_FIXTURE"),
+        lambda value: value["targets"][8].update(routeRef=value["targets"][8]["endpoint"]),
     ],
-    ids=("missing-target", "missing-restorer", "criticality", "missing-fault", "duplicate-target"),
+    ids=(
+        "missing-target",
+        "missing-restorer",
+        "criticality",
+        "missing-fault",
+        "duplicate-target",
+        "route-kind-mismatch",
+        "tool-without-downstream-route",
+    ),
 )
 def test_rejects_incomplete_or_invalid_catalog(change) -> None:
     document = FailureCatalog.load(CATALOG).document

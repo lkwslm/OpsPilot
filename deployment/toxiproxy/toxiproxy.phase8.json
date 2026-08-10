@@ -1,0 +1,16 @@
+[
+  {"name":"phase8-deepseek-chat","listen":"0.0.0.0:8701","upstream":"phase8-response-proxy:18001","enabled":true},
+  {"name":"phase8-infinity-embedding","listen":"0.0.0.0:8702","upstream":"phase8-response-proxy:18002","enabled":true},
+  {"name":"phase8-infinity-rerank","listen":"0.0.0.0:8703","upstream":"phase8-response-proxy:18003","enabled":true},
+  {"name":"phase8-evidence-agent-a2a","listen":"0.0.0.0:8704","upstream":"phase8-response-proxy:18004","enabled":true},
+  {"name":"phase8-code-agent-a2a","listen":"0.0.0.0:8705","upstream":"phase8-response-proxy:18005","enabled":true},
+  {"name":"phase8-knowledge-agent-a2a","listen":"0.0.0.0:8706","upstream":"phase8-response-proxy:18006","enabled":true},
+  {"name":"phase8-diagnosis-agent-a2a","listen":"0.0.0.0:8707","upstream":"phase8-response-proxy:18007","enabled":true},
+  {"name":"phase8-remediation-agent-a2a","listen":"0.0.0.0:8708","upstream":"phase8-response-proxy:18008","enabled":true},
+  {"name":"phase8-prometheus-http","listen":"0.0.0.0:8709","upstream":"phase8-response-proxy:18009","enabled":true},
+  {"name":"phase8-jaeger-v1-http","listen":"0.0.0.0:8710","upstream":"phase8-response-proxy:18010","enabled":true},
+  {"name":"phase8-sample-gateway-health","listen":"0.0.0.0:8711","upstream":"phase8-response-proxy:18011","enabled":true},
+  {"name":"phase8-knowledge-retrieval","listen":"0.0.0.0:8712","upstream":"postgres:5432","enabled":true},
+  {"name":"phase8-jaeger-v2-http","listen":"0.0.0.0:8713","upstream":"phase8-response-proxy:18012","enabled":true},
+  {"name":"phase8-inventory-actuator-health","listen":"0.0.0.0:8714","upstream":"phase8-response-proxy:18013","enabled":true}
+]

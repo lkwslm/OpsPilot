@@ -21,6 +21,8 @@ _TARGET_FIELDS = {
     "sourceId",
     "sourceKind",
     "adapterId",
+    "routeKind",
+    "routeRef",
     "criticality",
     "expectedTerminalState",
     "restorer",
@@ -35,6 +37,11 @@ _IDENTITY_FIELDS = (
     "adapterId",
 )
 _COMPONENT_KINDS = {"MODEL_PROVIDER", "A2A_ENDPOINT", "TOOL", "SOURCE"}
+_ROUTE_SCHEMES = {
+    "NETWORK_PROXY": "network://",
+    "FILE_FIXTURE": "file://",
+    "PROCESS_FIXTURE": "process://",
+}
 _CRITICALITIES = {
     "MANDATORY",
     "MANDATORY_WHEN_CANDIDATES_EXIST",
@@ -171,6 +178,8 @@ class FailureCatalog:
             self._validate_target(target, seen)
         if {target["componentKind"] for target in targets} != _COMPONENT_KINDS:
             _invalid("component kind coverage")
+        if {target["routeKind"] for target in targets} != set(_ROUTE_SCHEMES):
+            _invalid("route kind coverage")
 
     @staticmethod
     def _validate_target(target: Any, seen: set[str]) -> None:
@@ -182,12 +191,17 @@ class FailureCatalog:
             or not _ID.fullmatch(component_id)
             or component_id in seen
             or target["componentKind"] not in _COMPONENT_KINDS
+            or target["routeKind"] not in _ROUTE_SCHEMES
             or target["criticality"] not in _CRITICALITIES
             or target["expectedTerminalState"] not in _TERMINAL_STATES
-            or not all(_text(target[field]) for field in ("endpoint", "sourceId", "sourceKind", "adapterId", "restorer"))
+            or not all(_text(target[field]) for field in ("endpoint", "sourceId", "sourceKind", "adapterId", "routeRef", "restorer"))
             or not _unique_non_empty_strings(target["assertions"])
         ):
             _invalid(f"target values: {component_id}")
+        if not target["routeRef"].startswith(_ROUTE_SCHEMES[target["routeKind"]]):
+            _invalid(f"target route: {component_id}")
+        if target["componentKind"] == "TOOL" and target["routeRef"] == target["endpoint"]:
+            _invalid(f"tool route is not a downstream boundary: {component_id}")
         if target["componentKind"] == "SOURCE" and target["sourceId"] == "not-applicable":
             _invalid(f"source identity: {component_id}")
         if target["criticality"] in {"MANDATORY", "MANDATORY_WHEN_CANDIDATES_EXIST", "OPTIONAL_APPROVED"} and target["expectedTerminalState"] != "FAILED":

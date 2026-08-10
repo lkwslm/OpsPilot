@@ -44,7 +44,11 @@
 - [x] 4.6 `08-WP04.T2` 实现 criticality assertion engine，分别验证 `MANDATORY`、有候选时 `MANDATORY_WHEN_CANDIDATES_EXIST`、允许/不允许继续的 `CONDITIONAL` 和未批准/已批准的 `OPTIONAL_APPROVED`。
 - [x] 4.7 `08-WP04.T2` 增加关键能力有限重试后 `FAILED`、允许缺失时 `ChainFailure + missingEvidence + limitations`、空结果不得误判故障以及父子 deadline/重试次数边界测试。
 - [x] 4.8 `08-WP04.T3` 实现调用路由审计，检测自动 Provider/Source failover、vector-only、关键词、固定排序/结果、跳过 Rerank 或未记录跳步，并证明 failure Run 的 `runPurpose` 不能进入质量分母。
-- [ ] 4.9 `08-WP04.T1-T3` 在真实 Compose 逐 case 运行组件×故障×关键性矩阵，case 之间执行恢复/健康校验，输出 `outputs/phase8/08-WP04/cases/` 与 `criticality-matrix.json`。
+- [x] 4.9 `08-WP04.T1` 冻结并严格校验 `failure-route-topology-v1.yaml` 与 `failure-trigger-catalog-v1.yaml`，为当前 failure catalog 的每个唯一 `routeRef` 和每个 case 分别登记 Compose 消费配置、真实上游、注入/健康/残留/恢复动作、scenario/ticket/input、关键性前置条件及预期调用证据；执行 catalog、拓扑和触发目录的双向差异测试。
+- [x] 4.10 `08-WP04.T1` 建立完整 Compose 故障数据面，使全部唯一网络路由实际经过 Toxiproxy 或受控响应代理，并为文件和进程路由实现 `UNAVAILABLE/TIMEOUT/AUTH/SCHEMA` 的真实边界 fixture 与幂等恢复；通过 `docker compose config`、逐路由健康探针和消费服务配置核对证明产品流量使用冻结路由。
+- [x] 4.11 `08-WP04.T1-T3` 实现版本化 JSON 故障驱动协议 `health/activate/execute/recover`，使用单一活动租约、恢复凭据、激活前后路由快照及稳定错误码；增加缺失路由、非目标变更、重复恢复、执行失败后恢复和残留故障的负向测试。
+- [ ] 4.12 `08-WP04.T2-T3` 按 `triggerRef` 为每个 case 建立前置条件并启动独立 `FAILURE_INJECTION` Run，从调用账本、Trace、A2A Task 事件或 Adapter Artifact 证明预期 `componentId/routeRef` 在激活窗口内真实调用；前置缺失标记 `BLOCKED`，未调用、错误路由或隐藏降级标记 `FAILED`。
+- [ ] 4.13 `08-WP04.T1-T3` 逐 case 运行当前 100 项组件×故障×关键性 Compose 矩阵，case 之间执行目标隔离、幂等恢复、健康与残留校验；输出 `outputs/phase8/08-WP04/cases/` 与 `criticality-matrix.json`，并验证每项故障、调用、产品结果和恢复证据的 URI、大小、实际 SHA-256 及质量分母隔离。
 
 ## 5. 08-WP05：完成状态、并发与恢复矩阵
 

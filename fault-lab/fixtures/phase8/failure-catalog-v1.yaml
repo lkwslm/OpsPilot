@@ -23,6 +23,8 @@ targets:
     sourceId: deepseek
     sourceKind: MODEL_PROVIDER
     adapterId: openai-chat-completions
+    routeKind: NETWORK_PROXY
+    routeRef: network://deepseek-chat
     criticality: MANDATORY
     expectedTerminalState: FAILED
     restorer: restore-model-route-v1
@@ -34,6 +36,8 @@ targets:
     sourceId: infinity-local
     sourceKind: MODEL_PROVIDER
     adapterId: infinity-embedding
+    routeKind: NETWORK_PROXY
+    routeRef: network://infinity-embedding
     criticality: MANDATORY_WHEN_CANDIDATES_EXIST
     expectedTerminalState: FAILED
     restorer: restore-model-route-v1
@@ -42,6 +46,7 @@ targets:
     componentId: model:rerank
     endpoint: model://BAAI/bge-reranker-v2-m3
     adapterId: infinity-rerank
+    routeRef: network://infinity-rerank
 
   - &mandatory_a2a
     componentId: a2a:evidence-collector
@@ -50,6 +55,8 @@ targets:
     sourceId: not-applicable
     sourceKind: NOT_APPLICABLE
     adapterId: a2a-http-json
+    routeKind: NETWORK_PROXY
+    routeRef: network://evidence-agent-a2a
     criticality: MANDATORY
     expectedTerminalState: FAILED
     restorer: restore-a2a-endpoint-v1
@@ -57,15 +64,19 @@ targets:
   - <<: *mandatory_a2a
     componentId: a2a:code-analysis
     endpoint: http://code-agent:8082/.well-known/agent-card.json
+    routeRef: network://code-agent-a2a
   - <<: *mandatory_a2a
     componentId: a2a:knowledge
     endpoint: http://knowledge-agent:8083/.well-known/agent-card.json
+    routeRef: network://knowledge-agent-a2a
   - <<: *mandatory_a2a
     componentId: a2a:diagnosis
     endpoint: http://diagnosis-agent:8084/.well-known/agent-card.json
+    routeRef: network://diagnosis-agent-a2a
   - <<: *mandatory_a2a
     componentId: a2a:remediation
     endpoint: http://remediation-agent:8085/.well-known/agent-card.json
+    routeRef: network://remediation-agent-a2a
 
   - &mandatory_tool
     componentId: tool:LogQueryTool
@@ -74,6 +85,8 @@ targets:
     sourceId: not-applicable
     sourceKind: NOT_APPLICABLE
     adapterId: tool-runtime
+    routeKind: FILE_FIXTURE
+    routeRef: file://agent-input/current/observability.jsonl
     criticality: MANDATORY
     expectedTerminalState: FAILED
     restorer: restore-tool-fixture-v1
@@ -85,6 +98,8 @@ targets:
     sourceId: not-applicable
     sourceKind: NOT_APPLICABLE
     adapterId: tool-runtime
+    routeKind: NETWORK_PROXY
+    routeRef: network://prometheus-http
     criticality: CONDITIONAL
     expectedTerminalState: COMPLETED_LIMITED
     restorer: restore-tool-fixture-v1
@@ -92,18 +107,27 @@ targets:
   - <<: *conditional_tool
     componentId: tool:TraceQueryTool
     endpoint: tool://TraceQueryTool
+    routeRef: network://jaeger-v1-http
   - <<: *mandatory_tool
     componentId: tool:HealthQueryTool
     endpoint: tool://HealthQueryTool
+    routeKind: NETWORK_PROXY
+    routeRef: network://sample-gateway-health
   - <<: *conditional_tool
     componentId: tool:TopologyQueryTool
     endpoint: tool://TopologyQueryTool
+    routeKind: FILE_FIXTURE
+    routeRef: file://topology/sample-compose-topology.json
   - <<: *conditional_tool
     componentId: tool:ConfigReadTool
     endpoint: tool://ConfigReadTool
+    routeKind: FILE_FIXTURE
+    routeRef: file://source-fixtures/application.properties
   - <<: *conditional_tool
     componentId: tool:CodeSearchTool
     endpoint: tool://CodeSearchTool
+    routeKind: FILE_FIXTURE
+    routeRef: file://code-snapshot/sample-system
     expectedTerminalState: FAILED
     assertions: [invocation-started, bounded-attempts, chain-failure, incident-failed, correlated-error, excluded-quality-denominator]
   - <<: *candidate_model
@@ -113,6 +137,7 @@ targets:
     sourceId: not-applicable
     sourceKind: NOT_APPLICABLE
     adapterId: tool-runtime
+    routeRef: network://knowledge-retrieval
     restorer: restore-tool-fixture-v1
   - &approved_tool
     componentId: tool:SandboxTestTool
@@ -121,6 +146,8 @@ targets:
     sourceId: not-applicable
     sourceKind: NOT_APPLICABLE
     adapterId: tool-runtime
+    routeKind: PROCESS_FIXTURE
+    routeRef: process://maven-sandbox
     criticality: OPTIONAL_APPROVED
     expectedTerminalState: FAILED
     restorer: restore-tool-fixture-v1
@@ -133,6 +160,8 @@ targets:
     sourceId: phase0-prometheus
     sourceKind: PROMETHEUS
     adapterId: prometheus-metric
+    routeKind: NETWORK_PROXY
+    routeRef: network://prometheus-http
     criticality: CONDITIONAL
     expectedTerminalState: COMPLETED_LIMITED
     restorer: restore-source-route-v1
@@ -143,40 +172,50 @@ targets:
     sourceId: phase0-jaeger-v1
     sourceKind: JAEGER
     adapterId: jaeger-trace-v1
+    routeRef: network://jaeger-v1-http
   - <<: *conditional_source
     componentId: source:phase0-jaeger-v2
     endpoint: observability-source://phase0/jaeger-v2
     sourceId: phase0-jaeger-v2
     sourceKind: JAEGER
     adapterId: jaeger-trace-v2
+    routeRef: network://jaeger-v2-http
   - <<: *conditional_source
     componentId: source:phase0-jsonl
     endpoint: observability-source://phase0/jsonl
     sourceId: phase0-jsonl
     sourceKind: FILE
     adapterId: jsonl-log
+    routeKind: FILE_FIXTURE
+    routeRef: file://agent-input/current/observability.jsonl
   - <<: *conditional_source
     componentId: source:sample-actuator
     endpoint: observability-source://sample/actuator
     sourceId: sample-actuator
     sourceKind: HTTP
     adapterId: spring-actuator-health
+    routeRef: network://inventory-actuator-health
   - <<: *conditional_source
     componentId: source:phase0-compose
     endpoint: observability-source://phase0/compose
     sourceId: phase0-compose
     sourceKind: FILE
     adapterId: static-compose-topology
+    routeKind: FILE_FIXTURE
+    routeRef: file://topology/sample-compose-topology.json
   - <<: *conditional_source
     componentId: source:sample-http-health
     endpoint: observability-source://sample/http-health
     sourceId: sample-http-health
     sourceKind: HTTP
     adapterId: http-health
+    routeRef: network://sample-gateway-health
   - <<: *conditional_source
     componentId: source:sample-file-config
     endpoint: observability-source://sample/file-config
     sourceId: sample-file-config
     sourceKind: FILE
     adapterId: controlled-file-config
-catalogDigest: 4fe3c3000dc60b37001ca38086ec81c324211c470a4bd2060a698ed64a66a164
+    routeKind: FILE_FIXTURE
+    routeRef: file://source-fixtures/application.properties
+catalogDigest: b47a5a1621d04c306568bb2f6e0230d5ff6b929d81a719eccc2522edb8f5e382
