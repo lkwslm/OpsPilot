@@ -59,11 +59,29 @@ Knowledge 的核心循环是通用产品能力，不因单 collection、多 coll
 
 ### 4. 08-WP04：由冻结 Registry 展开能力关键性矩阵
 
-新增版本化 failure catalog，输入来自 Model Provider、五个专业 Agent Card/A2A endpoint、Tool Registry、Source Registry 和场景 criticality contract。生成器对每项能力展开 unavailable/timeout/auth/schema 四类 case，并要求每个 case 指向确定性 injector、恢复器和断言。对外部 HTTP 依赖优先使用 Toxiproxy/受控响应代理；对鉴权与 Schema 使用隔离凭证和恶意 fixture；不得通过直接改生产代码返回值模拟。
+新增版本化 failure catalog，输入来自 Model Provider、五个专业 Agent Card/A2A endpoint、Tool Registry、Source Registry 和场景 criticality contract。生成器对每项能力展开 unavailable/timeout/auth/schema 四类 case，并要求每个 case 指向确定性 injector、恢复器、断言、`topologyRef` 和 `triggerRef`。不得通过直接改生产代码返回值模拟。
 
-runner 在每个 case 前创建独立 `FAILURE_INJECTION` Run，之后执行恢复与健康校验。assertion engine 从 attempt/ChainFailure/missingEvidence/状态/调用路由读取事实，按 `MANDATORY`、`MANDATORY_WHEN_CANDIDATES_EXIST`、`CONDITIONAL`、`OPTIONAL_APPROVED` 判定。调用账本额外执行 provider/source/modelId/algorithm allowlist diff，检测隐藏 failover、vector-only、关键词、固定排序和跳过 Rerank。
+catalog 为每个目标冻结 `routeKind/routeRef`，另由版本化 `failure-route-topology-v1.yaml` 将每个唯一 `routeRef` 解析到一个实际 Compose 数据面。拓扑项至少包含 `routeRef/routeKind/consumerService/consumerConfig/upstream/injectorEndpoint/healthProbe/residualProbe/restoreAction`；多个 Tool/Source 可以共享同一真实路由，但每个目录路由必须且只能解析到一个拓扑项。Compose 中的消费服务必须通过 `consumerConfig` 指向代理、挂载或进程边界，不能只启动一个未被产品流量使用的 injector。
 
-选择“Registry 快照 + 明确例外”而非静态手写二维表，可以让新增 Tool/Source 自动使覆盖门禁失败；但 catalog 仍须提交版本控制，避免运行时动态发现改变已冻结测试范围。所有 case 原始报告位于 `outputs/phase8/08-WP04/cases/`，汇总矩阵不替代逐 case Artifact。
+三类数据面保留各自的真实故障语义，并按下表冻结四类故障的注入方式：
+
+| `routeKind` | `UNAVAILABLE` | `TIMEOUT` | `AUTH` | `SCHEMA` |
+| --- | --- | --- | --- | --- |
+| `NETWORK_PROXY` | Toxiproxy 断连或连接拒绝 | Toxiproxy 延迟/超时 toxic | 受控响应代理返回冻结的 401/403 | 受控响应代理返回 2xx 畸形或缺少必需字段的合同 |
+| `FILE_FIXTURE` | 在保留恢复快照后原子移除目标文件 | 以受控 FIFO/阻塞 reader 触发真实读取等待并由父级 deadline 终止 | 通过测试卷 ownership/mode 触发权限拒绝 | 原子切换到版本化畸形文件并由原 Adapter 解析 |
+| `PROCESS_FIXTURE` | 停止目标进程或使冻结执行入口不可用 | 启动受控挂起进程并由父级 deadline 终止 | 通过测试身份或执行位触发 OS 权限拒绝 | 让受控子进程输出畸形协议并由原 Adapter 解析 |
+
+网络模型、A2A 与 HTTP Source 使用 `NETWORK_PROXY`；文件 Source、代码快照和配置使用 `FILE_FIXTURE`；本地沙箱等进程边界使用 `PROCESS_FIXTURE`。Tool case 必须绑定并调用其真实下游 `routeRef`，不得新增替代 Tool、返回值开关或绕过原 Adapter。网络断连/超时只由 Toxiproxy 注入，HTTP 鉴权/Schema 只由受控响应代理注入；代理配置必须覆盖 catalog 中全部唯一网络路由。
+
+版本化 `failure-trigger-catalog-v1.yaml` 为每个 case 冻结 `triggerRef/scenarioVersion/ticketRef/inputFixture/preconditions/expectedInvocation/evidenceSelectors`。`preconditions` 显式准备候选存在、独立 Source 成功或 Sandbox 已批准等关键性条件；`expectedInvocation` 至少包含 `componentId/routeRef`，并由调用账本、Trace、A2A Task 事件或 Adapter 证据选择器证明产品在故障激活窗口内确实调用目标。通用调查未命中目标不能作为该 case 的执行结果。
+
+故障驱动采用版本化 JSON stdin/stdout 协议，固定 `health/activate/execute/recover` 四个操作。请求携带 `protocolVersion/caseId/routeRef/faultType/runIdentity/triggerRef/leaseToken`，响应携带稳定状态码、目标健康、激活前后路由快照、实际改变路由、恢复凭据和证据 Artifact；驱动以 argv 启动且不得通过 shell 拼接命令。`activate` 只能在前置条件和初始健康通过后取得单一活动租约，`recover` 必须幂等并在 `execute` 失败时仍可独立运行。
+
+统一控制面维护单一活动 case、路由租约和恢复凭据。激活前验证目标当前健康，激活后证明只有指定 route 被改变；恢复时先清除 toxic、受控响应、文件/FIFO、权限或进程故障，再验证目标健康与无残留。任何 route 不可寻址、与 catalog/拓扑不一致或前置环境缺失时，case 在改变环境前标记 `BLOCKED`；恢复失败使当前 case `FAILED`，并将后续可变 case 标记 `BLOCKED`。
+
+runner 在每个 case 前创建独立 `FAILURE_INJECTION` Run。只有故障生效证据、目标真实调用证据、产品终态/错误链、恢复健康和无残留证据同时存在，case 才可进入关键性断言；控制面仅返回“已注入”不足以证明通过。目标未被调用、通过错误路由调用或改变了非目标路由均为 `FAILED`。assertion engine 从 attempt/ChainFailure/missingEvidence/状态/调用路由读取事实，按 `MANDATORY`、`MANDATORY_WHEN_CANDIDATES_EXIST`、`CONDITIONAL`、`OPTIONAL_APPROVED` 判定。调用账本额外执行 provider/source/modelId/algorithm allowlist diff，检测隐藏 failover、vector-only、关键词、固定排序和跳过 Rerank。
+
+选择“Registry 快照 + 明确例外”而非静态手写二维表，可以让新增 Tool/Source 自动使覆盖门禁失败；但 failure catalog、路由拓扑和触发目录都须提交版本控制，避免运行时动态发现改变已冻结测试范围。三者执行严格双向差异校验：catalog 不得引用缺失的拓扑或触发项，拓扑和触发目录也不得保留未被 catalog 使用的活动项。所有 case 原始报告位于 `outputs/phase8/08-WP04/cases/`，汇总矩阵不替代逐 case Artifact；每项引用保存 URI、大小和实际文件 SHA-256。
 
 ### 5. 08-WP05：恢复测试复用现有 checkpoint，以状态不变量检查器统一断言
 
@@ -138,6 +156,7 @@ outputs/phase8/
 - [基线 Token 样本可能偏低而导致后续合理 Run 超限] → 基线报告完整保留分布和场景维度，由受审查的新 Profile version 固化预算；发布运行后不自动调整。
 - [复用同一 datasetRunId 可能让运行不独立] → 只允许复用不可变 input，A2A/Task/session/模型上下文必须全新；ledger 同时证明复用范围与隔离身份。
 - [故障/安全 case 可能破坏共享 Compose 环境] → 每 case 前后执行健康与残留校验，使用受限 injector 和独立身份；恢复失败终止后续可变 case 并保留 `BLOCKED/FAILED`。
+- [代理或 fixture 已启动但产品流量未经过冻结路由] → 对 catalog、拓扑、消费服务配置和实际调用证据执行双向差异；缺少任一层证明时 case 不得通过。
 - [遥测最终一致性造成扫描或关联假阴性] → 使用冻结的最大采集等待窗口并记录 event time/ingest time；窗口耗尽仍缺失即失败，不无限等待。
 - [自制负载生成器产生 coordinated omission] → 以固定到达率记录 planned/actual start 和排队延迟，报告 offered/achieved QPS；达不到目标时结果无效。
 - [ANN 对照改变数据库写放大或留下索引] → 使用同 revision 的测试 collection/受控 migration，生命周期必须包含回滚与删除，WAL/写吞吐作为选择条件而非事后备注。
@@ -148,7 +167,7 @@ outputs/phase8/
 
 1. 合入 Profile v2、发布快照/ledger 与 evidence envelope，不启动正式质量 Run；用 fixture 验证漂移、覆盖差异和状态折叠。
 2. 接入单 Run 产品/Evaluation 编排与 15 Run 聚合，先用历史/合成 Evaluation fixture 验证公式，再完成真实基线并冻结 Token budget。
-3. 依次启用空结果、技术失败、恢复并发和安全目录；每个 suite 通过恢复与泄密扫描后才允许进入下一个破坏性矩阵。
+3. 依次启用空结果、技术失败、恢复并发和安全目录；技术失败矩阵先校验 catalog、路由拓扑、触发目录和故障驱动协议，再执行 Compose 逐 case 运行；每个 suite 通过恢复与泄密扫描后才允许进入下一个破坏性矩阵。
 4. 接入遥测/账本复算与逐维效率，在一轮非正式真实 Run 上验证关联和容差后启动不可变 15 Run 正式 batch。
 5. 完成固定数据装载、负载/资源 harness 和性能报告；根据有效精确检索结果进入 ANN 的“不适用”或对照分支。
 6. 运行禁用代码能力和 Loki/Tempo 测试 Adapter 的可移植性 suite，汇总 evidence index，并生成/校验 Release Manifest。

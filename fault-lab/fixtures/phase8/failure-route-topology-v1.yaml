@@ -1,0 +1,195 @@
+schemaVersion: 1.0.0
+suiteId: phase8-failure-route-topology
+suiteVersion: 1.0.0
+routes:
+  - routeRef: network://deepseek-chat
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/deepseek-chat
+    consumerService: opspilot-server
+    consumerConfig: env:CHAT_MODEL_BASE_URL
+    upstream: https://api.deepseek.com
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/deepseek-chat
+    healthProbe: probe://http/deepseek-chat/models
+    residualProbe: probe://phase8/network/deepseek-chat/residuals
+    restoreAction: restore://phase8/network/deepseek-chat
+  - routeRef: network://infinity-embedding
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/infinity-embedding
+    consumerService: knowledge-agent
+    consumerConfig: env:EMBEDDING_BASE_URL
+    upstream: http://retrieval-inference:7997
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/infinity-embedding
+    healthProbe: probe://http/infinity-embedding/models
+    residualProbe: probe://phase8/network/infinity-embedding/residuals
+    restoreAction: restore://phase8/network/infinity-embedding
+  - routeRef: network://infinity-rerank
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/infinity-rerank
+    consumerService: knowledge-agent
+    consumerConfig: env:RERANK_BASE_URL
+    upstream: http://retrieval-inference:7997
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/infinity-rerank
+    healthProbe: probe://http/infinity-rerank/models
+    residualProbe: probe://phase8/network/infinity-rerank/residuals
+    restoreAction: restore://phase8/network/infinity-rerank
+  - routeRef: network://evidence-agent-a2a
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/evidence-agent-a2a
+    consumerService: opspilot-server
+    consumerConfig: file:/app/config/agent-directory.yaml#evidence-collector.card_url
+    upstream: http://evidence-agent:8081
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/evidence-agent-a2a
+    healthProbe: probe://a2a/evidence-collector/agent-card
+    residualProbe: probe://phase8/network/evidence-agent-a2a/residuals
+    restoreAction: restore://phase8/network/evidence-agent-a2a
+  - routeRef: network://code-agent-a2a
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/code-agent-a2a
+    consumerService: opspilot-server
+    consumerConfig: file:/app/config/agent-directory.yaml#code-analysis.card_url
+    upstream: http://code-agent:8082
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/code-agent-a2a
+    healthProbe: probe://a2a/code-analysis/agent-card
+    residualProbe: probe://phase8/network/code-agent-a2a/residuals
+    restoreAction: restore://phase8/network/code-agent-a2a
+  - routeRef: network://knowledge-agent-a2a
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/knowledge-agent-a2a
+    consumerService: opspilot-server
+    consumerConfig: file:/app/config/agent-directory.yaml#knowledge.card_url
+    upstream: http://knowledge-agent:8083
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/knowledge-agent-a2a
+    healthProbe: probe://a2a/knowledge/agent-card
+    residualProbe: probe://phase8/network/knowledge-agent-a2a/residuals
+    restoreAction: restore://phase8/network/knowledge-agent-a2a
+  - routeRef: network://diagnosis-agent-a2a
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/diagnosis-agent-a2a
+    consumerService: opspilot-server
+    consumerConfig: file:/app/config/agent-directory.yaml#diagnosis.card_url
+    upstream: http://diagnosis-agent:8084
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/diagnosis-agent-a2a
+    healthProbe: probe://a2a/diagnosis/agent-card
+    residualProbe: probe://phase8/network/diagnosis-agent-a2a/residuals
+    restoreAction: restore://phase8/network/diagnosis-agent-a2a
+  - routeRef: network://remediation-agent-a2a
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/remediation-agent-a2a
+    consumerService: opspilot-server
+    consumerConfig: file:/app/config/agent-directory.yaml#remediation.card_url
+    upstream: http://remediation-agent:8085
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/remediation-agent-a2a
+    healthProbe: probe://a2a/remediation/agent-card
+    residualProbe: probe://phase8/network/remediation-agent-a2a/residuals
+    restoreAction: restore://phase8/network/remediation-agent-a2a
+  - routeRef: file://agent-input/current/observability.jsonl
+    routeKind: FILE_FIXTURE
+    topologyRef: topology://phase8/file/observability-jsonl
+    consumerService: evidence-agent
+    consumerConfig: env:SOURCE_PATH
+    upstream: /datasets/input/current/observability.jsonl
+    injectorEndpoint: file-driver://agent-input/current/observability.jsonl
+    healthProbe: probe://file/agent-input/current/observability.jsonl
+    residualProbe: probe://phase8/file/observability-jsonl/residuals
+    restoreAction: restore://phase8/file/observability-jsonl
+  - routeRef: network://prometheus-http
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/prometheus-http
+    consumerService: evidence-agent
+    consumerConfig: env:PROMETHEUS_URL
+    upstream: http://prometheus:9090
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/prometheus-http
+    healthProbe: probe://http/prometheus/-/ready
+    residualProbe: probe://phase8/network/prometheus-http/residuals
+    restoreAction: restore://phase8/network/prometheus-http
+  - routeRef: network://jaeger-v1-http
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/jaeger-v1-http
+    consumerService: evidence-agent
+    consumerConfig: env:JAEGER_V1_URL
+    upstream: http://jaeger-v1:16686
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/jaeger-v1-http
+    healthProbe: probe://http/jaeger-v1/api/services
+    residualProbe: probe://phase8/network/jaeger-v1-http/residuals
+    restoreAction: restore://phase8/network/jaeger-v1-http
+  - routeRef: network://sample-gateway-health
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/sample-gateway-health
+    consumerService: evidence-agent
+    consumerConfig: env:SAMPLE_GATEWAY_URL
+    upstream: http://sample-gateway:8080
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/sample-gateway-health
+    healthProbe: probe://http/sample-gateway/actuator/health/readiness
+    residualProbe: probe://phase8/network/sample-gateway-health/residuals
+    restoreAction: restore://phase8/network/sample-gateway-health
+  - routeRef: file://topology/sample-compose-topology.json
+    routeKind: FILE_FIXTURE
+    topologyRef: topology://phase8/file/sample-compose-topology
+    consumerService: evidence-agent
+    consumerConfig: env:TOPOLOGY_PATH
+    upstream: /config/topology/sample-compose-topology.json
+    injectorEndpoint: file-driver://topology/sample-compose-topology.json
+    healthProbe: probe://file/topology/sample-compose-topology.json
+    residualProbe: probe://phase8/file/sample-compose-topology/residuals
+    restoreAction: restore://phase8/file/sample-compose-topology
+  - routeRef: file://source-fixtures/application.properties
+    routeKind: FILE_FIXTURE
+    topologyRef: topology://phase8/file/application-properties
+    consumerService: evidence-agent
+    consumerConfig: env:CONFIG_PATH
+    upstream: /config/source-fixtures/application.properties
+    injectorEndpoint: file-driver://source-fixtures/application.properties
+    healthProbe: probe://file/source-fixtures/application.properties
+    residualProbe: probe://phase8/file/application-properties/residuals
+    restoreAction: restore://phase8/file/application-properties
+  - routeRef: file://code-snapshot/sample-system
+    routeKind: FILE_FIXTURE
+    topologyRef: topology://phase8/file/code-snapshot
+    consumerService: code-agent
+    consumerConfig: env:CODE_SOURCE_PATH
+    upstream: /app/code-snapshot/sample-system
+    injectorEndpoint: file-driver://code-snapshot/sample-system
+    healthProbe: probe://file/code-snapshot/sample-system
+    residualProbe: probe://phase8/file/code-snapshot/residuals
+    restoreAction: restore://phase8/file/code-snapshot
+  - routeRef: network://knowledge-retrieval
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/knowledge-retrieval
+    consumerService: knowledge-agent
+    consumerConfig: env:JDBC_URL
+    upstream: jdbc:postgresql://postgres:5432/opspilot
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/knowledge-retrieval
+    healthProbe: probe://knowledge/retrieval
+    residualProbe: probe://phase8/network/knowledge-retrieval/residuals
+    restoreAction: restore://phase8/network/knowledge-retrieval
+  - routeRef: process://maven-sandbox
+    routeKind: PROCESS_FIXTURE
+    topologyRef: topology://phase8/process/maven-sandbox
+    consumerService: remediation-agent
+    consumerConfig: env:MAVEN_SANDBOX_COMMAND
+    upstream: /opt/maven/bin/mvn
+    injectorEndpoint: process-driver://maven-sandbox
+    healthProbe: probe://process/maven-sandbox
+    residualProbe: probe://phase8/process/maven-sandbox/residuals
+    restoreAction: restore://phase8/process/maven-sandbox
+  - routeRef: network://jaeger-v2-http
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/jaeger-v2-http
+    consumerService: evidence-agent
+    consumerConfig: env:JAEGER_V2_URL
+    upstream: http://jaeger-v2:16686
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/jaeger-v2-http
+    healthProbe: probe://http/jaeger-v2/api/services
+    residualProbe: probe://phase8/network/jaeger-v2-http/residuals
+    restoreAction: restore://phase8/network/jaeger-v2-http
+  - routeRef: network://inventory-actuator-health
+    routeKind: NETWORK_PROXY
+    topologyRef: topology://phase8/network/inventory-actuator-health
+    consumerService: evidence-agent
+    consumerConfig: env:INVENTORY_ACTUATOR_URL
+    upstream: http://inventory-service:8080
+    injectorEndpoint: http://phase8-fault-driver:8099/routes/inventory-actuator-health
+    healthProbe: probe://http/inventory-service/actuator/health/readiness
+    residualProbe: probe://phase8/network/inventory-actuator-health/residuals
+    restoreAction: restore://phase8/network/inventory-actuator-health
+topologyDigest: 82d5ee4a0f319341fe9ec51cf0317e13d58f9b3acbdb8da9acd6f1b72f82812f

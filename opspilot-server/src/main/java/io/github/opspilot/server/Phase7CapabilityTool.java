@@ -129,8 +129,10 @@ final class Phase7CapabilityTool implements ToolPort {
             return value;
         }
 
-        synchronized String requireExecuted() {
-            if (!executed || value == null) throw new IllegalStateException("PHASE7_CAPABILITY_NOT_EXECUTED");
+        synchronized String requireExecuted() throws Exception {
+            if (!executed) throw new IllegalStateException("PHASE7_CAPABILITY_NOT_EXECUTED");
+            if (failure != null) throw failure;
+            if (value == null) throw new IllegalStateException("PHASE7_CAPABILITY_RESULT_EMPTY");
             return value;
         }
     }

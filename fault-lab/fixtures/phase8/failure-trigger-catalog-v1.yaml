@@ -1,0 +1,305 @@
+schemaVersion: 1.0.0
+suiteId: phase8-failure-trigger-catalog
+suiteVersion: 1.0.0
+triggerGroups:
+  - componentId: model:chat
+    scenarioVersion: &dependency-scenario dependency-latency-inventory/1.0.0
+    ticketRef: &dependency-ticket ticket://phase8/dependency-latency-inventory/failure-injection
+    inputFixture: &dependency-input fixture://phase8/dependency-latency-inventory/failure-injection
+    preconditions: &mandatory-preconditions [frozen-snapshot-matches, target-route-healthy, product-ready]
+    expectedInvocation: {componentId: 'model:chat', routeRef: 'network://deepseek-chat'}
+    evidenceSelectors: &provider-evidence [provider-usage-ledger, trace-span, failure-record]
+    cases:
+      - {caseId: p8-failure-model-chat-unavailable, triggerRef: 'trigger://model/chat/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-model-chat-timeout, triggerRef: 'trigger://model/chat/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-model-chat-auth, triggerRef: 'trigger://model/chat/auth', faultType: AUTH}
+      - {caseId: p8-failure-model-chat-schema, triggerRef: 'trigger://model/chat/schema', faultType: SCHEMA}
+  - componentId: model:embedding
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: &candidate-preconditions [frozen-snapshot-matches, target-route-healthy, product-ready, retrieval-candidates-exist]
+    expectedInvocation: {componentId: 'model:embedding', routeRef: 'network://infinity-embedding'}
+    evidenceSelectors: *provider-evidence
+    cases:
+      - {caseId: p8-failure-model-embedding-unavailable, triggerRef: 'trigger://model/embedding/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-model-embedding-timeout, triggerRef: 'trigger://model/embedding/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-model-embedding-auth, triggerRef: 'trigger://model/embedding/auth', faultType: AUTH}
+      - {caseId: p8-failure-model-embedding-schema, triggerRef: 'trigger://model/embedding/schema', faultType: SCHEMA}
+  - componentId: model:rerank
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *candidate-preconditions
+    expectedInvocation: {componentId: 'model:rerank', routeRef: 'network://infinity-rerank'}
+    evidenceSelectors: *provider-evidence
+    cases:
+      - {caseId: p8-failure-model-rerank-unavailable, triggerRef: 'trigger://model/rerank/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-model-rerank-timeout, triggerRef: 'trigger://model/rerank/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-model-rerank-auth, triggerRef: 'trigger://model/rerank/auth', faultType: AUTH}
+      - {caseId: p8-failure-model-rerank-schema, triggerRef: 'trigger://model/rerank/schema', faultType: SCHEMA}
+  - componentId: a2a:evidence-collector
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'a2a:evidence-collector', routeRef: 'network://evidence-agent-a2a'}
+    evidenceSelectors: &a2a-evidence [a2a-task-events, trace-span, failure-record]
+    cases:
+      - {caseId: p8-failure-a2a-evidence-collector-unavailable, triggerRef: 'trigger://a2a/evidence-collector/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-a2a-evidence-collector-timeout, triggerRef: 'trigger://a2a/evidence-collector/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-a2a-evidence-collector-auth, triggerRef: 'trigger://a2a/evidence-collector/auth', faultType: AUTH}
+      - {caseId: p8-failure-a2a-evidence-collector-schema, triggerRef: 'trigger://a2a/evidence-collector/schema', faultType: SCHEMA}
+  - componentId: a2a:code-analysis
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'a2a:code-analysis', routeRef: 'network://code-agent-a2a'}
+    evidenceSelectors: *a2a-evidence
+    cases:
+      - {caseId: p8-failure-a2a-code-analysis-unavailable, triggerRef: 'trigger://a2a/code-analysis/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-a2a-code-analysis-timeout, triggerRef: 'trigger://a2a/code-analysis/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-a2a-code-analysis-auth, triggerRef: 'trigger://a2a/code-analysis/auth', faultType: AUTH}
+      - {caseId: p8-failure-a2a-code-analysis-schema, triggerRef: 'trigger://a2a/code-analysis/schema', faultType: SCHEMA}
+  - componentId: a2a:knowledge
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'a2a:knowledge', routeRef: 'network://knowledge-agent-a2a'}
+    evidenceSelectors: *a2a-evidence
+    cases:
+      - {caseId: p8-failure-a2a-knowledge-unavailable, triggerRef: 'trigger://a2a/knowledge/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-a2a-knowledge-timeout, triggerRef: 'trigger://a2a/knowledge/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-a2a-knowledge-auth, triggerRef: 'trigger://a2a/knowledge/auth', faultType: AUTH}
+      - {caseId: p8-failure-a2a-knowledge-schema, triggerRef: 'trigger://a2a/knowledge/schema', faultType: SCHEMA}
+  - componentId: a2a:diagnosis
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'a2a:diagnosis', routeRef: 'network://diagnosis-agent-a2a'}
+    evidenceSelectors: *a2a-evidence
+    cases:
+      - {caseId: p8-failure-a2a-diagnosis-unavailable, triggerRef: 'trigger://a2a/diagnosis/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-a2a-diagnosis-timeout, triggerRef: 'trigger://a2a/diagnosis/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-a2a-diagnosis-auth, triggerRef: 'trigger://a2a/diagnosis/auth', faultType: AUTH}
+      - {caseId: p8-failure-a2a-diagnosis-schema, triggerRef: 'trigger://a2a/diagnosis/schema', faultType: SCHEMA}
+  - componentId: a2a:remediation
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'a2a:remediation', routeRef: 'network://remediation-agent-a2a'}
+    evidenceSelectors: *a2a-evidence
+    cases:
+      - {caseId: p8-failure-a2a-remediation-unavailable, triggerRef: 'trigger://a2a/remediation/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-a2a-remediation-timeout, triggerRef: 'trigger://a2a/remediation/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-a2a-remediation-auth, triggerRef: 'trigger://a2a/remediation/auth', faultType: AUTH}
+      - {caseId: p8-failure-a2a-remediation-schema, triggerRef: 'trigger://a2a/remediation/schema', faultType: SCHEMA}
+  - componentId: tool:LogQueryTool
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'tool:LogQueryTool', routeRef: 'file://agent-input/current/observability.jsonl'}
+    evidenceSelectors: &tool-evidence [tool-invocation-ledger, trace-span, adapter-artifact]
+    cases:
+      - {caseId: p8-failure-tool-logquerytool-unavailable, triggerRef: 'trigger://tool/log-query/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-logquerytool-timeout, triggerRef: 'trigger://tool/log-query/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-logquerytool-auth, triggerRef: 'trigger://tool/log-query/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-logquerytool-schema, triggerRef: 'trigger://tool/log-query/schema', faultType: SCHEMA}
+  - componentId: tool:MetricQueryTool
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: &conditional-preconditions [frozen-snapshot-matches, target-route-healthy, product-ready, independent-source-succeeded, scenario-allows-limited-continuation]
+    expectedInvocation: {componentId: 'tool:MetricQueryTool', routeRef: 'network://prometheus-http'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-metricquerytool-unavailable, triggerRef: 'trigger://tool/metric-query/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-metricquerytool-timeout, triggerRef: 'trigger://tool/metric-query/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-metricquerytool-auth, triggerRef: 'trigger://tool/metric-query/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-metricquerytool-schema, triggerRef: 'trigger://tool/metric-query/schema', faultType: SCHEMA}
+  - componentId: tool:TraceQueryTool
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'tool:TraceQueryTool', routeRef: 'network://jaeger-v1-http'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-tracequerytool-unavailable, triggerRef: 'trigger://tool/trace-query/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-tracequerytool-timeout, triggerRef: 'trigger://tool/trace-query/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-tracequerytool-auth, triggerRef: 'trigger://tool/trace-query/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-tracequerytool-schema, triggerRef: 'trigger://tool/trace-query/schema', faultType: SCHEMA}
+  - componentId: tool:HealthQueryTool
+    scenarioVersion: &stopped-scenario service-instance-stopped-inventory/1.0.0
+    ticketRef: &stopped-ticket ticket://phase8/service-instance-stopped-inventory/failure-injection
+    inputFixture: &stopped-input fixture://phase8/service-instance-stopped-inventory/failure-injection
+    preconditions: *mandatory-preconditions
+    expectedInvocation: {componentId: 'tool:HealthQueryTool', routeRef: 'network://sample-gateway-health'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-healthquerytool-unavailable, triggerRef: 'trigger://tool/health-query/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-healthquerytool-timeout, triggerRef: 'trigger://tool/health-query/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-healthquerytool-auth, triggerRef: 'trigger://tool/health-query/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-healthquerytool-schema, triggerRef: 'trigger://tool/health-query/schema', faultType: SCHEMA}
+  - componentId: tool:TopologyQueryTool
+    scenarioVersion: *stopped-scenario
+    ticketRef: *stopped-ticket
+    inputFixture: *stopped-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'tool:TopologyQueryTool', routeRef: 'file://topology/sample-compose-topology.json'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-topologyquerytool-unavailable, triggerRef: 'trigger://tool/topology-query/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-topologyquerytool-timeout, triggerRef: 'trigger://tool/topology-query/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-topologyquerytool-auth, triggerRef: 'trigger://tool/topology-query/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-topologyquerytool-schema, triggerRef: 'trigger://tool/topology-query/schema', faultType: SCHEMA}
+  - componentId: tool:ConfigReadTool
+    scenarioVersion: &pool-scenario database-pool-exhausted-order/1.0.0
+    ticketRef: &pool-ticket ticket://phase8/database-pool-exhausted-order/failure-injection
+    inputFixture: &pool-input fixture://phase8/database-pool-exhausted-order/failure-injection
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'tool:ConfigReadTool', routeRef: 'file://source-fixtures/application.properties'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-configreadtool-unavailable, triggerRef: 'trigger://tool/config-read/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-configreadtool-timeout, triggerRef: 'trigger://tool/config-read/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-configreadtool-auth, triggerRef: 'trigger://tool/config-read/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-configreadtool-schema, triggerRef: 'trigger://tool/config-read/schema', faultType: SCHEMA}
+  - componentId: tool:CodeSearchTool
+    scenarioVersion: *pool-scenario
+    ticketRef: *pool-ticket
+    inputFixture: *pool-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'tool:CodeSearchTool', routeRef: 'file://code-snapshot/sample-system'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-codesearchtool-unavailable, triggerRef: 'trigger://tool/code-search/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-codesearchtool-timeout, triggerRef: 'trigger://tool/code-search/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-codesearchtool-auth, triggerRef: 'trigger://tool/code-search/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-codesearchtool-schema, triggerRef: 'trigger://tool/code-search/schema', faultType: SCHEMA}
+  - componentId: tool:KnowledgeSearchTool
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *candidate-preconditions
+    expectedInvocation: {componentId: 'tool:KnowledgeSearchTool', routeRef: 'network://knowledge-retrieval'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-knowledgesearchtool-unavailable, triggerRef: 'trigger://tool/knowledge-search/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-knowledgesearchtool-timeout, triggerRef: 'trigger://tool/knowledge-search/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-knowledgesearchtool-auth, triggerRef: 'trigger://tool/knowledge-search/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-knowledgesearchtool-schema, triggerRef: 'trigger://tool/knowledge-search/schema', faultType: SCHEMA}
+  - componentId: tool:SandboxTestTool
+    scenarioVersion: *pool-scenario
+    ticketRef: *pool-ticket
+    inputFixture: *pool-input
+    preconditions: [frozen-snapshot-matches, target-route-healthy, product-ready, sandbox-approval-approved]
+    expectedInvocation: {componentId: 'tool:SandboxTestTool', routeRef: 'process://maven-sandbox'}
+    evidenceSelectors: *tool-evidence
+    cases:
+      - {caseId: p8-failure-tool-sandboxtesttool-unavailable, triggerRef: 'trigger://tool/sandbox-test/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-tool-sandboxtesttool-timeout, triggerRef: 'trigger://tool/sandbox-test/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-tool-sandboxtesttool-auth, triggerRef: 'trigger://tool/sandbox-test/auth', faultType: AUTH}
+      - {caseId: p8-failure-tool-sandboxtesttool-schema, triggerRef: 'trigger://tool/sandbox-test/schema', faultType: SCHEMA}
+  - componentId: source:phase0-prometheus
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:phase0-prometheus', routeRef: 'network://prometheus-http'}
+    evidenceSelectors: &source-evidence [source-invocation-ledger, trace-span, adapter-artifact]
+    cases:
+      - {caseId: p8-failure-source-phase0-prometheus-unavailable, triggerRef: 'trigger://source/phase0-prometheus/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-phase0-prometheus-timeout, triggerRef: 'trigger://source/phase0-prometheus/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-phase0-prometheus-auth, triggerRef: 'trigger://source/phase0-prometheus/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-phase0-prometheus-schema, triggerRef: 'trigger://source/phase0-prometheus/schema', faultType: SCHEMA}
+  - componentId: source:phase0-jaeger-v1
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:phase0-jaeger-v1', routeRef: 'network://jaeger-v1-http'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-phase0-jaeger-v1-unavailable, triggerRef: 'trigger://source/phase0-jaeger-v1/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-phase0-jaeger-v1-timeout, triggerRef: 'trigger://source/phase0-jaeger-v1/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-phase0-jaeger-v1-auth, triggerRef: 'trigger://source/phase0-jaeger-v1/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-phase0-jaeger-v1-schema, triggerRef: 'trigger://source/phase0-jaeger-v1/schema', faultType: SCHEMA}
+  - componentId: source:phase0-jaeger-v2
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:phase0-jaeger-v2', routeRef: 'network://jaeger-v2-http'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-phase0-jaeger-v2-unavailable, triggerRef: 'trigger://source/phase0-jaeger-v2/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-phase0-jaeger-v2-timeout, triggerRef: 'trigger://source/phase0-jaeger-v2/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-phase0-jaeger-v2-auth, triggerRef: 'trigger://source/phase0-jaeger-v2/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-phase0-jaeger-v2-schema, triggerRef: 'trigger://source/phase0-jaeger-v2/schema', faultType: SCHEMA}
+  - componentId: source:phase0-jsonl
+    scenarioVersion: *dependency-scenario
+    ticketRef: *dependency-ticket
+    inputFixture: *dependency-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:phase0-jsonl', routeRef: 'file://agent-input/current/observability.jsonl'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-phase0-jsonl-unavailable, triggerRef: 'trigger://source/phase0-jsonl/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-phase0-jsonl-timeout, triggerRef: 'trigger://source/phase0-jsonl/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-phase0-jsonl-auth, triggerRef: 'trigger://source/phase0-jsonl/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-phase0-jsonl-schema, triggerRef: 'trigger://source/phase0-jsonl/schema', faultType: SCHEMA}
+  - componentId: source:sample-actuator
+    scenarioVersion: *stopped-scenario
+    ticketRef: *stopped-ticket
+    inputFixture: *stopped-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:sample-actuator', routeRef: 'network://inventory-actuator-health'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-sample-actuator-unavailable, triggerRef: 'trigger://source/sample-actuator/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-sample-actuator-timeout, triggerRef: 'trigger://source/sample-actuator/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-sample-actuator-auth, triggerRef: 'trigger://source/sample-actuator/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-sample-actuator-schema, triggerRef: 'trigger://source/sample-actuator/schema', faultType: SCHEMA}
+  - componentId: source:phase0-compose
+    scenarioVersion: *stopped-scenario
+    ticketRef: *stopped-ticket
+    inputFixture: *stopped-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:phase0-compose', routeRef: 'file://topology/sample-compose-topology.json'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-phase0-compose-unavailable, triggerRef: 'trigger://source/phase0-compose/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-phase0-compose-timeout, triggerRef: 'trigger://source/phase0-compose/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-phase0-compose-auth, triggerRef: 'trigger://source/phase0-compose/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-phase0-compose-schema, triggerRef: 'trigger://source/phase0-compose/schema', faultType: SCHEMA}
+  - componentId: source:sample-http-health
+    scenarioVersion: *stopped-scenario
+    ticketRef: *stopped-ticket
+    inputFixture: *stopped-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:sample-http-health', routeRef: 'network://sample-gateway-health'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-sample-http-health-unavailable, triggerRef: 'trigger://source/sample-http-health/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-sample-http-health-timeout, triggerRef: 'trigger://source/sample-http-health/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-sample-http-health-auth, triggerRef: 'trigger://source/sample-http-health/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-sample-http-health-schema, triggerRef: 'trigger://source/sample-http-health/schema', faultType: SCHEMA}
+  - componentId: source:sample-file-config
+    scenarioVersion: *pool-scenario
+    ticketRef: *pool-ticket
+    inputFixture: *pool-input
+    preconditions: *conditional-preconditions
+    expectedInvocation: {componentId: 'source:sample-file-config', routeRef: 'file://source-fixtures/application.properties'}
+    evidenceSelectors: *source-evidence
+    cases:
+      - {caseId: p8-failure-source-sample-file-config-unavailable, triggerRef: 'trigger://source/sample-file-config/unavailable', faultType: UNAVAILABLE}
+      - {caseId: p8-failure-source-sample-file-config-timeout, triggerRef: 'trigger://source/sample-file-config/timeout', faultType: TIMEOUT}
+      - {caseId: p8-failure-source-sample-file-config-auth, triggerRef: 'trigger://source/sample-file-config/auth', faultType: AUTH}
+      - {caseId: p8-failure-source-sample-file-config-schema, triggerRef: 'trigger://source/sample-file-config/schema', faultType: SCHEMA}
+triggerCatalogDigest: e243d16c3ccd468c7432c0ca32e7572afbbc678bb28f10c248629e841a79da09

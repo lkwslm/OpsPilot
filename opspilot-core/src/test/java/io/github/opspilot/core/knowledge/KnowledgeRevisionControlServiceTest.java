@@ -73,6 +73,28 @@ class KnowledgeRevisionControlServiceTest {
     }
 
     @Test
+    void prepareRenewsAnUnchangedRevisionWithoutEmbeddingItsChunksAgain() {
+        FakePort port = new FakePort();
+        port.existing = new RevisionStatus(
+                COLLECTION, REVISION, "phase8-empty-outcome/1.0.0/kb-empty", DIGEST,
+                "RETAINED", 0, MODEL_REVISION, "7999e1d", NOW.plusSeconds(10));
+        var service = new KnowledgeRevisionControlService(
+                port,
+                request -> { throw new AssertionError("renewal must not call embedding provider"); },
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                new KnowledgeRevisionControlService.Policy(Set.of(COLLECTION), 900));
+
+        RevisionStatus renewed = service.prepare(new PrepareRevision(
+                "fixture-prepare-renew-0001", "fault-lab:phase8", COLLECTION, REVISION,
+                "phase8-empty-outcome/1.0.0/kb-empty", DIGEST, MODEL_REVISION,
+                new ProviderIdentity("infinity", "BAAI/bge-small-zh-v1.5", "7999e1d"),
+                3, "COSINE", NOW.plusSeconds(600), List.of()));
+
+        assertEquals(NOW.plusSeconds(600), renewed.expiresAt());
+        assertEquals(List.of(), port.prepared.chunks());
+    }
+
+    @Test
     void activationCarriesExpectedActiveCasAndRestoreRejectsExpiredReceipt() {
         FakePort port = new FakePort();
         var service = service(port);
@@ -115,12 +137,13 @@ class KnowledgeRevisionControlServiceTest {
 
     private static final class FakePort implements KnowledgeRevisionControlPort {
         private PreparedRevision prepared;
+        private RevisionStatus existing;
         private UUID expectedActive;
         private int restoreCalls;
 
         @Override
         public Optional<RevisionStatus> findPrepared(UUID collectionId, UUID revisionId, String manifestSha256) {
-            return Optional.empty();
+            return Optional.ofNullable(existing);
         }
 
         @Override

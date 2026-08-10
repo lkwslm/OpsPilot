@@ -1,0 +1,42 @@
+schema_version: "1.0"
+agents:
+  - id: evidence-collector
+    card_url: http://toxiproxy:8704/.well-known/agent-card.json
+    expected_skill: collect-observability-evidence
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    service_identity: svc:evidence-agent
+    token_ref: file:/run/secrets/evidence-agent-token
+    expected_card_sha256: 15d9af26921e06ae3b1a5c632523dad7cd478e9e8986aced22c3e2505626b2a3
+  - id: code-analysis
+    card_url: http://toxiproxy:8705/.well-known/agent-card.json
+    expected_skill: analyze-code-location
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    service_identity: svc:code-agent
+    token_ref: file:/run/secrets/code-agent-token
+    expected_card_sha256: be069ac25582f333abf2e1eebe1dd2cd1a4b77f9ed74890a2586195fdbb6a45d
+  - id: knowledge
+    card_url: http://toxiproxy:8706/.well-known/agent-card.json
+    expected_skill: retrieve-incident-knowledge
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    service_identity: svc:knowledge-agent
+    token_ref: file:/run/secrets/knowledge-agent-token
+    expected_card_sha256: 9ef5c244fcf85575c5ca95e36418123d8a6bcb201586a2bd7d9e446f0da34f21
+  - id: diagnosis
+    card_url: http://toxiproxy:8707/.well-known/agent-card.json
+    expected_skill: generate-and-verify-hypotheses
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    service_identity: svc:diagnosis-agent
+    token_ref: file:/run/secrets/diagnosis-agent-token
+    expected_card_sha256: 6a0e5e2880de8bbf264a6da09c72e69d07a15c12bea0202c12600d6d71a66f2b
+  - id: remediation
+    card_url: http://toxiproxy:8708/.well-known/agent-card.json
+    expected_skill: propose-remediation
+    expected_protocol: "1.0"
+    expected_binding: HTTP+JSON
+    service_identity: svc:remediation-agent
+    token_ref: file:/run/secrets/remediation-agent-token
+    expected_card_sha256: 428671c47103c90d4f18bd86da4e9aba04a04e6b910d6e0794c97645934e027a

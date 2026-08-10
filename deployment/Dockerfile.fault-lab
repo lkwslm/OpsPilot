@@ -8,6 +8,7 @@ RUN apt-get update \
 
 COPY fault-lab/pyproject.toml fault-lab/uv.lock /workspace/fault-lab/
 COPY fault-lab/src /workspace/fault-lab/src
+COPY fault-lab/fixtures /workspace/fault-lab/fixtures
 COPY docs/design/contracts /workspace/docs/design/contracts
 
 RUN python -m pip install --no-cache-dir /workspace/fault-lab

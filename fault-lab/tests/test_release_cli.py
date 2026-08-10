@@ -101,3 +101,36 @@ def test_release_baseline_without_real_prerequisites_is_blocked(
     assert payload["runPurpose"] == RunPurpose.BASELINE_ONLY.value
     assert payload["status"] == ReleaseStatus.BLOCKED.value
     assert payload["errorCode"] == ReleaseErrorCode.PREREQUISITE_UNAVAILABLE.value
+
+
+def test_release_empty_outcome_reports_missing_control_prerequisites(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    exit_code = main([
+        "release", "run", "--release-batch-id", "phase8-empty-01",
+        "--run-purpose", RunPurpose.EMPTY_OUTCOME.value,
+    ])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["runPurpose"] == RunPurpose.EMPTY_OUTCOME.value
+    assert payload["status"] == ReleaseStatus.BLOCKED.value
+    assert "knowledge-control-url" in payload["missing"]
+
+
+def test_release_failure_matrix_without_real_driver_seals_blocked_evidence(
+    tmp_path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    exit_code = main([
+        "release", "run", "--release-batch-id", "phase8-failure-01",
+        "--run-purpose", RunPurpose.FAILURE_INJECTION.value,
+        "--output-root", str(tmp_path),
+    ])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["runPurpose"] == RunPurpose.FAILURE_INJECTION.value
+    assert payload["status"] == ReleaseStatus.BLOCKED.value
+    assert payload["counts"] == {"PASSED": 0, "FAILED": 0, "BLOCKED": 100}
+    assert (tmp_path / "criticality-matrix.json").is_file()
+    assert len(list((tmp_path / "cases").glob("*/case-result.json"))) == 100

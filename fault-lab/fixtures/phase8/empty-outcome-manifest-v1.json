@@ -15,21 +15,22 @@
       "caseId": "empty-outcome-kb-empty-v1",
       "caseKind": "KB_EMPTY",
       "knowledge": {
-        "collectionId": "3eb2a9f3-6e9b-5439-a772-e2052d505fb5",
-        "revisionId": "01e066b2-ee42-57ea-8311-0efa2395537e",
-        "revisionKey": "phase8-empty-outcome/1.0.0/kb-empty",
-        "searchableChunkCount": 0
+        "collectionId": "6d23b3aa-853f-3521-b7e2-4880938c946c",
+        "revisionId": "145aa90d-1750-5cba-ae3b-ab6061da75a9",
+        "revisionKey": "phase8-empty-outcome/1.0.2/kb-empty",
+        "searchableChunkCount": 0,
+        "chunks": []
       },
       "query": {
         "text": "库存服务在现场窗口出现健康检查失败和上游连接错误，请检索相关运维资料",
         "filters": {"language": "zh", "service": "inventory-service", "documentType": "playbook"},
-        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "aclPrincipals": ["svc:knowledge-agent"],
         "candidateK": 20,
         "topK": 5
       },
       "fieldEvidence": [
         {
-          "evidenceCode": "health.inventory.readiness_down",
+          "evidenceCode": "health.inventory.unreachable",
           "signalType": "HEALTH",
           "sourceId": "sample-gateway-health",
           "sourceKind": "HTTP",
@@ -38,13 +39,22 @@
           "claim": "inventory readiness was DOWN inside the incident window"
         },
         {
-          "evidenceCode": "log.order.inventory_connection_error",
+          "evidenceCode": "log.order.inventory_connection_failed",
           "signalType": "LOG",
           "sourceId": "phase0-jsonl",
           "sourceKind": "FILE",
           "adapterId": "jsonl-log",
           "toolName": "LogQueryTool",
-          "claim": "order recorded an inventory connection error inside the incident window"
+          "claim": "order recorded INVENTORY_CONNECTION_FAILED inside the incident window"
+        },
+        {
+          "evidenceCode": "metric.prometheus.inventory_target_down",
+          "signalType": "METRIC",
+          "sourceId": "prometheus-v1",
+          "sourceKind": "PROMETHEUS",
+          "adapterId": "prometheus-query-v1",
+          "toolName": "MetricQueryTool",
+          "claim": "Prometheus observed the inventory target DOWN inside the incident window"
         }
       ],
       "expectations": {
@@ -63,7 +73,7 @@
           "exactRecall": 0,
           "rerank": 0,
           "historyLookup": 0,
-          "fieldEvidenceTools": 2
+          "fieldEvidenceTools": 3
         }
       }
     },
@@ -71,36 +81,61 @@
       "caseId": "empty-outcome-no-match-v1",
       "caseKind": "NO_MATCH",
       "knowledge": {
-        "collectionId": "5fe401bf-25da-5799-8a1a-9f7f5b699f14",
-        "revisionId": "c05677a6-f0c9-55c6-b78f-747244e01cc1",
-        "revisionKey": "phase8-empty-outcome/1.0.0/no-match",
-        "searchableChunkCount": 2
+        "collectionId": "6d23b3aa-853f-3521-b7e2-4880938c946c",
+        "revisionId": "8e2d3e4a-ad41-516f-9b8a-4503666c9f48",
+        "revisionKey": "phase8-empty-outcome/1.0.2/no-match",
+        "searchableChunkCount": 2,
+        "chunks": [
+          {
+            "chunkId": "d048f85f-f2a2-5cd5-98cd-8befb92b4d9a",
+            "externalKey": "phase8-no-match-network-playbook",
+            "text": "网络边界故障资料：检查外部 DNS、出口网关和跨区域链路抖动，不适用于库存服务现场隔离查询。",
+            "metadata": {"language": "zh", "service": "network-edge", "documentType": "playbook", "tag": "phase8-control-doc"},
+            "aclPrincipals": ["svc:knowledge-agent"]
+          },
+          {
+            "chunkId": "6e2e7a60-410e-55d1-8db7-5a623ba98a06",
+            "externalKey": "phase8-no-match-billing-playbook",
+            "text": "计费批处理资料：检查账单队列积压和日终任务状态，不适用于库存依赖延迟现场信号。",
+            "metadata": {"language": "zh", "service": "billing-service", "documentType": "playbook", "tag": "phase8-control-doc"},
+            "aclPrincipals": ["svc:knowledge-agent"]
+          }
+        ]
       },
       "query": {
         "text": "检索当前库存调用延迟现场信号对应的隔离租户运维资料",
         "filters": {"language": "zh", "service": "inventory-service", "tag": "phase8-isolated-no-match"},
-        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "aclPrincipals": ["svc:knowledge-agent"],
         "candidateK": 20,
         "topK": 5
       },
       "fieldEvidence": [
         {
-          "evidenceCode": "trace.order.inventory_client_slow",
-          "signalType": "TRACE",
-          "sourceId": "jaeger-v1",
-          "sourceKind": "JAEGER",
-          "adapterId": "jaeger-trace-v1",
-          "toolName": "TraceQueryTool",
-          "claim": "order to inventory client spans were slow inside the incident window"
+          "evidenceCode": "health.inventory.unreachable",
+          "signalType": "HEALTH",
+          "sourceId": "sample-gateway-health",
+          "sourceKind": "HTTP",
+          "adapterId": "health-query-v1",
+          "toolName": "HealthQueryTool",
+          "claim": "inventory readiness was DOWN inside the incident window"
         },
         {
-          "evidenceCode": "metric.gateway.latency_high",
+          "evidenceCode": "log.order.inventory_connection_failed",
+          "signalType": "LOG",
+          "sourceId": "phase0-jsonl",
+          "sourceKind": "FILE",
+          "adapterId": "jsonl-log",
+          "toolName": "LogQueryTool",
+          "claim": "order recorded INVENTORY_CONNECTION_FAILED inside the incident window"
+        },
+        {
+          "evidenceCode": "metric.prometheus.inventory_target_down",
           "signalType": "METRIC",
           "sourceId": "prometheus-v1",
           "sourceKind": "PROMETHEUS",
           "adapterId": "prometheus-query-v1",
           "toolName": "MetricQueryTool",
-          "claim": "gateway request latency was elevated inside the incident window"
+          "claim": "Prometheus observed the inventory target DOWN inside the incident window"
         }
       ],
       "expectations": {
@@ -119,7 +154,7 @@
           "exactRecall": 1,
           "rerank": 0,
           "historyLookup": 0,
-          "fieldEvidenceTools": 2
+          "fieldEvidenceTools": 3
         }
       }
     },
@@ -127,36 +162,68 @@
       "caseId": "empty-outcome-insufficient-history-v1",
       "caseKind": "INSUFFICIENT_HISTORY",
       "knowledge": {
-        "collectionId": "6b0f41a0-7593-58e5-9280-ba2e58ee5e5e",
-        "revisionId": "c8daf3d4-8664-549e-b27d-52f593e0f784",
-        "revisionKey": "phase8-empty-outcome/1.0.0/insufficient-history",
-        "searchableChunkCount": 3
+        "collectionId": "6d23b3aa-853f-3521-b7e2-4880938c946c",
+        "revisionId": "b7de7126-d96b-5434-aee0-cec6698ca442",
+        "revisionKey": "phase8-empty-outcome/1.0.2/insufficient-history",
+        "searchableChunkCount": 3,
+        "chunks": [
+          {
+            "chunkId": "3d81c32d-cf1b-5fee-bb2a-986699d51426",
+            "externalKey": "phase8-insufficient-history-pool-signals",
+            "text": "订单服务连接池排障：核对 active、pending 与 maximumPoolSize，并确认连接获取超时发生在同一窗口。",
+            "metadata": {"language": "zh", "service": "order-service", "documentType": "playbook"},
+            "aclPrincipals": ["svc:knowledge-agent"]
+          },
+          {
+            "chunkId": "0bbc24a5-3a3d-5ed5-ace7-7bb85e4d6d65",
+            "externalKey": "phase8-insufficient-history-pool-recovery",
+            "text": "连接池恢复验证：释放受控长事务后观察 pending 归零，并验证新请求能够取得数据库连接。",
+            "metadata": {"language": "zh", "service": "order-service", "documentType": "playbook"},
+            "aclPrincipals": ["svc:knowledge-agent"]
+          },
+          {
+            "chunkId": "4762b2f3-9787-51f9-80dd-e85b837bb817",
+            "externalKey": "phase8-insufficient-history-pool-safety",
+            "text": "连接池处置安全边界：禁止停止共享 PostgreSQL；所有恢复动作应保留回滚路径并验证数据未改变。",
+            "metadata": {"language": "zh", "service": "order-service", "documentType": "playbook"},
+            "aclPrincipals": ["svc:knowledge-agent"]
+          }
+        ]
       },
       "query": {
         "text": "根据连接等待与超时现场信号检索排障资料，并核对历史相似案例",
         "filters": {"language": "zh", "service": "order-service", "documentType": "playbook"},
-        "aclPrincipals": ["phase8-empty-outcome-reader"],
+        "aclPrincipals": ["svc:knowledge-agent"],
         "candidateK": 20,
         "topK": 5
       },
       "fieldEvidence": [
         {
-          "evidenceCode": "metric.order.connection_pending",
-          "signalType": "METRIC",
-          "sourceId": "prometheus-v1",
-          "sourceKind": "PROMETHEUS",
-          "adapterId": "prometheus-query-v1",
-          "toolName": "MetricQueryTool",
-          "claim": "order database connection waiters were present inside the incident window"
+          "evidenceCode": "health.inventory.unreachable",
+          "signalType": "HEALTH",
+          "sourceId": "sample-gateway-health",
+          "sourceKind": "HTTP",
+          "adapterId": "health-query-v1",
+          "toolName": "HealthQueryTool",
+          "claim": "inventory readiness was DOWN inside the incident window"
         },
         {
-          "evidenceCode": "log.order.connection_timeout",
+          "evidenceCode": "log.order.inventory_connection_failed",
           "signalType": "LOG",
           "sourceId": "phase0-jsonl",
           "sourceKind": "FILE",
           "adapterId": "jsonl-log",
           "toolName": "LogQueryTool",
-          "claim": "order recorded database connection timeouts inside the incident window"
+          "claim": "order recorded INVENTORY_CONNECTION_FAILED inside the incident window"
+        },
+        {
+          "evidenceCode": "metric.prometheus.inventory_target_down",
+          "signalType": "METRIC",
+          "sourceId": "prometheus-v1",
+          "sourceKind": "PROMETHEUS",
+          "adapterId": "prometheus-query-v1",
+          "toolName": "MetricQueryTool",
+          "claim": "Prometheus observed the inventory target DOWN inside the incident window"
         }
       ],
       "expectations": {
@@ -175,10 +242,10 @@
           "exactRecall": 1,
           "rerank": 1,
           "historyLookup": 1,
-          "fieldEvidenceTools": 2
+          "fieldEvidenceTools": 3
         }
       }
     }
   ],
-  "manifestDigest": "73d4fab881763bd0da84e6132453e660c349dee455a7a456ec794700b85be235"
+  "manifestDigest": "8597e9854319d90dc97ee0fc2a3aee23f6bd741ceb91a7d74d69a0bf27b19031"
 }

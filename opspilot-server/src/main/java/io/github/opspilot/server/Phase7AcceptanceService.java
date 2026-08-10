@@ -51,7 +51,8 @@ final class Phase7AcceptanceService {
 
     RcaReportService.RenderedReport complete(
             UUID incidentId, UUID runUuid, Instant windowStart, Instant windowEnd,
-            String professionalResponse, String diagnosisResponse, String remediationResponse,
+            String professionalResponse, String knowledgeResponse,
+            String diagnosisResponse, String remediationResponse,
             Set<String> actualTools, ChatResponse providerResponse) throws Exception {
         JsonNode response = json.readTree(professionalResponse);
         JsonNode items = response.path("evidence");
@@ -90,7 +91,9 @@ final class Phase7AcceptanceService {
         if (actualTools.contains("SandboxTestTool")) {
             throw new IllegalStateException("PHASE7_FORBIDDEN_TOOL_EXECUTED");
         }
-        Diagnosis diagnosis = parseDiagnosis(diagnosisResponse, remediationResponse, evidenceCodes);
+        Diagnosis diagnosis = parseDiagnosis(
+                diagnosisResponse, remediationResponse, evidenceCodes,
+                emptyOutcomeMissingEvidence(json.readTree(knowledgeResponse)));
         Map<DiagnosisHypothesis, HypothesisId> hypothesisIds = new LinkedHashMap<>();
         List<HypothesisWrite> hypotheses = new ArrayList<>();
         List<RelationWrite> relations = new ArrayList<>();
@@ -319,7 +322,8 @@ final class Phase7AcceptanceService {
     }
 
     private Diagnosis parseDiagnosis(
-            String diagnosisResponse, String remediationResponse, Set<String> evidenceCodes)
+            String diagnosisResponse, String remediationResponse, Set<String> evidenceCodes,
+            String emptyOutcomeMissingEvidence)
             throws Exception {
         JsonNode diagnosisEnvelope = json.readTree(diagnosisResponse);
         JsonNode diagnosis = json.readTree(diagnosisEnvelope.path("content").asText());
@@ -376,11 +380,35 @@ final class Phase7AcceptanceService {
             throw new IllegalStateException("PHASE7_REMEDIATION_ARTIFACT_INVALID");
         }
         List<String> missing = strings(diagnosis.path("missingEvidenceCodes"));
-        List<String> limitations = strings(diagnosis.path("limitations"));
-        limitations.addAll(strings(remediation.path("limitations")));
-        if (limitations.isEmpty()) limitations.add("仅对当前数据集时间窗和已封账证据成立");
+        if (missing.isEmpty() && emptyOutcomeMissingEvidence != null) {
+            missing = List.of(emptyOutcomeMissingEvidence);
+        }
+        List<String> limitations = mergeDistinctStrings(
+                strings(diagnosis.path("limitations")),
+                strings(remediation.path("limitations")));
+        if (limitations.isEmpty()) limitations = List.of("仅对当前数据集时间窗和已封账证据成立");
         return new Diagnosis(outcome, code, title, component, confidence, supporting, conflicting,
-                hypotheses, missing, actions, List.copyOf(limitations));
+                hypotheses, missing, actions, limitations);
+    }
+
+    static List<String> mergeDistinctStrings(List<String> first, List<String> second) {
+        Set<String> merged = new LinkedHashSet<>(first);
+        merged.addAll(second);
+        return List.copyOf(merged);
+    }
+
+    static String emptyOutcomeMissingEvidence(JsonNode knowledge) {
+        if ("KB_EMPTY".equals(knowledge.path("outcome").asText())) {
+            return "knowledge.catalog.empty";
+        }
+        if ("NO_MATCH".equals(knowledge.path("outcome").asText())) {
+            return "knowledge.query.no_match";
+        }
+        if (knowledge.path("historyLookupApplied").asBoolean(false)
+                && knowledge.path("historyResultCount").asInt(-1) == 0) {
+            return "knowledge.history.insufficient";
+        }
+        return null;
     }
 
     private static List<String> strings(JsonNode values) {
